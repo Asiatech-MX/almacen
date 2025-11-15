@@ -1,0 +1,11 @@
+{
+  "name": "electron-main",
+  "private": true,
+  "main": "./out/main/index.js",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "electron-log": "^5.0.0"
+  }
+}

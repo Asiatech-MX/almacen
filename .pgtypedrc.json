@@ -1,0 +1,15 @@
+{
+  "transforms": [
+    {
+      "mode": "sql",
+      "include": "**/queries/**/*.sql",
+      "emitTemplate": "backend/types/generated/${name}.types.ts"
+    }
+  ],
+  "dbUrl": {
+    "env": "DATABASE_URL"
+  },
+  "srcDir": "./backend",
+  "searchPath": ["public"],
+  "camelCaseColumnNames": true
+}

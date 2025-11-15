@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: almacen_postgres
+    environment:
+      POSTGRES_DB: almacen_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schema_postgres.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./migracion_datos:/docker-entrypoint-initdb.d/migracion_datos
+    networks:
+      - almacen_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: almacen_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@almacen.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin_servers.json:/pgadmin4/servers.json
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - almacen_network
+    restart: unless-stopped
+
+  # Opcional: MySQL temporal para migración
+  mysql_temporal:
+    image: mysql:8.0
+    container_name: almacen_mysql_temporal
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: logistica_temporal
+      MYSQL_CHARACTER_SET_SERVER: utf8mb4
+      MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_temp_data:/var/lib/mysql
+      - ../dump-logistica_cargamentos_n-202511041620.sql:/docker-entrypoint-initdb.d/dump.sql
+    networks:
+      - almacen_network
+    restart: unless-stopped
+    profiles:
+      - migracion
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  mysql_temp_data:
+    driver: local
+
+networks:
+  almacen_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
