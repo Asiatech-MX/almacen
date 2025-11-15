@@ -100,7 +100,7 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
       // Verificar proveedor si se proporciona
       if (data.proveedor_id) {
         const proveedorExists = await trx
-          .selectFrom('proveedores')
+          .selectFrom('proveedor')
           .select('id')
           .where('id', '=', data.proveedor_id)
           .where('activo', '=', true)
@@ -178,7 +178,7 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
 
     let query = db
       .selectFrom(`${tableName} as mp`)
-      .leftJoin('proveedores as p', 'mp.proveedor_id', 'p.id')
+      .leftJoin('proveedor as p', 'mp.proveedor_id', 'p.id')
       .select([
         'mp.id',
         'mp.codigo_barras',
@@ -249,7 +249,7 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
 
     return await db
       .selectFrom(`${tableName} as mp`)
-      .leftJoin('proveedores as p', 'mp.proveedor_id', 'p.id')
+      .leftJoin('proveedor as p', 'mp.proveedor_id', 'p.id')
       .select([
         'mp.id',
         'mp.codigo_barras',
@@ -438,7 +438,7 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
   ): Promise<MateriaPrimaDetail | null> {
     return await db
       .selectFrom(`${tableName} as mp`)
-      .leftJoin('proveedores as p', 'mp.proveedor_id', 'p.id')
+      .leftJoin('proveedor as p', 'mp.proveedor_id', 'p.id')
       .select([
         'mp.id',
         'mp.codigo_barras',

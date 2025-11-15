@@ -22,8 +22,8 @@ export interface Database {
     eliminado_en: Date | null
   }
 
-  // Tabla proveedores
-  proveedores: {
+  // Tabla proveedor
+  proveedor: {
     id: string
     nombre: string
     rfc: string | null
@@ -39,6 +39,7 @@ export interface Database {
   materia_prima_auditoria: {
     id: string
     materia_prima_id: string
+    materia_prima_legacy_id: number
     accion: string
     datos_anteriores: any | null
     datos_nuevos: any | null

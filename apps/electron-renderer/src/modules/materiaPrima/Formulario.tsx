@@ -7,6 +7,10 @@ import type {
   NewMateriaPrima,
   MateriaPrimaUpdate
 } from '../../../../shared/types/materiaPrima'
+import {
+  prepareFormDataForSubmission,
+  extractValidationErrors
+} from '../../utils/formDataNormalizer'
 
 const Container = styled.div`
   max-width: 900px;
@@ -467,11 +471,30 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
   ) => {
     const value = e.target.value
 
+    // 🔥 MEJORADO: Manejo específico de tipos de campo
+    let processedValue: any = value
+
+    // Campos numéricos
+    if (field === 'stock_actual' || field === 'stock_minimo') {
+      // Para campos de stock, valor vacío es 0
+      processedValue = value === '' ? 0 : Number(value)
+      if (isNaN(processedValue)) processedValue = 0
+    } else if (field === 'costo_unitario') {
+      // Para costo unitario, valor vacío es null
+      processedValue = value === '' ? null : Number(value)
+      if (processedValue !== null && isNaN(processedValue)) processedValue = null
+    } else if (field === 'proveedor_id') {
+      // Para proveedor_id, valor vacío es null
+      processedValue = value.trim() === '' ? null : value.trim()
+    } else if (field === 'imagen_url' || field === 'marca' || field === 'modelo' ||
+               field === 'descripcion' || field === 'categoria') {
+      // Para campos opcionales de texto, valor vacío es null o string vacío según corresponda
+      processedValue = value.trim()
+    }
+
     setFormData(prev => ({
       ...prev,
-      [field]: field === 'stock_actual' || field === 'stock_minimo' || field === 'costo_unitario'
-        ? (value === '' ? (field === 'costo_unitario' ? null : 0) : Number(value))
-        : value
+      [field]: processedValue
     }))
 
     // Limpiar error del campo
@@ -488,17 +511,16 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     clearError()
     setSuccess(false)
 
-    if (!validateForm()) {
-      return
-    }
-
     try {
+      // 🔥 NUEVO: Preparar y normalizar datos antes de enviar
+      const normalizedData = prepareFormDataForSubmission(formData, esEdicion)
+
       let materialGuardado: MateriaPrimaDetail
 
       if (esEdicion && finalId) {
-        materialGuardado = await actualizarMaterial(finalId, formData as MateriaPrimaUpdate)
+        materialGuardado = await actualizarMaterial(finalId, normalizedData as MateriaPrimaUpdate)
       } else {
-        materialGuardado = await crearMaterial(formData as NewMateriaPrima)
+        materialGuardado = await crearMaterial(normalizedData as NewMateriaPrima)
       }
 
       setSuccess(true)
@@ -510,9 +532,22 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
         }
       }, 1500)
 
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error al guardar material:', err)
-      // El error ya se maneja en el hook
+
+      // 🔥 NUEVO: Enhanced error mapping
+      const { generalError, fieldErrors } = extractValidationErrors(err)
+
+      // Actualizar errores de campo específicos
+      if (Object.keys(fieldErrors).length > 0) {
+        setFieldErrors(fieldErrors)
+      }
+
+      // El error general se maneja a través del hook useMateriaPrima
+      // pero también lo mostramos directamente si no está disponible en el hook
+      if (!error) {
+        console.error('Backend error:', generalError)
+      }
     }
   }
 

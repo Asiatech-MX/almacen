@@ -317,11 +317,11 @@ export class MigrationRolloutService {
             // Query compleja para probar performance
             await db
                 .selectFrom('materia_prima')
-                .leftJoin('proveedores', 'materia_prima.proveedor_id', 'proveedores.id')
+                .leftJoin('proveedor', 'materia_prima.proveedor_id', 'proveedor.id')
                 .select([
                     'materia_prima.codigo_barras',
                     'materia_prima.nombre',
-                    'proveedores.nombre as proveedor_nombre'
+                    'proveedor.nombre as proveedor_nombre'
                 ])
                 .where('materia_prima.activo', '=', true)
                 .limit(100)

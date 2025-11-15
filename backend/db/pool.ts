@@ -53,7 +53,7 @@ export async function testConnection(): Promise<boolean> {
   try {
     const db = getDatabase()
     const result = await db
-      .selectFrom('proveedores')
+      .selectFrom('proveedor')
       .select('id')
       .limit(1)
       .executeTakeFirst()

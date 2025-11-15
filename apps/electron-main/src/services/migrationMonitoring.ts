@@ -252,7 +252,7 @@ export class MigrationMonitoringService extends EventEmitter {
             const db = await import('../../backend/db/pool').then(m => m.getDatabase())
             await db
                 .selectFrom('materia_prima')
-                .leftJoin('proveedores', 'materia_prima.proveedor_id', 'proveedores.id')
+                .leftJoin('proveedor', 'materia_prima.proveedor_id', 'proveedor.id')
                 .select(['materia_prima.codigo_barras', 'materia_prima.nombre'])
                 .limit(50)
                 .execute()

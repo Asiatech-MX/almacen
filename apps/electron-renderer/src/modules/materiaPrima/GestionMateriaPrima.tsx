@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
 import useMateriaPrima, { useStockMateriaPrima } from '../../hooks/useMateriaPrima'
 import useDebounce from '../../hooks/useDebounce'
+import { materiaPrimaService } from '../../services/materiaPrimaService'
 import type { MateriaPrima, MateriaPrimaDetail } from '../../../../shared/types/materiaPrima'
 
 const Container = styled.div`
@@ -385,8 +387,7 @@ const ModalFooter = styled.div`
 `
 
 interface GestionMateriaPrimaProps {
-  onEdit?: (material: MateriaPrima) => void
-  onView?: (material: MateriaPrima) => void
+  // La prop onEdit ya no es necesaria ya que usamos navegación programática
 }
 
 // Función utilitaria para validación segura de propiedades
@@ -401,10 +402,8 @@ const safeGet = <T, K extends keyof T>(obj: T | null | undefined, key: K, defaul
   return (value === undefined || value === null) ? defaultValue : value
 }
 
-export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = ({
-  onEdit,
-  onView
-}) => {
+export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = () => {
+  const navigate = useNavigate()
   const {
     materiales,
     loading,
@@ -418,6 +417,12 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = ({
   const { loading: stockLoading, actualizarStock } = useStockMateriaPrima()
 
   const [searchTerm, setSearchTerm] = useState('')
+
+  const handleEdit = (material: MateriaPrima) => {
+    if (material?.id) {
+      navigate(`/materia-prima/editar/${material.id}`)
+    }
+  }
   const [categoriaFilter, setCategoriaFilter] = useState('')
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all')
   const [selectedMaterial, setSelectedMaterial] = useState<MateriaPrima | null>(null)
@@ -425,6 +430,10 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = ({
   const [showStockModal, setShowStockModal] = useState(false)
   const [stockAmount, setStockAmount] = useState('')
   const [stockReason, setStockReason] = useState('')
+  const [showViewModal, setShowViewModal] = useState(false)
+  const [materialDetalle, setMaterialDetalle] = useState<MateriaPrimaDetail | null>(null)
+  const [loadingDetalle, setLoadingDetalle] = useState(false)
+  const [detalleError, setDetalleError] = useState<string | null>(null)
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
@@ -511,6 +520,31 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = ({
     setShowStockModal(true)
   }
 
+  const openViewModal = async (material: MateriaPrima) => {
+    setSelectedMaterial(material)
+    setShowViewModal(true)
+    setDetalleError(null)
+    setLoadingDetalle(true)
+
+    try {
+      const detalle = await materiaPrimaService.obtener(material.id)
+      setMaterialDetalle(detalle)
+    } catch (error) {
+      console.error('Error al cargar detalles:', error)
+      setDetalleError(error instanceof Error ? error.message : 'Error al cargar los detalles del material')
+    } finally {
+      setLoadingDetalle(false)
+    }
+  }
+
+  const closeViewModal = () => {
+    setShowViewModal(false)
+    setSelectedMaterial(null)
+    setMaterialDetalle(null)
+    setDetalleError(null)
+    setLoadingDetalle(false)
+  }
+
   if (loading && materiales.length === 0) {
     return <LoadingMessage>Cargando materiales...</LoadingMessage>
   }
@@ -543,7 +577,7 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = ({
             <option value="low">Stock bajo</option>
             <option value="out">Sin stock</option>
           </FilterSelect>
-          <Button variant="primary" onClick={() => onEdit?.({} as MateriaPrima)}>
+          <Button variant="primary" onClick={() => navigate('/materia-prima/nueva')}>
             ➕ Nuevo Material
           </Button>
         </SearchContainer>
@@ -618,14 +652,14 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = ({
                     <ActionButtons>
                       <IconButton
                         variant="view"
-                        onClick={() => onView?.(material)}
+                        onClick={() => openViewModal(material)}
                         title="Ver detalles"
                       >
                         👁️
                       </IconButton>
                       <IconButton
                         variant="edit"
-                        onClick={() => onEdit?.(material)}
+                        onClick={() => handleEdit(material)}
                         title="Editar"
                       >
                         ✏️
@@ -660,7 +694,7 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = ({
                 ? 'Intenta ajustar los filtros de búsqueda'
                 : 'No hay materiales registrados'}
             </p>
-            <Button variant="primary" onClick={() => onEdit?.({} as MateriaPrima)}>
+            <Button variant="primary" onClick={() => navigate('/materia-prima/nueva')}>
               ➕ Crear primer material
             </Button>
           </EmptyState>
@@ -756,6 +790,177 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = ({
                 disabled={!stockAmount || !stockReason || stockLoading}
               >
                 {stockLoading ? 'Actualizando...' : 'Actualizar Stock'}
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+      )}
+
+      {/* Modal de ver detalles */}
+      {showViewModal && selectedMaterial && (
+        <Modal onClick={closeViewModal}>
+          <ModalContent onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
+            <ModalHeader>📋 Detalles del Material</ModalHeader>
+            <ModalBody>
+              {loadingDetalle ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#7f8c8d' }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    border: '4px solid #ecf0f1',
+                    borderTop: '4px solid #3498db',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                    margin: '0 auto 15px auto'
+                  }} />
+                  Cargando detalles...
+                </div>
+              ) : detalleError ? (
+                <div style={{
+                  backgroundColor: '#fee',
+                  border: '1px solid #fcc',
+                  color: '#c33',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '1.2rem', marginBottom: '8px' }}>⚠️</div>
+                  {detalleError}
+                </div>
+              ) : materialDetalle ? (
+                <div>
+                  {/* Información básica */}
+                  <div style={{ marginBottom: '25px' }}>
+                    <h4 style={{ color: '#2c3e50', marginBottom: '15px', borderBottom: '2px solid #ecf0f1', paddingBottom: '8px' }}>
+                      📦 Información General
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                      <div>
+                        <strong>Código de Barras:</strong><br />
+                        {materialDetalle.codigo_barras || 'N/A'}
+                      </div>
+                      <div>
+                        <strong>Nombre:</strong><br />
+                        {materialDetalle.nombre || 'N/A'}
+                      </div>
+                      <div>
+                        <strong>Marca:</strong><br />
+                        {materialDetalle.marca || 'N/A'}
+                      </div>
+                      <div>
+                        <strong>Modelo:</strong><br />
+                        {materialDetalle.modelo || 'N/A'}
+                      </div>
+                      <div>
+                        <strong>Categoría:</strong><br />
+                        {materialDetalle.categoria || 'N/A'}
+                      </div>
+                      <div>
+                        <strong>Presentación:</strong><br />
+                        {materialDetalle.presentacion || 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Información de stock */}
+                  <div style={{ marginBottom: '25px' }}>
+                    <h4 style={{ color: '#2c3e50', marginBottom: '15px', borderBottom: '2px solid #ecf0f1', paddingBottom: '8px' }}>
+                      📊 Información de Stock
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                      <div>
+                        <strong>Stock Actual:</strong><br />
+                        <span style={{
+                          fontSize: '1.2rem',
+                          fontWeight: 'bold',
+                          color: materialDetalle.stock_actual > materialDetalle.stock_minimo ? '#27ae60' :
+                                 materialDetalle.stock_actual > 0 ? '#f39c12' : '#e74c3c'
+                        }}>
+                          {materialDetalle.stock_actual || 0} unidades
+                        </span>
+                      </div>
+                      <div>
+                        <strong>Stock Mínimo:</strong><br />
+                        {materialDetalle.stock_minimo || 0} unidades
+                      </div>
+                      <div>
+                        <strong>Estado:</strong><br />
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '0.9rem',
+                          backgroundColor: materialDetalle.stock_actual > materialDetalle.stock_minimo ? '#d4edda' :
+                                          materialDetalle.stock_actual > 0 ? '#fff3cd' : '#f8d7da',
+                          color: materialDetalle.stock_actual > materialDetalle.stock_minimo ? '#155724' :
+                                materialDetalle.stock_actual > 0 ? '#856404' : '#721c24'
+                        }}>
+                          {materialDetalle.stock_actual > materialDetalle.stock_minimo ? '✅ Normal' :
+                           materialDetalle.stock_actual > 0 ? '⚠️ Stock Bajo' : '❌ Agotado'}
+                        </span>
+                      </div>
+                      <div>
+                        <strong>Costo Unitario:</strong><br />
+                        ${materialDetalle.costo_unitario?.toFixed(2) || 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Información adicional */}
+                  <div style={{ marginBottom: '25px' }}>
+                    <h4 style={{ color: '#2c3e50', marginBottom: '15px', borderBottom: '2px solid #ecf0f1', paddingBottom: '8px' }}>
+                      ℹ️ Información Adicional
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                      <div>
+                        <strong>ID Proveedor:</strong><br />
+                        {materialDetalle.proveedor_id || 'No especificado'}
+                      </div>
+                      <div>
+                        <strong>Fecha de Caducidad:</strong><br />
+                        {materialDetalle.fecha_caducidad
+                          ? new Date(materialDetalle.fecha_caducidad).toLocaleDateString('es-ES')
+                          : 'No especificada'
+                        }
+                      </div>
+                    </div>
+                    {materialDetalle.descripcion && (
+                      <div style={{ marginTop: '15px' }}>
+                        <strong>Descripción:</strong><br />
+                        <span style={{ color: '#495057' }}>
+                          {materialDetalle.descripcion}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Fechas de auditoría */}
+                  <div>
+                    <h4 style={{ color: '#2c3e50', marginBottom: '15px', borderBottom: '2px solid #ecf0f1', paddingBottom: '8px' }}>
+                      🕒 Información de Auditoría
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', fontSize: '0.9rem', color: '#6c757d' }}>
+                      <div>
+                        <strong>Creado:</strong><br />
+                        {materialDetalle.creado_en
+                          ? new Date(materialDetalle.creado_en).toLocaleString('es-ES')
+                          : 'N/A'
+                        }
+                      </div>
+                      <div>
+                        <strong>Actualizado:</strong><br />
+                        {materialDetalle.actualizado_en
+                          ? new Date(materialDetalle.actualizado_en).toLocaleString('es-ES')
+                          : 'N/A'
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="primary" onClick={closeViewModal}>
+                Cerrar
               </Button>
             </ModalFooter>
           </ModalContent>
