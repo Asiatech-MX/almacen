@@ -1,28 +1,54 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { resolve } from 'path'
+import path from 'path'
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  root: resolve(__dirname),
-  base: './',
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true,
-  },
+  root: './',
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
-      '@renderer': resolve(__dirname, 'src'),
-      '@shared': resolve(__dirname, '../../packages/shared-types/src')
+      '@': path.resolve(__dirname, './src'),
+      '@components': path.resolve(__dirname, './src/components'),
+      '@lib': path.resolve(__dirname, './src/lib'),
+      '@hooks': path.resolve(__dirname, './src/hooks'),
+      '@services': path.resolve(__dirname, './src/services'),
+      '@modules': path.resolve(__dirname, './src/modules'),
+      '@providers': path.resolve(__dirname, './src/providers'),
+      '@types': path.resolve(__dirname, './src/types'),
+      '@styles': path.resolve(__dirname, './src/styles'),
+      '@ui': path.resolve(__dirname, './src/components/ui'),
+      '@layout': path.resolve(__dirname, './src/components/layout'),
+      '@dashboard': path.resolve(__dirname, './src/components/dashboard'),
+      '@feedback': path.resolve(__dirname, './src/components/feedback'),
+      '@forms': path.resolve(__dirname, './src/components/forms'),
+      '@tables': path.resolve(__dirname, './src/components/tables'),
+      '@notificaciones': path.resolve(__dirname, './src/components/notificaciones')
     }
   },
   server: {
-    port: 3000,
-    strictPort: true
+    port: 5175,
+    host: true
   },
-  define: {
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development')
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets'
+  },
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@tanstack/react-query',
+      '@tanstack/react-query-devtools',
+      'lucide-react',
+      'styled-components',
+      '@radix-ui/react-toast',
+      'class-variance-authority',
+      '@radix-ui/react-slot',
+      '@radix-ui/react-tabs',
+      'sonner',
+      'date-fns',
+      'date-fns/locale'
+    ]
   }
 })

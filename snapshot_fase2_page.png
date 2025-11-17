@@ -1,0 +1,48 @@
+uid=1_0 RootWebArea "Sistema de Almacén" url="http://localhost:3000/"
+  uid=1_1 StaticText "[plugin:vite:import-analysis] "
+  uid=1_2 StaticText "Failed to resolve import "./hooks/use-toast" from "src/components/ui/toaster.tsx". Does the file exist?"
+  uid=1_3 StaticText "C:"
+  uid=1_4 StaticText "/Users/frive/proyectos/Logistica-2/almacen-2/apps/electron-renderer/src/components/ui/toaster.tsx:3:25"
+  uid=1_5 StaticText "17 |  "use client";
+18 |  var _s = $RefreshSig$();
+19 |  import { useToast } from "./hooks/use-toast";
+   |                            ^
+20 |  import {
+21 |    Toast,"
+  uid=1_6 StaticText "    at TransformPluginContext._formatLog ("
+  uid=1_7 StaticText "file:///C:/Users/frive/proyectos/Logistica-2/almacen-2/node_modules/.pnpm/vite@7.2.2_@types+node@22.1_bed5f7645c82455a95b9a6ce50e9117f/node_modules/vite/dist/node/chunks/config.js:29618:43"
+  uid=1_8 StaticText ")
+    at TransformPluginContext.error ("
+  uid=1_9 StaticText "file:///C:/Users/frive/proyectos/Logistica-2/almacen-2/node_modules/.pnpm/vite@7.2.2_@types+node@22.1_bed5f7645c82455a95b9a6ce50e9117f/node_modules/vite/dist/node/chunks/config.js:29615:14"
+  uid=1_10 StaticText ")
+    at normalizeUrl ("
+  uid=1_11 StaticText "file:///C:/Users/frive/proyectos/Logistica-2/almacen-2/node_modules/.pnpm/vite@7.2.2_@types+node@22.1_bed5f7645c82455a95b9a6ce50e9117f/node_modules/vite/dist/node/chunks/config.js:27738:18"
+  uid=1_12 StaticText ")
+    at process.processTicksAndRejections (node:internal"
+  uid=1_13 StaticText "/process/task_queues:105:5"
+  uid=1_14 StaticText ")
+    at async "
+  uid=1_15 StaticText "file:///C:/Users/frive/proyectos/Logistica-2/almacen-2/node_modules/.pnpm/vite@7.2.2_@types+node@22.1_bed5f7645c82455a95b9a6ce50e9117f/node_modules/vite/dist/node/chunks/config.js:27796:32"
+  uid=1_16 StaticText "
+    at async Promise.all (index 3)
+    at async TransformPluginContext.transform ("
+  uid=1_17 StaticText "file:///C:/Users/frive/proyectos/Logistica-2/almacen-2/node_modules/.pnpm/vite@7.2.2_@types+node@22.1_bed5f7645c82455a95b9a6ce50e9117f/node_modules/vite/dist/node/chunks/config.js:27764:4"
+  uid=1_18 StaticText ")
+    at async EnvironmentPluginContainer.transform ("
+  uid=1_19 StaticText "file:///C:/Users/frive/proyectos/Logistica-2/almacen-2/node_modules/.pnpm/vite@7.2.2_@types+node@22.1_bed5f7645c82455a95b9a6ce50e9117f/node_modules/vite/dist/node/chunks/config.js:29416:14"
+  uid=1_20 StaticText ")
+    at async loadAndTransform ("
+  uid=1_21 StaticText "file:///C:/Users/frive/proyectos/Logistica-2/almacen-2/node_modules/.pnpm/vite@7.2.2_@types+node@22.1_bed5f7645c82455a95b9a6ce50e9117f/node_modules/vite/dist/node/chunks/config.js:23287:26"
+  uid=1_22 StaticText ")"
+  uid=1_23 StaticText "Click outside, press "
+  uid=1_24 StaticText "Esc"
+  uid=1_25 StaticText " key, or fix the code to dismiss."
+  uid=1_26 LineBreak "
+"
+  uid=1_27 StaticText "You can also disable this overlay by setting "
+  uid=1_28 StaticText "server.hmr.overlay"
+  uid=1_29 StaticText " to "
+  uid=1_30 StaticText "false"
+  uid=1_31 StaticText " in "
+  uid=1_32 StaticText "vite.config.ts"
+  uid=1_33 StaticText "."

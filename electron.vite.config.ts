@@ -49,6 +49,7 @@ export default defineConfig({
     root: resolve('./apps/electron-renderer'),
     resolve: {
       alias: {
+        '@': resolve('./apps/electron-renderer/src'),
         '@renderer': resolve('./apps/electron-renderer/src'),
         '@shared': resolve('./packages/shared-types/src'),
         '@backend': resolve(__dirname, 'backend'),
