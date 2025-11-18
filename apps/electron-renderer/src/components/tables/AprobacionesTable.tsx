@@ -118,7 +118,7 @@ const AprobacionesTable: React.FC<AprobacionesTableProps> = ({
       pendiente: 'secondary',
       aprobado: 'default',
       rechazado: 'destructive',
-      cancelado: 'outline'
+      cancelado: 'outline-solid'
     } as const
 
     const icons = {
@@ -138,7 +138,7 @@ const AprobacionesTable: React.FC<AprobacionesTableProps> = ({
 
   const getUrgenciaBadge = (urgencia: NivelUrgencia) => {
     const variants = {
-      bajo: 'outline',
+      bajo: 'outline-solid',
       medio: 'secondary',
       alto: 'default',
       critico: 'destructive'
@@ -195,7 +195,7 @@ const AprobacionesTable: React.FC<AprobacionesTableProps> = ({
       header: 'Solicitante',
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
-          <User className="w-4 h-4 text-muted-foreground" />
+          <User className="size-4 text-muted-foreground" />
           <span>{row.getValue('solicitante_nombre')}</span>
         </div>
       ),
@@ -216,7 +216,7 @@ const AprobacionesTable: React.FC<AprobacionesTableProps> = ({
         const monto = row.getValue('monto') as number
         return monto ? (
           <div className="flex items-center gap-2">
-            <DollarSign className="w-4 h-4 text-muted-foreground" />
+            <DollarSign className="size-4 text-muted-foreground" />
             <span className="font-medium">
               ${monto.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
             </span>
@@ -252,7 +252,7 @@ const AprobacionesTable: React.FC<AprobacionesTableProps> = ({
         const fecha = new Date(row.getValue('fecha_solicitud'))
         return (
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
+            <Calendar className="size-4 text-muted-foreground" />
             <span>
               {format(fecha, 'dd/MM/yyyy', { locale: es })}
             </span>
@@ -281,7 +281,7 @@ const AprobacionesTable: React.FC<AprobacionesTableProps> = ({
                 onClick={() => onVerDetalle?.(aprobacion)}
                 className="flex items-center gap-2"
               >
-                <Eye className="w-4 h-4" />
+                <Eye className="size-4" />
                 Ver detalles
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -294,7 +294,7 @@ const AprobacionesTable: React.FC<AprobacionesTableProps> = ({
                         className="flex items-center gap-2 text-green-600"
                         disabled={isLoading}
                       >
-                        <CheckCircle className="w-4 h-4" />
+                        <CheckCircle className="size-4" />
                         Aprobar
                       </DropdownMenuItem>
                     </AlertDialogTrigger>
@@ -338,7 +338,7 @@ const AprobacionesTable: React.FC<AprobacionesTableProps> = ({
                         className="flex items-center gap-2 text-red-600"
                         disabled={isLoading}
                       >
-                        <XCircle className="w-4 h-4" />
+                        <XCircle className="size-4" />
                         Rechazar
                       </DropdownMenuItem>
                     </AlertDialogTrigger>

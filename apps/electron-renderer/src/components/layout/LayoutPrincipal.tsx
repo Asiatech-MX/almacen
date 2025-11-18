@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator'
 // Header responsive que integra el trigger del sidebar
 const ResponsiveHeader = () => {
   return (
-    <header className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+    <header className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/60 border-b">
       <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4">
         <div className="flex items-center gap-4">
           {/* SidebarTrigger funciona tanto en mobile como desktop con shadcn */}

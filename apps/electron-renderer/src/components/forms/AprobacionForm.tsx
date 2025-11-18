@@ -145,10 +145,10 @@ const AprobacionForm: React.FC<AprobacionFormProps> = ({
 
   const getUrgenciaIcon = (urgencia: NivelUrgencia) => {
     const icons = {
-      bajo: <Clock className="w-4 h-4" />,
-      medio: <AlertTriangle className="w-4 h-4" />,
-      alto: <Zap className="w-4 h-4" />,
-      critico: <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse" />
+      bajo: <Clock className="size-4" />,
+      medio: <AlertTriangle className="size-4" />,
+      alto: <Zap className="size-4" />,
+      critico: <div className="size-4 bg-red-500 rounded-full animate-pulse" />
     }
     return icons[urgencia]
   }
@@ -289,25 +289,25 @@ const AprobacionForm: React.FC<AprobacionFormProps> = ({
                       <SelectContent>
                         <SelectItem value="bajo">
                           <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4" />
+                            <Clock className="size-4" />
                             Bajo - Normal
                           </div>
                         </SelectItem>
                         <SelectItem value="medio">
                           <div className="flex items-center gap-2">
-                            <AlertTriangle className="w-4 h-4" />
+                            <AlertTriangle className="size-4" />
                             Medio - Prioritario
                           </div>
                         </SelectItem>
                         <SelectItem value="alto">
                           <div className="flex items-center gap-2">
-                            <Zap className="w-4 h-4" />
+                            <Zap className="size-4" />
                             Alto - Urgente
                           </div>
                         </SelectItem>
                         <SelectItem value="critico">
                           <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 bg-red-500 rounded-full" />
+                            <div className="size-4 bg-red-500 rounded-full" />
                             Crítico - Emergencia
                           </div>
                         </SelectItem>

@@ -1,0 +1,44 @@
+uid=5_0 RootWebArea "Sistema de Almacén" url="http://localhost:5173/#/dashboard"
+  uid=5_1 StaticText "[plugin:vite:css] "
+  uid=5_2 StaticText "[postcss] ENOENT: no such file or directory, open 'C:\Users\frive\proyectos\Logistica-2\almacen-2\tailwindcss'"
+  uid=5_3 StaticText "C:/Users/frive/proyectos/Logistica-2/almacen-2/apps/electron-renderer/src/styles/globals.css:undefined:null"
+  uid=5_4 StaticText "    at async open (node:internal"
+  uid=5_5 StaticText "/fs/promises:641:25"
+  uid=5_6 StaticText ")
+    at async Object.readFile (node:internal"
+  uid=5_7 StaticText "/fs/promises:1245:14"
+  uid=5_8 StaticText ")
+    at async Object.load ("
+  uid=5_9 StaticText "file:///C:/Users/frive/proyectos/Logistica-2/almacen-2/node_modules/.pnpm/vite@7.2.2_@types+node@22.1_7cd86762ffd93cb6d8889c59e8c7ab6c/node_modules/vite/dist/node/chunks/config.js:30710:19"
+  uid=5_10 StaticText ")
+    at async loadImportContent ("
+  uid=5_11 StaticText "file:///C:/Users/frive/proyectos/Logistica-2/almacen-2/node_modules/.pnpm/vite@7.2.2_@types+node@22.1_7cd86762ffd93cb6d8889c59e8c7ab6c/node_modules/vite/dist/node/chunks/postcss-import.js:401:19"
+  uid=5_12 StaticText ")
+    at async Promise.all (index 0)
+    at async resolveImportId ("
+  uid=5_13 StaticText "file:///C:/Users/frive/proyectos/Logistica-2/almacen-2/node_modules/.pnpm/vite@7.2.2_@types+node@22.1_7cd86762ffd93cb6d8889c59e8c7ab6c/node_modules/vite/dist/node/chunks/postcss-import.js:387:20"
+  uid=5_14 StaticText ")
+    at async parseStyles$1 ("
+  uid=5_15 StaticText "file:///C:/Users/frive/proyectos/Logistica-2/almacen-2/node_modules/.pnpm/vite@7.2.2_@types+node@22.1_7cd86762ffd93cb6d8889c59e8c7ab6c/node_modules/vite/dist/node/chunks/postcss-import.js:340:4"
+  uid=5_16 StaticText ")
+    at async Object.Once ("
+  uid=5_17 StaticText "file:///C:/Users/frive/proyectos/Logistica-2/almacen-2/node_modules/.pnpm/vite@7.2.2_@types+node@22.1_7cd86762ffd93cb6d8889c59e8c7ab6c/node_modules/vite/dist/node/chunks/postcss-import.js:465:20"
+  uid=5_18 StaticText ")
+    at async LazyResult.runAsync ("
+  uid=5_19 StaticText "C:\Users\frive\proyectos\Logistica-2\almacen-2\node_modules\.pnpm\postcss@8.5.6\node_modules\postcss\lib\lazy-result.js:293:11"
+  uid=5_20 StaticText ")
+    at async runPostCSS ("
+  uid=5_21 StaticText "file:///C:/Users/frive/proyectos/Logistica-2/almacen-2/node_modules/.pnpm/vite@7.2.2_@types+node@22.1_7cd86762ffd93cb6d8889c59e8c7ab6c/node_modules/vite/dist/node/chunks/config.js:30764:19"
+  uid=5_22 StaticText ")"
+  uid=5_23 StaticText "Click outside, press "
+  uid=5_24 StaticText "Esc"
+  uid=5_25 StaticText " key, or fix the code to dismiss."
+  uid=5_26 LineBreak "
+"
+  uid=5_27 StaticText "You can also disable this overlay by setting "
+  uid=5_28 StaticText "server.hmr.overlay"
+  uid=5_29 StaticText " to "
+  uid=5_30 StaticText "false"
+  uid=5_31 StaticText " in "
+  uid=5_32 StaticText "vite.config.js"
+  uid=5_33 StaticText "."

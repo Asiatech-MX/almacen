@@ -1,5 +1,6 @@
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import { resolve } from 'path'
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   main: {
@@ -55,6 +56,10 @@ export default defineConfig({
         '@backend': resolve(__dirname, 'backend'),
         '@shared-types': resolve(__dirname, 'shared/types')
       }
+    },
+    plugins: [tailwindcss()],
+    css: {
+      postcss: false
     }
   }
 })

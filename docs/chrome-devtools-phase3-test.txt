@@ -1,0 +1,1 @@
+uid=4_0 RootWebArea "Sistema de Almacén" url="http://localhost:5173/"

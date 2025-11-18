@@ -156,7 +156,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         <DialogHeader>
           <div className="flex items-center gap-3">
             {showIcon && (
-              <Icon className={cn('h-5 w-5 flex-shrink-0', config.iconClass)} aria-hidden="true" />
+              <Icon className={cn('h-5 w-5 shrink-0', config.iconClass)} aria-hidden="true" />
             )}
             <DialogTitle className="text-left">{title}</DialogTitle>
           </div>

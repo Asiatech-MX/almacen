@@ -113,15 +113,15 @@ const NotificacionesPanel: React.FC<NotificacionesPanelProps> = ({ className }) 
   const getTipoIcon = (tipo: string) => {
     switch (tipo) {
       case 'SOLICITUD_NUEVA':
-        return <Bell className="w-4 h-4 text-blue-500" />
+        return <Bell className="size-4 text-blue-500" />
       case 'RECORDATORIO':
-        return <Clock className="w-4 h-4 text-yellow-500" />
+        return <Clock className="size-4 text-yellow-500" />
       case 'ESCALADO':
-        return <AlertTriangle className="w-4 h-4 text-red-500" />
+        return <AlertTriangle className="size-4 text-red-500" />
       case 'RESUELTA':
-        return <CheckCircle className="w-4 h-4 text-green-500" />
+        return <CheckCircle className="size-4 text-green-500" />
       default:
-        return <Bell className="w-4 h-4 text-gray-500" />
+        return <Bell className="size-4 text-gray-500" />
     }
   }
 
@@ -268,12 +268,12 @@ const NotificacionesPanel: React.FC<NotificacionesPanelProps> = ({ className }) 
 
         <div className="p-2">
           <DropdownMenuItem className="p-2 cursor-pointer">
-            <Settings className="w-4 h-4 mr-2" />
+            <Settings className="size-4 mr-2" />
             Configurar notificaciones
           </DropdownMenuItem>
 
           <DropdownMenuItem className="p-2 cursor-pointer text-red-600">
-            <Trash2 className="w-4 h-4 mr-2" />
+            <Trash2 className="size-4 mr-2" />
             Limpiar todas las notificaciones
           </DropdownMenuItem>
         </div>

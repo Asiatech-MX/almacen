@@ -433,7 +433,7 @@ export const MaterialTable: React.FC<MaterialTableProps> = ({
                         data-state={row.getIsSelected() && 'selected'}
                         role="row"
                         aria-rowindex={index + 1}
-                        className="hover:bg-gray-50 focus:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+                        className="hover:bg-gray-50 focus:bg-blue-50 focus:outline-hidden focus:ring-1 focus:ring-blue-500 focus:ring-inset"
                       >
                         {row.getVisibleCells().map((cell) => (
                           <TableCell
@@ -503,7 +503,7 @@ export const MaterialTable: React.FC<MaterialTableProps> = ({
                     (_, i) => (
                       <Button
                         key={i}
-                        variant={table.getState().pagination.pageIndex === i ? 'default' : 'outline'}
+                        variant={table.getState().pagination.pageIndex === i ? 'default' : 'outline-solid'}
                         size="sm"
                         onClick={() => table.setPageIndex(i)}
                         className="w-8 h-8 p-0"

@@ -1,0 +1,4 @@
+uid=6_0 RootWebArea "Sistema de Almacén" url="http://localhost:5173/"
+  uid=6_1 ignored
+    uid=6_2 ignored
+      uid=6_3 generic

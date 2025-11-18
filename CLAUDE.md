@@ -11,6 +11,8 @@ This is an Electron-based desktop application for warehouse/material management 
 - **PostgreSQL** as the primary database
 - **Kysely** as the query builder
 - **pnpm** as package manager
+- **Tailwind CSS v4** with @tailwindcss/vite plugin for styling
+- **shadcn/ui** components adapted for Tailwind v4
 - **Monorepo structure** with workspace configuration
 
 ## Architecture
@@ -33,6 +35,47 @@ This is an Electron-based desktop application for warehouse/material management 
 3. **Movimientos** (Movements): Material entries/exit tracking
 4. **Solicitudes** (Purchase Requests): Request management workflow
 5. **Usuarios/Instituciones**: User and institution management
+
+## Tailwind CSS v4 Configuration
+
+### CSS Architecture
+The project uses **Tailwind CSS v4** with the modern @tailwindcss/vite plugin architecture:
+
+```css
+/* apps/electron-renderer/src/styles/globals.css */
+@import "tailwindcss";
+
+@source './**/*.{tsx,ts,jsx,js}';
+@source '../index.html';
+@source '../../index.html';
+
+@theme {
+  /* Theme variables defined here */
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  /* ... complete theme configuration */
+}
+```
+
+### Vite Integration
+```typescript
+// apps/electron-renderer/vite.config.ts
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  css: { postcss: false } // PostCSS disabled for v4
+});
+```
+
+### Key v4 Migration Changes
+- **No PostCSS**: Direct Vite plugin integration
+- **No tailwind.config.js**: Configuration moved to CSS @theme directives
+- **Updated utilities**: `outline-none` → `outline-hidden`, `ring-2` → `ring-1`, `w-4 h-4` → `size-4`
+- **CSS variables**: Theme uses CSS custom properties with hsl() wrapper
+- **@source directives**: Replace content configuration from v3
 
 ## Development Commands
 
@@ -169,10 +212,12 @@ DATABASE_URL=postgresql://user:password@localhost:5432/database_name
 ```
 
 ### Development Tools
-- **Vite**: Fast development server and HMR
+- **Vite**: Fast development server and HMR with @tailwindcss/vite plugin
 - **Electron DevTools**: Built-in developer tools in development
-- **Hot Reload**: Automatic reloading on code changes
+- **Hot Reload**: Automatic reloading on code changes with optimized CSS processing
 - **TypeScript**: Strict type checking enabled
+- **Tailwind CSS v4**: Modern CSS architecture with @theme directives and CSS variables
+- **shadcn/ui**: Component library adapted for Tailwind v4 with modern utilities
 
 ## Testing & Quality
 
