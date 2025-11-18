@@ -38,6 +38,8 @@ This is an Electron-based desktop application for warehouse/material management 
 
 ## Tailwind CSS v4 Configuration
 
+**Complete Development Guide**: For comprehensive documentation on working with Tailwind CSS v4 in this project, see [`docs/TAILWIND_V4_DEVELOPMENT.md`](docs/TAILWIND_V4_DEVELOPMENT.md).
+
 ### CSS Architecture
 The project uses **Tailwind CSS v4** with the modern @tailwindcss/vite plugin architecture:
 
@@ -76,6 +78,11 @@ export default defineConfig({
 - **Updated utilities**: `outline-none` → `outline-hidden`, `ring-2` → `ring-1`, `w-4 h-4` → `size-4`
 - **CSS variables**: Theme uses CSS custom properties with hsl() wrapper
 - **@source directives**: Replace content configuration from v3
+
+### Additional Resources
+- **[Complete Development Guide](docs/TAILWIND_V4_DEVELOPMENT.md)**: Comprehensive reference for Tailwind CSS v4
+- **Migration Checklist**: [`docs/TAILWIND_V4_MIGRATION_CHECKLIST.md`](docs/TAILWIND_V4_MIGRATION_CHECKLIST.md)
+- **Component Examples**: See `apps/electron-renderer/src/components/ui/` for v4-adapted shadcn/ui components
 
 ## Development Commands
 
