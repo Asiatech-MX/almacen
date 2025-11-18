@@ -4,19 +4,44 @@ import NotificacionesPanel from '../notificaciones/NotificacionesPanel'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebarContent } from './AppSidebar'
+import { MobileSidebar, useMobileSidebar } from './MobileSidebar'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { Menu } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 
+type MobileSidebarControls = ReturnType<typeof useMobileSidebar>
+
 // Header responsive que integra el trigger del sidebar
-const ResponsiveHeader = () => {
+const ResponsiveHeader = ({ mobileSidebar }: { mobileSidebar: MobileSidebarControls }) => {
+  const isMobile = useIsMobile()
+
   return (
-    <header className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-      <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4">
+    <header className="sticky top-0 z-10 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4 border-b">
         <div className="flex items-center gap-4">
-          {/* SidebarTrigger funciona tanto en mobile como desktop con shadcn */}
-          <div className="flex items-center gap-2">
-            <SidebarTrigger className="text-foreground hover:bg-muted" />
-            <Separator orientation="vertical" className="h-6" />
-          </div>
+          {/* Boton hamburguesa - Sheet en movil, SidebarTrigger en desktop */}
+          {isMobile ? (
+            <MobileSidebar
+              isOpen={mobileSidebar.isOpen}
+              onOpenChange={(open) => (open ? mobileSidebar.openSidebar() : mobileSidebar.closeSidebar())}
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-foreground hover:bg-muted md:hidden"
+                  aria-label="Abrir menu de navegacion"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              }
+            />
+          ) : (
+            <div className="hidden items-center gap-2 md:flex">
+              <SidebarTrigger className="text-foreground hover:bg-muted" />
+              <Separator orientation="vertical" className="h-6" />
+            </div>
+          )}
 
           <div>
             <h1 className="m-0 text-xl md:text-2xl lg:text-3xl font-light">Gestion de Almacen</h1>
@@ -81,15 +106,37 @@ const AccessibilityEnhancer = () => {
 }
 
 export const LayoutPrincipal: React.FC = () => {
-  return (
-    <SidebarProvider>
-      <AccessibilityEnhancer />
-      <AppSidebarContent />
-      <SidebarInset className="flex min-h-screen flex-1 flex-col bg-background">
-        <ResponsiveHeader />
+  const isMobile = useIsMobile()
+  const mobileSidebar = useMobileSidebar()
 
-        <main className="flex-1 overflow-auto">
-          <div className="px-3 pb-6 md:px-6 md:pb-8">
+  return (
+    <SidebarProvider className="flex h-screen w-full bg-background">
+      <AccessibilityEnhancer />
+
+      {/* Sidebar fijo en desktop */}
+      {!isMobile && <AppSidebarContent />}
+
+      <SidebarInset className="flex min-h-screen flex-1 flex-col bg-card">
+        <ResponsiveHeader mobileSidebar={mobileSidebar} />
+
+        {/* Mensaje informativo para móvil */}
+        <div className="block md:hidden px-4 pt-3">
+          <nav
+            className="bg-muted/30 border rounded-lg p-4"
+            role="navigation"
+            aria-label="Informacion de navegacion movil"
+          >
+            <div className="text-sm text-muted-foreground mb-2">
+              Usa el boton de menu para acceder al menu completo
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Atajos: Ctrl+B para menu (desktop) | Alt+M para focus en menu
+            </div>
+          </nav>
+        </div>
+
+        <main className="flex-1 overflow-hidden">
+          <div className="h-full overflow-y-auto px-3 pb-6 md:px-6 md:pb-8">
             <Outlet />
           </div>
         </main>

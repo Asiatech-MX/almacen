@@ -1,3 +1,9 @@
 packages:
   - apps/*
   - packages/*
+
+onlyBuiltDependencies:
+  - '@scarf/scarf'
+  - electron
+  - esbuild
+  - unrs-resolver

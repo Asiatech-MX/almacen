@@ -31,7 +31,8 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-  SidebarRail,
+  SidebarProvider,
+  SidebarTrigger,
   useSidebar
 } from '@/components/ui/sidebar';
 import {
@@ -215,7 +216,7 @@ const SidebarHeaderComponent = () => {
               <span className="truncate font-semibold">
                 Sistema Almacén
               </span>
-              <span className="truncate text-xs text-sidebar-foreground/70">
+              <span className="truncate text-xs text-muted-foreground">
                 Control de Inventario
               </span>
             </div>
@@ -245,7 +246,7 @@ const SidebarFooterComponent = () => {
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">Usuario</span>
-                  <span className="truncate text-xs text-sidebar-foreground/70">admin@almacen.com</span>
+                  <span className="truncate text-xs text-muted-foreground">admin@almacen.com</span>
                 </div>
                 <ChevronUp className="ml-auto h-4 w-4" />
               </SidebarMenuButton>
@@ -288,9 +289,17 @@ export const AppSidebarContent = () => {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooterComponent />
-      <SidebarRail />
     </Sidebar>
   );
 };
 
-export default AppSidebarContent;
+// Componente con SidebarProvider para uso individual
+export const AppSidebar = () => {
+  return (
+    <SidebarProvider>
+      <AppSidebarContent />
+    </SidebarProvider>
+  );
+};
+
+export default AppSidebar;

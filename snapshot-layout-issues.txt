@@ -1,0 +1,238 @@
+uid=7_0 RootWebArea "Sistema de Almacén" url="http://localhost:5176/#/materia-prima/gestion"
+  uid=7_1 ignored
+    uid=7_2 ignored
+      uid=7_3 generic
+        uid=7_4 ignored
+          uid=7_5 main
+            uid=7_6 sectionheader
+              uid=7_7 ignored
+                uid=7_8 ignored
+                  uid=7_9 ignored
+                    uid=7_10 button "Toggle Sidebar"
+                      uid=7_11 StaticText "Toggle Sidebar"
+                        uid=7_12 InlineTextBox "Toggle Sidebar"
+                  uid=7_13 ignored
+                    uid=7_14 heading "Gestion de Almacen" level="1"
+                      uid=7_15 StaticText "Gestion de Almacen"
+                        uid=7_16 InlineTextBox "Gestion de Almacen"
+                    uid=7_17 paragraph
+                      uid=7_18 StaticText "Sistema integral de control de inventario"
+                        uid=7_19 InlineTextBox "Sistema integral de control de inventario"
+                uid=7_20 generic
+                  uid=7_21 button "Toggle theme"
+                    uid=7_22 StaticText "Toggle theme"
+                      uid=7_23 InlineTextBox "Toggle theme"
+                  uid=7_24 button haspopup="menu"
+            uid=7_25 main
+              uid=7_26 ignored
+                uid=7_27 ignored
+                  uid=7_28 ignored
+                    uid=7_29 heading "🗂️ Gestión de Materia Prima" level="2"
+                      uid=7_30 StaticText "🗂️ Gestión de Materia Prima"
+                        uid=7_31 InlineTextBox "🗂️ Gestión de Materia Prima"
+                    uid=7_32 ignored
+                      uid=7_33 textbox "Buscar por nombre, código o marca..."
+                        uid=7_34 ignored
+                        uid=7_35 generic
+                      uid=7_36 combobox haspopup="menu" value="Todas las categorías"
+                        uid=7_37 MenuListPopup
+                          uid=7_38 option "Todas las categorías" selectable selected value="Todas las categorías"
+                          uid=7_39 option "Construcción" value="Construcción"
+                          uid=7_40 option "Pinturas" value="Pinturas"
+                      uid=7_41 combobox haspopup="menu" value="Todo el stock"
+                        uid=7_42 MenuListPopup
+                          uid=7_43 option "Todo el stock" selectable selected value="Todo el stock"
+                          uid=7_44 option "Stock bajo" value="Stock bajo"
+                          uid=7_45 option "Sin stock" value="Sin stock"
+                      uid=7_46 button "➕ Nuevo Material"
+                        uid=7_47 StaticText "➕ Nuevo Material"
+                          uid=7_48 InlineTextBox "➕ Nuevo Material"
+                  uid=7_49 ignored
+                    uid=7_50 ignored
+                      uid=7_51 heading "TOTAL MATERIALES" level="3"
+                        uid=7_52 StaticText "TOTAL MATERIALES"
+                          uid=7_53 InlineTextBox "TOTAL MATERIALES"
+                      uid=7_54 generic
+                        uid=7_55 StaticText "3"
+                          uid=7_56 InlineTextBox "3"
+                      uid=7_57 generic
+                        uid=7_58 StaticText "Materiales registrados"
+                          uid=7_59 InlineTextBox "Materiales registrados"
+                    uid=7_60 ignored
+                      uid=7_61 heading "STOCK BAJO" level="3"
+                        uid=7_62 StaticText "STOCK BAJO"
+                          uid=7_63 InlineTextBox "STOCK BAJO"
+                      uid=7_64 generic
+                        uid=7_65 StaticText "0"
+                          uid=7_66 InlineTextBox "0"
+                      uid=7_67 generic
+                        uid=7_68 StaticText "Necesitan reabastecer"
+                          uid=7_69 InlineTextBox "Necesitan reabastecer"
+                    uid=7_70 ignored
+                      uid=7_71 heading "SIN STOCK" level="3"
+                        uid=7_72 StaticText "SIN STOCK"
+                          uid=7_73 InlineTextBox "SIN STOCK"
+                      uid=7_74 generic
+                        uid=7_75 StaticText "0"
+                          uid=7_76 InlineTextBox "0"
+                      uid=7_77 generic
+                        uid=7_78 StaticText "Agotados"
+                          uid=7_79 InlineTextBox "Agotados"
+                    uid=7_80 ignored
+                      uid=7_81 heading "VALOR TOTAL" level="3"
+                        uid=7_82 StaticText "VALOR TOTAL"
+                          uid=7_83 InlineTextBox "VALOR TOTAL"
+                      uid=7_84 generic
+                        uid=7_85 StaticText "$"
+                          uid=7_86 InlineTextBox "$"
+                        uid=7_87 StaticText "675.00"
+                          uid=7_88 InlineTextBox "675.00"
+                      uid=7_89 generic
+                        uid=7_90 StaticText "Valor del inventario"
+                          uid=7_91 InlineTextBox "Valor del inventario"
+                  uid=7_92 generic
+                    uid=7_93 table
+                      uid=7_94 rowgroup
+                        uid=7_95 row
+                          uid=7_96 columnheader "Código"
+                            uid=7_97 StaticText "Código"
+                              uid=7_98 InlineTextBox "Código"
+                          uid=7_99 columnheader "Nombre"
+                            uid=7_100 StaticText "Nombre"
+                              uid=7_101 InlineTextBox "Nombre"
+                          uid=7_102 columnheader "Marca"
+                            uid=7_103 StaticText "Marca"
+                              uid=7_104 InlineTextBox "Marca"
+                          uid=7_105 columnheader "Categoría"
+                            uid=7_106 StaticText "Categoría"
+                              uid=7_107 InlineTextBox "Categoría"
+                          uid=7_108 columnheader "Stock"
+                            uid=7_109 StaticText "Stock"
+                              uid=7_110 InlineTextBox "Stock"
+                          uid=7_111 columnheader "Estado"
+                            uid=7_112 StaticText "Estado"
+                              uid=7_113 InlineTextBox "Estado"
+                          uid=7_114 columnheader "Acciones"
+                            uid=7_115 StaticText "Acciones"
+                              uid=7_116 InlineTextBox "Acciones"
+                      uid=7_117 ignored
+                        uid=7_118 row
+                          uid=7_119 cell "1234567890123"
+                            uid=7_120 StaticText "1234567890123"
+                              uid=7_121 InlineTextBox "1234567890123"
+                          uid=7_122 cell "Cemento Gris"
+                            uid=7_123 StaticText "Cemento Gris"
+                              uid=7_124 InlineTextBox "Cemento "
+                              uid=7_125 InlineTextBox "Gris"
+                          uid=7_126 cell "Holcim"
+                            uid=7_127 StaticText "Holcim"
+                              uid=7_128 InlineTextBox "Holcim"
+                          uid=7_129 cell "Construcción"
+                            uid=7_130 StaticText "Construcción"
+                              uid=7_131 InlineTextBox "Construcción"
+                          uid=7_132 cell "150 / 50"
+                            uid=7_133 StaticText "150"
+                              uid=7_134 InlineTextBox "150"
+                            uid=7_135 StaticText " / "
+                              uid=7_136 InlineTextBox " / "
+                            uid=7_137 StaticText "50"
+                              uid=7_138 InlineTextBox "50"
+                          uid=7_139 cell "✅ NORMAL"
+                            uid=7_140 StaticText "✅ NORMAL"
+                              uid=7_141 InlineTextBox "✅ "
+                              uid=7_142 InlineTextBox "NORMAL"
+                          uid=7_143 cell "👁️ ✏️ 📦 🗑️"
+                            uid=7_144 ignored
+                              uid=7_145 button "👁️" description="Ver detalles"
+                                uid=7_146 StaticText "👁️"
+                                  uid=7_147 InlineTextBox "👁️"
+                              uid=7_148 button "✏️" description="Editar"
+                                uid=7_149 StaticText "✏️"
+                                  uid=7_150 InlineTextBox "✏️"
+                              uid=7_151 button "📦" description="Ajustar stock"
+                                uid=7_152 StaticText "📦"
+                                  uid=7_153 InlineTextBox "📦"
+                              uid=7_154 button "🗑️" description="Eliminar"
+                                uid=7_155 StaticText "🗑️"
+                                  uid=7_156 InlineTextBox "🗑️"
+                        uid=7_157 row
+                          uid=7_158 cell "2345678901234"
+                            uid=7_159 StaticText "2345678901234"
+                              uid=7_160 InlineTextBox "2345678901234"
+                          uid=7_161 cell "Ladrillo Rojo"
+                            uid=7_162 StaticText "Ladrillo Rojo"
+                              uid=7_163 InlineTextBox "Ladrillo "
+                              uid=7_164 InlineTextBox "Rojo"
+                          uid=7_165 cell "Ladrillera"
+                            uid=7_166 StaticText "Ladrillera"
+                              uid=7_167 InlineTextBox "Ladrillera"
+                          uid=7_168 cell "Construcción"
+                            uid=7_169 StaticText "Construcción"
+                              uid=7_170 InlineTextBox "Construcción"
+                          uid=7_171 cell "500 / 200"
+                            uid=7_172 StaticText "500"
+                              uid=7_173 InlineTextBox "500"
+                            uid=7_174 StaticText " / "
+                              uid=7_175 InlineTextBox " / "
+                            uid=7_176 StaticText "200"
+                              uid=7_177 InlineTextBox "200"
+                          uid=7_178 cell "✅ NORMAL"
+                            uid=7_179 StaticText "✅ NORMAL"
+                              uid=7_180 InlineTextBox "✅ "
+                              uid=7_181 InlineTextBox "NORMAL"
+                          uid=7_182 cell "👁️ ✏️ 📦 🗑️"
+                            uid=7_183 ignored
+                              uid=7_184 button "👁️" description="Ver detalles"
+                                uid=7_185 StaticText "👁️"
+                                  uid=7_186 InlineTextBox "👁️"
+                              uid=7_187 button "✏️" description="Editar"
+                                uid=7_188 StaticText "✏️"
+                                  uid=7_189 InlineTextBox "✏️"
+                              uid=7_190 button "📦" description="Ajustar stock"
+                                uid=7_191 StaticText "📦"
+                                  uid=7_192 InlineTextBox "📦"
+                              uid=7_193 button "🗑️" description="Eliminar"
+                                uid=7_194 StaticText "🗑️"
+                                  uid=7_195 InlineTextBox "🗑️"
+                        uid=7_196 row
+                          uid=7_197 cell "3456789012345"
+                            uid=7_198 StaticText "3456789012345"
+                              uid=7_199 InlineTextBox "3456789012345"
+                          uid=7_200 cell "Pintura Blanca"
+                            uid=7_201 StaticText "Pintura Blanca"
+                              uid=7_202 InlineTextBox "Pintura "
+                              uid=7_203 InlineTextBox "Blanca"
+                          uid=7_204 cell "Sika"
+                            uid=7_205 StaticText "Sika"
+                              uid=7_206 InlineTextBox "Sika"
+                          uid=7_207 cell "Pinturas"
+                            uid=7_208 StaticText "Pinturas"
+                              uid=7_209 InlineTextBox "Pinturas"
+                          uid=7_210 cell "25 / 10"
+                            uid=7_211 StaticText "25"
+                              uid=7_212 InlineTextBox "25"
+                            uid=7_213 StaticText " / "
+                              uid=7_214 InlineTextBox " / "
+                            uid=7_215 StaticText "10"
+                              uid=7_216 InlineTextBox "10"
+                          uid=7_217 cell "✅ NORMAL"
+                            uid=7_218 StaticText "✅ NORMAL"
+                              uid=7_219 InlineTextBox "✅ "
+                              uid=7_220 InlineTextBox "NORMAL"
+                          uid=7_221 cell "👁️ ✏️ 📦 🗑️"
+                            uid=7_222 ignored
+                              uid=7_223 button "👁️" description="Ver detalles"
+                                uid=7_224 StaticText "👁️"
+                                  uid=7_225 InlineTextBox "👁️"
+                              uid=7_226 button "✏️" description="Editar"
+                                uid=7_227 StaticText "✏️"
+                                  uid=7_228 InlineTextBox "✏️"
+                              uid=7_229 button "📦" description="Ajustar stock"
+                                uid=7_230 StaticText "📦"
+                                  uid=7_231 InlineTextBox "📦"
+                              uid=7_232 button "🗑️" description="Eliminar"
+                                uid=7_233 StaticText "🗑️"
+                                  uid=7_234 InlineTextBox "🗑️"
+        uid=7_235 region "Notifications (F8)"
+          uid=7_236 list
+        uid=7_237 ignored

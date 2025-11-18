@@ -4,22 +4,6 @@ module.exports = {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
-    // Patrones explícitos para asegurar escaneo completo
-    "./src/components/**/*.{js,ts,jsx,tsx}",
-    "./src/modules/**/*.{js,ts,jsx,tsx}",
-    "./src/lib/**/*.{js,ts}",
-    "./src/hooks/**/*.{js,ts}",
-    "./src/providers/**/*.{js,ts,jsx,tsx}",
-    "./src/services/**/*.{js,ts}",
-    "./src/types/**/*.{js,ts}",
-    "./src/styles/**/*.css",
-    "./src/examples/**/*.{js,ts,jsx,tsx}",
-    "./src/feedback/**/*.{js,ts,jsx,tsx}",
-    "./src/forms/**/*.{js,ts,jsx,tsx}",
-    "./src/tables/**/*.{js,ts,jsx,tsx}",
-    "./src/ui/**/*.{js,ts,jsx,tsx}",
-    "./src/dashboard/**/*.{js,ts,jsx,tsx}",
-    "./src/notificaciones/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
   	container: {
@@ -65,7 +49,7 @@ module.exports = {
   				foreground: 'hsl(var(--card-foreground))'
   			},
   			sidebar: {
-  				DEFAULT: 'hsl(var(--sidebar-background))',
+  				DEFAULT: 'hsl(var(--sidebar))',
   				foreground: 'hsl(var(--sidebar-foreground))',
   				primary: 'hsl(var(--sidebar-primary))',
   				'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',

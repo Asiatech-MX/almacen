@@ -6,18 +6,10 @@
     <title>Sistema de Almacén</title>
 
     <!-- CSP Restrictivo para desarrollo -->
-    <meta http-equiv="Content-Security-Policy" content="
-      default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval';
-      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-      font-src 'self' https://fonts.gstatic.com;
-      img-src 'self' data: blob:;
-      connect-src 'self' ws: wss:;
-      object-src 'none';
-      base-uri 'self';
-      form-action 'self';
-      require-trusted-types-for 'script';
-    ">
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' ws: wss:; object-src 'none'; base-uri 'self'; form-action 'self';"
+    >
   </head>
   <body>
     <div id="root"></div>
