@@ -1,164 +1,99 @@
-import React from 'react'
-import { Outlet, Link, NavLink } from 'react-router-dom'
-import styled from 'styled-components'
+import React, { useEffect } from 'react'
+import { Outlet } from 'react-router-dom'
+import NotificacionesPanel from '../notificaciones/NotificacionesPanel'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
+import { AppSidebarContent } from './AppSidebar'
+import { Separator } from '@/components/ui/separator'
 
-const Container = styled.div`
-  display: flex;
-  height: 100vh;
-  background-color: #f5f5f5;
-`
+// Header responsive que integra el trigger del sidebar
+const ResponsiveHeader = () => {
+  return (
+    <header className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/60 border-b">
+      <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4">
+        <div className="flex items-center gap-4">
+          {/* SidebarTrigger funciona tanto en mobile como desktop con shadcn */}
+          <div className="flex items-center gap-2">
+            <SidebarTrigger className="text-foreground hover:bg-muted" />
+            <Separator orientation="vertical" className="h-6" />
+          </div>
 
-const Sidebar = styled.nav`
-  width: 250px;
-  background-color: #2c3e50;
-  color: white;
-  padding: 20px;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-`
+          <div>
+            <h1 className="m-0 text-xl md:text-2xl lg:text-3xl font-light">Gestion de Almacen</h1>
+            <p className="mt-1 md:mt-2 opacity-90 text-xs md:text-sm lg:text-lg">
+              Sistema integral de control de inventario
+            </p>
+          </div>
+        </div>
 
-const Logo = styled.h2`
-  margin: 0 0 30px 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #ecf0f1;
-  border-bottom: 2px solid #34495e;
-  padding-bottom: 15px;
-`
+        <div className="flex items-center gap-2 md:gap-4">
+          <ThemeToggle />
+          <NotificacionesPanel />
+        </div>
+      </div>
+    </header>
+  )
+}
 
-const SidebarList = styled.ul`
-  list-style: none;
-  margin: 0;
-  padding: 0;
-`
+// Componente para accesibilidad y atajos de teclado
+const AccessibilityEnhancer = () => {
+  useEffect(() => {
+    // Atajo de teclado Ctrl/Cmd + B para toggle sidebar
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'b') {
+        event.preventDefault()
+        // El shadcn sidebar maneja este atajo automáticamente
+      }
 
-const SidebarItem = styled.li`
-  margin-bottom: 8px;
-`
+      // Atajo para accesibilidad: Alt + M para focus en el menú principal
+      if (event.altKey && event.key === 'm') {
+        event.preventDefault()
+        const firstMenuItem = document.querySelector('[data-sidebar="menu-item"]') as HTMLElement
+        firstMenuItem?.focus()
+      }
 
-const SidebarLink = styled(NavLink)`
-  display: block;
-  padding: 12px 16px;
-  color: #bdc3c7;
-  text-decoration: none;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+      // Soporte para teclas de dirección en la navegación
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        const menuItem = document.activeElement as HTMLElement
 
-  &:hover {
-    background-color: #34495e;
-    color: #ecf0f1;
-    transform: translateX(4px);
-  }
+        if (menuItem?.getAttribute('role') === 'menuitem') {
+          // Permitir navegación con flechas dentro del menú
+          const menuItems = Array.from(document.querySelectorAll('[role="menuitem"]')) as HTMLElement[]
+          const currentIndex = menuItems.indexOf(menuItem)
 
-  &.active {
-    background-color: #3498db;
-    color: white;
-  }
-`
+          let nextIndex
+          if (event.key === 'ArrowRight') {
+            nextIndex = (currentIndex + 1) % menuItems.length
+          } else {
+            nextIndex = currentIndex > 0 ? currentIndex - 1 : menuItems.length - 1
+          }
 
-const MainContent = styled.main`
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-  background-color: #ffffff;
-`
+          menuItems[nextIndex]?.focus()
+        }
+      }
+    }
 
-const Header = styled.header`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-`
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
-const HeaderTitle = styled.h1`
-  margin: 0;
-  font-size: 2rem;
-  font-weight: 300;
-`
-
-const HeaderSubtitle = styled.p`
-  margin: 8px 0 0 0;
-  opacity: 0.9;
-  font-size: 1.1rem;
-`
+  return null
+}
 
 export const LayoutPrincipal: React.FC = () => {
   return (
-    <Container>
-      <Sidebar>
-        <Logo>Sistema de Almacén</Logo>
-        <SidebarList>
-          {/* Módulo de Materia Prima con submenús */}
-          <SidebarItem>
-            <SidebarLink
-              to="/materia-prima/gestion"
-              className={({ isActive }: { isActive: boolean }) => isActive ? 'active' : ''}
-            >
-              📦 Materia Prima
-            </SidebarLink>
-          </SidebarItem>
+    <SidebarProvider>
+      <AccessibilityEnhancer />
+      <AppSidebarContent />
+      <SidebarInset className="flex min-h-screen flex-1 flex-col bg-background">
+        <ResponsiveHeader />
 
-          {/* Submenús de Materia Prima */}
-          <SidebarItem style={{ marginLeft: '20px' }}>
-            <SidebarLink
-              to="/materia-prima/gestion"
-              className={({ isActive }: { isActive: boolean }) => isActive ? 'active' : ''}
-            >
-              🗂️ Gestión
-            </SidebarLink>
-          </SidebarItem>
-          <SidebarItem style={{ marginLeft: '20px' }}>
-            <SidebarLink
-              to="/materia-prima/consultas"
-              className={({ isActive }: { isActive: boolean }) => isActive ? 'active' : ''}
-            >
-              🔍 Consultas
-            </SidebarLink>
-          </SidebarItem>
-
-          <SidebarItem style={{ marginLeft: '20px' }}>
-            <SidebarLink
-              to="/materia-prima/nueva"
-              className={({ isActive }: { isActive: boolean }) => isActive ? 'active' : ''}
-            >
-              ➕ Altas
-            </SidebarLink>
-          </SidebarItem>
-
-          <SidebarItem>
-            <SidebarLink
-              to="/proveedores"
-              className={({ isActive }: { isActive: boolean }) => isActive ? 'active' : ''}
-            >
-              🏢 Proveedores
-            </SidebarLink>
-          </SidebarItem>
-          <SidebarItem>
-            <SidebarLink
-              to="/movimientos"
-              className={({ isActive }: { isActive: boolean }) => isActive ? 'active' : ''}
-            >
-              📊 Movimientos
-            </SidebarLink>
-          </SidebarItem>
-          <SidebarItem>
-            <SidebarLink
-              to="/solicitudes"
-              className={({ isActive }: { isActive: boolean }) => isActive ? 'active' : ''}
-            >
-              📝 Solicitudes
-            </SidebarLink>
-          </SidebarItem>
-        </SidebarList>
-      </Sidebar>
-      <MainContent>
-        <Header>
-          <HeaderTitle>Gestión de Almacén</HeaderTitle>
-          <HeaderSubtitle>Sistema integral de control de inventario</HeaderSubtitle>
-        </Header>
-        <Outlet />
-      </MainContent>
-    </Container>
+        <main className="flex-1 overflow-auto">
+          <div className="px-3 pb-6 md:px-6 md:pb-8">
+            <Outlet />
+          </div>
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

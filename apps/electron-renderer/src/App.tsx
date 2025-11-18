@@ -5,6 +5,8 @@ import { MateriaPrimaFormulario } from './modules/materiaPrima/Formulario'
 import { GestionMateriaPrima } from './modules/materiaPrima/GestionMateriaPrima'
 import { GestionMateriaPrimaSimple } from './modules/materiaPrima/GestionMateriaPrimaSimple'
 import { ConsultasAvanzadas } from './modules/materiaPrima/ConsultasAvanzadas'
+import DashboardPage from './modules/dashboard/DashboardPage'
+import AprobacionesPage from './modules/aprobaciones/AprobacionesPage'
 
 // Componente placeholder para las demás rutas
 const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
@@ -31,8 +33,9 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<LayoutPrincipal />}>
-          {/* Rutas principales - Lista General (redirige a gestión) */}
-          <Route index element={<Navigate to="/materia-prima/gestion" replace />} />
+          {/* Rutas principales - Dashboard */}
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardPage />} />
           <Route path="materia-prima" element={<Navigate to="/materia-prima/gestion" replace />} />
 
           {/* Módulo de Altas - Crear y Editar */}
@@ -44,6 +47,9 @@ function App() {
 
           {/* Módulo de Consultas - Búsqueda Avanzada */}
           <Route path="materia-prima/consultas" element={<ConsultasAvanzadas />} />
+
+          {/* Módulo de Aprobaciones */}
+          <Route path="aprobaciones" element={<AprobacionesPage />} />
 
           {/* Rutas placeholder para otros módulos */}
           <Route path="proveedores" element={<PlaceholderPage title="Proveedores" />} />

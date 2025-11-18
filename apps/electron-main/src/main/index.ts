@@ -1,5 +1,5 @@
 import { config } from 'dotenv'
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, session } from 'electron'
 import { join } from 'path'
 import { setupMateriaPrimaHandlers } from './ipc/materiaPrima'
 import { setupFileSystemHandlers } from './ipc/fs'
@@ -14,6 +14,38 @@ const startupMetrics = {
   dbConnectionTime: 0,
   windowCreationTime: 0,
   ipcSetupTime: 0
+}
+
+// Configuración de seguridad de sesión
+const setupSecurity = (): void => {
+  // Configurar manejo de permisos de forma restrictiva
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    // Denegar permisos desconocidos
+    const allowedPermissions = ['notifications', 'clipboard-read', 'clipboard-sanitized-write']
+
+    if (allowedPermissions.includes(permission)) {
+      // Permitir solo para orígenes seguros
+      const url = webContents.getURL()
+      if (url.startsWith('http://localhost:') || url.startsWith('file://')) {
+        callback(true)
+        return
+      }
+    }
+
+    // Denegar por defecto
+    callback(false)
+  })
+
+  // Configurar manejo de verificación de permisos
+  session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
+    // Permitir solo orígenes locales
+    if (requestingOrigin && (requestingOrigin.startsWith('http://localhost:') || requestingOrigin.startsWith('file://'))) {
+      return permission === 'notifications' || permission === 'clipboard-read' || permission === 'clipboard-sanitized-write'
+    }
+    return false
+  })
+
+  console.log('🔒 Security configuration applied')
 }
 
 // Función de reintentos para conexión a base de datos
@@ -57,7 +89,12 @@ const createWindow = (): void => {
       preload: join(__dirname, '../preload/index.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false
+      sandbox: false,  // Temporalmente para desarrollo
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      experimentalFeatures: false,
+      enableBlinkFeatures: undefined,
+      spellcheck: true
     }
   })
 
@@ -95,6 +132,9 @@ const setupIPC = (): void => {
 app.whenReady().then(async () => {
   try {
     console.log('🚀 Starting application...')
+
+    // Configurar seguridad primero
+    setupSecurity()
 
     // Validar conexión a base de datos con reintentos
     const dbConnected = await setupWithRetry()

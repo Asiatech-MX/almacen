@@ -4,10 +4,10 @@ import type {
   NewMateriaPrima,
   MateriaPrimaUpdate,
   MateriaPrimaFilters
-} from '../../../../shared/types/materiaPrima'
+} from '@/types/materiaPrima'
 
 // Importamos la interfaz existente
-import type { ElectronAPI } from '../types/electron'
+import type { ElectronAPI } from '@/types/electron'
 
 // Helper para determinar si estamos en Electron
 const isElectron = (): boolean => {

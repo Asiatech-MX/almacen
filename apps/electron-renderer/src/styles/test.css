@@ -1,0 +1,19 @@
+/* Test basic CSS without Tailwind import */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --sidebar: 0 0% 98%;
+  --sidebar-foreground: 240 5.3% 26.1%;
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+/* Test if basic CSS works */
+.test-class {
+  background-color: red;
+  color: white;
+  padding: 1rem;
+}

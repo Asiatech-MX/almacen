@@ -1,0 +1,45 @@
+uid=13_0 RootWebArea "localhost" url="chrome-error://chromewebdata/"
+  uid=13_1 ignored
+    uid=13_2 ignored
+      uid=13_3 generic
+        uid=13_4 generic
+          uid=13_5 generic
+            uid=13_6 image
+            uid=13_7 generic
+              uid=13_8 heading "No se puede acceder a este sitio" level="1"
+                uid=13_9 StaticText "No se puede acceder a este sitio"
+                  uid=13_10 InlineTextBox "No se puede acceder a este sitio"
+              uid=13_11 strong
+                uid=13_12 StaticText "localhost"
+                  uid=13_13 InlineTextBox "localhost"
+              uid=13_14 StaticText " rechazó la conexión."
+                uid=13_15 InlineTextBox " rechazó la conexión."
+              uid=13_16 generic
+                uid=13_17 paragraph
+                  uid=13_18 StaticText "Intenta:"
+                    uid=13_19 InlineTextBox "Intenta:"
+                uid=13_20 list
+                  uid=13_21 listitem level="1"
+                    uid=13_22 ListMarker "• "
+                      uid=13_23 ignored
+                    uid=13_24 StaticText "Comprobar la conexión."
+                      uid=13_25 InlineTextBox "Comprobar la conexión."
+                  uid=13_26 listitem level="1"
+                    uid=13_27 ListMarker "• "
+                      uid=13_28 ignored
+                    uid=13_29 link "Comprobar el proxy y el firewall" url="chrome-error://chromewebdata/#buttons"
+                      uid=13_30 StaticText "Comprobar el proxy y el firewall"
+                        uid=13_31 InlineTextBox "Comprobar el proxy y el firewall"
+                    uid=13_32 StaticText "."
+                      uid=13_33 InlineTextBox "."
+              uid=13_34 generic
+                uid=13_35 StaticText "ERR_CONNECTION_REFUSED"
+                  uid=13_36 InlineTextBox "ERR_CONNECTION_REFUSED"
+          uid=13_37 generic
+            uid=13_38 generic
+              uid=13_39 button "Volver a cargar"
+                uid=13_40 StaticText "Volver a cargar"
+                  uid=13_41 InlineTextBox "Volver a cargar"
+            uid=13_42 button "Detalles"
+              uid=13_43 StaticText "Detalles"
+                uid=13_44 InlineTextBox "Detalles"

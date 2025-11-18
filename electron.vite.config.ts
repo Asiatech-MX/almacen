@@ -1,5 +1,6 @@
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import { resolve } from 'path'
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   main: {
@@ -49,11 +50,16 @@ export default defineConfig({
     root: resolve('./apps/electron-renderer'),
     resolve: {
       alias: {
+        '@': resolve('./apps/electron-renderer/src'),
         '@renderer': resolve('./apps/electron-renderer/src'),
         '@shared': resolve('./packages/shared-types/src'),
         '@backend': resolve(__dirname, 'backend'),
         '@shared-types': resolve(__dirname, 'shared/types')
       }
+    },
+    plugins: [tailwindcss()],
+    css: {
+      postcss: false
     }
   }
 })
