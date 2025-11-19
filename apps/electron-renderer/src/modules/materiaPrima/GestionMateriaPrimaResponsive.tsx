@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useMateriaPrima, { useStockMateriaPrima } from '../../hooks/useMateriaPrima'
 import useDebounce from '../../hooks/useDebounce'
@@ -24,6 +24,7 @@ import { MoreHorizontal, Eye, Edit, Package, Trash2, Search, Filter, Plus } from
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
+import { MateriaPrimaErrorDisplay } from '../../components/MateriaPrimaErrorDisplay'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -367,6 +368,27 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
     setLoadingDetalle(false)
   }
 
+  // Handler de recuperación para acciones de error
+  const handleRecovery = useCallback((action: string) => {
+    if (!selectedMaterial) return
+
+    switch (action) {
+      case 'gestionar_stock':
+        openStockModal(selectedMaterial)
+        break
+      case 'desactivar_material':
+        // TODO: Implementar lógica para desactivar material
+        console.log('Desactivar material:', selectedMaterial.id)
+        break
+      case 'recargar_materiales':
+        cargarMateriales()
+        clearError()
+        break
+      default:
+        clearError()
+    }
+  }, [selectedMaterial, cargarMateriales, clearError])
+
   // Definir columnas con las funciones de callback
   const columns = useMemo(
     () => createColumns(handleEdit, openDeleteModal, openStockModal, openViewModal),
@@ -412,9 +434,12 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-300 text-red-600 p-4 rounded-lg mb-5 flex items-center gap-2.5">
-            <span className="text-xl">⚠️</span>
-            {error}
+          <div className="mb-5">
+            <MateriaPrimaErrorDisplay
+              error={error}
+              onDismiss={clearError}
+              onRecovery={handleRecovery}
+            />
           </div>
         )}
 
@@ -499,9 +524,12 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
               </div>
 
               {error && (
-                <div className="bg-red-50 border border-red-300 text-red-600 p-4 rounded-lg mb-5 flex items-center gap-2.5">
-                  <span className="text-xl">⚠️</span>
-                  {error}
+                <div className="mb-5">
+                  <MateriaPrimaErrorDisplay
+                    error={error}
+                    onDismiss={clearError}
+                    onRecovery={handleRecovery}
+                  />
                 </div>
               )}
             </ScrollSpySection>

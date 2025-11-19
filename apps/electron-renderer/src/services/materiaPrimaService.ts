@@ -7,10 +7,17 @@ import type {
   MateriaPrimaSearchCriteria,
   LowStockItem,
   StockCheck
-} from '@/types/materiaPrima'
+} from '../../../../shared/types/materiaPrima'
 
 // Importamos la interfaz existente
-import type { ElectronAPI } from '@/types/electron'
+import type { ElectronAPI } from '../types/electron'
+
+// Importamos sistema de errores mejorado
+import {
+  MateriaPrimaError,
+  esMateriaPrimaError,
+  procesarError
+} from '../types/materiaPrimaErrors'
 
 // Helper para determinar si estamos en Electron
 const isElectron = (): boolean => {
@@ -23,6 +30,76 @@ export class MateriaPrimaService {
   constructor() {
     if (isElectron()) {
       this.api = window.electronAPI.materiaPrima
+    }
+  }
+
+  /**
+   * Verifica el stock antes de eliminar un material
+   */
+  private async verificarStockAntesDeEliminar(id: string): Promise<{ stock: number; nombre?: string }> {
+    if (!this.api) {
+      // Modo desarrollo: mock verification
+      console.log('Modo desarrollo: verificando stock antes de eliminar', id)
+      return { stock: 25, nombre: 'Material de prueba' } // Simular material con stock
+    }
+
+    try {
+      const materiales = await this.api.listar()
+      const material = materiales.find(item => item.id === id)
+
+      if (!material) {
+        throw new Error(`Material con ID ${id} no encontrado`)
+      }
+
+      return {
+        stock: material.stock_actual,
+        nombre: material.nombre
+      }
+    } catch (error) {
+      console.error('Error al verificar stock antes de eliminar:', error)
+      // Re-lanzar el error para que sea procesado por el método eliminar
+      throw error
+    }
+  }
+
+  /**
+   * Clasifica y procesa errores específicos del servicio
+   */
+  private procesarErrorServicio(error: unknown, contexto?: { idMaterial?: string; nombreMaterial?: string }): MateriaPrimaError {
+    if (esMateriaPrimaError(error)) {
+      // Si ya es un MateriaPrimaError, solo actualizar la capa si es necesario
+      if (error.layer !== 'service') {
+        return {
+          ...error,
+          layer: 'service',
+          timestamp: new Date(),
+          correlationId: error.correlationId // Mantener el mismo correlation ID
+        }
+      }
+      return error
+    }
+
+    // Convertir Error genérico a MateriaPrimaError
+    if (error instanceof Error) {
+      const contextoProcesamiento = contexto ? {
+        layer: 'service' as const,
+        idMaterial: contexto.idMaterial,
+        nombreMaterial: contexto.nombreMaterial
+      } : { layer: 'service' as const }
+
+      return procesarError(error, contextoProcesamiento.layer)
+    }
+
+    // Error desconocido
+    return {
+      type: 'ERROR_GENERICO',
+      message: 'Error desconocido en el servicio',
+      userMessage: 'Ha ocurrido un error inesperado',
+      suggestedAction: 'Intente nuevamente o contacte soporte técnico',
+      severity: 'error',
+      timestamp: new Date(),
+      layer: 'service',
+      correlationId: `serv_err_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     }
   }
 
@@ -258,17 +335,81 @@ export class MateriaPrimaService {
   // Elimina un material
   async eliminar(id: string, usuarioId?: string): Promise<boolean> {
     if (!this.api) {
-      // Modo desarrollo: eliminar mock
-      console.log('Modo desarrollo: eliminando material', id)
-      return true
+      // Modo desarrollo: simular verificación y eliminación
+      console.log('Modo desarrollo: intentando eliminar material', id)
+
+      try {
+        // Verificar stock antes de eliminar
+        const stockResult = await this.verificarStockAntesDeEliminar(id)
+
+        if (stockResult.stock > 0) {
+          // Crear error específico de stock disponible
+          const error = this.procesarErrorServicio(
+            new Error(`No se puede eliminar el material con ${stockResult.stock} unidades en stock`),
+            {
+              idMaterial: id,
+              nombreMaterial: stockResult.nombre
+            }
+          )
+          throw error
+        }
+
+        // Simular eliminación exitosa
+        return true
+      } catch (error) {
+        // Procesar y lanzar error específico
+        const errorProcesado = this.procesarErrorServicio(error, {
+          idMaterial: id,
+          nombreMaterial: 'Material de prueba'
+        })
+        throw errorProcesado
+      }
     }
 
     try {
+      // Verificar stock antes de eliminar en producción
+      const stockResult = await this.verificarStockAntesDeEliminar(id)
+
+      if (stockResult.stock > 0) {
+        // Crear error específico preservando contexto
+        const stockError = this.procesarErrorServicio(
+          new Error(`No se puede eliminar el material con ${stockResult.stock} unidades en stock`),
+          {
+            idMaterial: id,
+            nombreMaterial: stockResult.nombre
+          }
+        )
+        throw stockError
+      }
+
+      // Realizar eliminación
       await this.api.eliminar(id)
       return true
+
     } catch (error) {
       console.error('Error al eliminar materia prima:', error)
-      throw new Error('Error al eliminar el material')
+
+      // Transformar error existente o crear uno nuevo
+      if (esMateriaPrimaError(error)) {
+        // Si ya es un MateriaPrimaError, asegurarse que esté en la capa correcta
+        if (error.layer !== 'service') {
+          const errorActualizado = {
+            ...error,
+            layer: 'service' as const,
+            timestamp: new Date()
+          }
+          throw errorActualizado
+        }
+        throw error
+      }
+
+      // Clasificar y procesar error genérico
+      const errorProcesado = this.procesarErrorServicio(error, {
+        idMaterial: id,
+        nombreMaterial: 'Material desconocido'
+      })
+
+      throw errorProcesado
     }
   }
 

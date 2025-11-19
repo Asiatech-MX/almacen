@@ -11,6 +11,22 @@ import type {
   StockCheck
 } from '../../../../shared/types/materiaPrima'
 
+// Importamos sistema de errores mejorado
+import {
+  MateriaPrimaError,
+  StockDisponibleError,
+  MaterialNoEncontradoError,
+  ConexionDatabaseError,
+  ValidacionError,
+  esMateriaPrimaError,
+  esStockDisponibleError,
+  esMaterialNoEncontradoError,
+  esConexionDatabaseError,
+  esValidacionError,
+  procesarError,
+  crearErrorGenerico
+} from '../types/materiaPrimaErrors'
+
 export interface UseMateriaPrimaOptions {
   autoLoad?: boolean
   filters?: MateriaPrimaFilters
@@ -21,7 +37,7 @@ export function useMateriaPrima(options: UseMateriaPrimaOptions = {}) {
 
   const [materiales, setMateriales] = useState<MateriaPrima[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<MateriaPrimaError | null>(null)
   const [selectedMaterial, setSelectedMaterial] = useState<MateriaPrimaDetail | null>(null)
 
   // Cargar lista de materiales
@@ -32,8 +48,13 @@ export function useMateriaPrima(options: UseMateriaPrimaOptions = {}) {
       const data = await materiaPrimaService.listar(customFilters || filters)
       setMateriales(data)
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
-      setError(errorMsg)
+      if (esMateriaPrimaError(err)) {
+        setError(err);
+      } else if (err instanceof Error) {
+        setError(procesarError(err));
+      } else {
+        setError(crearErrorGenerico('Error desconocido al cargar materiales'));
+      }
       console.error('Error al cargar materiales:', err)
     } finally {
       setLoading(false)
@@ -49,10 +70,17 @@ export function useMateriaPrima(options: UseMateriaPrimaOptions = {}) {
       setSelectedMaterial(material)
       return material
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
-      setError(errorMsg)
-      console.error('Error al obtener material:', err)
-      throw err
+      let errorProcesado: MateriaPrimaError;
+      if (esMateriaPrimaError(err)) {
+        errorProcesado = err;
+      } else if (err instanceof Error) {
+        errorProcesado = procesarError(err);
+      } else {
+        errorProcesado = crearErrorGenerico('Error desconocido al obtener material');
+      }
+      setError(errorProcesado);
+      console.error('Error al obtener material:', err);
+      throw errorProcesado;
     } finally {
       setLoading(false)
     }
@@ -69,13 +97,20 @@ export function useMateriaPrima(options: UseMateriaPrimaOptions = {}) {
       setMateriales(prev => [...prev, nuevoMaterial])
       return nuevoMaterial
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
-      setError(errorMsg)
-      console.error('Error al crear material:', err)
+      let errorProcesado: MateriaPrimaError;
+      if (esMateriaPrimaError(err)) {
+        errorProcesado = err;
+      } else if (err instanceof Error) {
+        errorProcesado = procesarError(err);
+      } else {
+        errorProcesado = crearErrorGenerico('Error desconocido al crear material');
+      }
+      setError(errorProcesado);
+      console.error('Error al crear material:', err);
 
       // Revertir optimistic update
-      await cargarMateriales()
-      throw err
+      await cargarMateriales();
+      throw errorProcesado;
     } finally {
       setLoading(false)
     }
@@ -104,13 +139,20 @@ export function useMateriaPrima(options: UseMateriaPrimaOptions = {}) {
 
       return materialActualizado
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
-      setError(errorMsg)
-      console.error('Error al actualizar material:', err)
+      let errorProcesado: MateriaPrimaError;
+      if (esMateriaPrimaError(err)) {
+        errorProcesado = err;
+      } else if (err instanceof Error) {
+        errorProcesado = procesarError(err);
+      } else {
+        errorProcesado = crearErrorGenerico('Error desconocido al actualizar material');
+      }
+      setError(errorProcesado);
+      console.error('Error al actualizar material:', err);
 
       // Recargar datos en caso de error
-      await cargarMateriales()
-      throw err
+      await cargarMateriales();
+      throw errorProcesado;
     } finally {
       setLoading(false)
     }
@@ -133,10 +175,45 @@ export function useMateriaPrima(options: UseMateriaPrimaOptions = {}) {
 
       return true
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
-      setError(errorMsg)
+      // Procesar error manteniendo tipo y contexto
+      let errorProcesado: MateriaPrimaError
+
+      if (esMateriaPrimaError(err)) {
+        // Enriquecer con contexto adicional del hook
+        errorProcesado = {
+          ...err,
+          layer: 'hook',
+          timestamp: new Date()
+        }
+      } else if (err instanceof Error) {
+        // Error genérico desde el servicio, procesarlo
+        errorProcesado = {
+          type: 'ERROR_GENERICO',
+          message: err.message,
+          userMessage: 'Error al procesar la solicitud de eliminación',
+          suggestedAction: 'Intente nuevamente o contacte soporte',
+          severity: 'error',
+          timestamp: new Date(),
+          layer: 'hook',
+          correlationId: `hook_err_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        }
+      } else {
+        // Error completamente desconocido
+        errorProcesado = {
+          type: 'ERROR_GENERICO',
+          message: 'Error desconocido al eliminar material',
+          userMessage: 'Ha ocurrido un error inesperado',
+          suggestedAction: 'Intente nuevamente o contacte soporte técnico',
+          severity: 'error',
+          timestamp: new Date(),
+          layer: 'hook',
+          correlationId: `hook_unk_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        }
+      }
+
+      setError(errorProcesado)
       console.error('Error al eliminar material:', err)
-      throw err
+      throw errorProcesado
     } finally {
       setLoading(false)
     }
@@ -150,10 +227,17 @@ export function useMateriaPrima(options: UseMateriaPrimaOptions = {}) {
       const resultados = await materiaPrimaService.buscar(searchTerm, limit)
       return resultados
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
-      setError(errorMsg)
-      console.error('Error al buscar materiales:', err)
-      throw err
+      let errorProcesado: MateriaPrimaError;
+      if (esMateriaPrimaError(err)) {
+        errorProcesado = err;
+      } else if (err instanceof Error) {
+        errorProcesado = procesarError(err);
+      } else {
+        errorProcesado = crearErrorGenerico('Error desconocido al buscar materiales');
+      }
+      setError(errorProcesado);
+      console.error('Error al buscar materiales:', err);
+      throw errorProcesado;
     } finally {
       setLoading(false)
     }
@@ -167,10 +251,17 @@ export function useMateriaPrima(options: UseMateriaPrimaOptions = {}) {
       const material = await materiaPrimaService.buscarPorCodigo(codigoBarras)
       return material
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
-      setError(errorMsg)
-      console.error('Error al buscar por código de barras:', err)
-      throw err
+      let errorProcesado: MateriaPrimaError;
+      if (esMateriaPrimaError(err)) {
+        errorProcesado = err;
+      } else if (err instanceof Error) {
+        errorProcesado = procesarError(err);
+      } else {
+        errorProcesado = crearErrorGenerico('Error desconocido al buscar por código de barras');
+      }
+      setError(errorProcesado);
+      console.error('Error al buscar por código de barras:', err);
+      throw errorProcesado;
     } finally {
       setLoading(false)
     }
@@ -184,6 +275,45 @@ export function useMateriaPrima(options: UseMateriaPrimaOptions = {}) {
   // Limpiar errores
   const clearError = useCallback(() => {
     setError(null)
+  }, [])
+
+  // Mensaje específico para el usuario según tipo de error
+  const obtenerMensajeUsuario = useCallback((error: MateriaPrimaError | null): string => {
+    if (!error) return ''
+
+    if (esStockDisponibleError(error)) {
+      return `⚠️ ${error.userMessage}. Stock actual: ${error.stockActual} unidades. ${error.suggestedAction}`
+    }
+
+    if (esMaterialNoEncontradoError(error)) {
+      return `❌ ${error.userMessage}. ID: ${error.idMaterial}. ${error.suggestedAction}`
+    }
+
+    if (esConexionDatabaseError(error)) {
+      return `🔌 ${error.userMessage}. ${error.suggestedAction}`
+    }
+
+    if (esValidacionError(error)) {
+      return `⚠️ ${error.userMessage} (campo: ${error.campo}). ${error.suggestedAction}`
+    }
+
+    // Error genérico
+    return `❌ ${error.userMessage}. ${error.suggestedAction}`
+  }, [])
+
+  // Obtener tipo de error para componentes específicos
+  const getErrorType = useCallback((error: MateriaPrimaError | null): string => {
+    if (!error) return null
+
+    return error.type
+  }, [])
+
+  // Verificar si el error permite acciones de recuperación
+  const tieneAccionesRecuperacion = useCallback((error: MateriaPrimaError | null): boolean => {
+    if (!error) return false
+
+    // Errores de stock permiten acciones específicas
+    return esStockDisponibleError(error)
   }, [])
 
   // Auto-load on mount
@@ -232,6 +362,18 @@ export function useMateriaPrima(options: UseMateriaPrimaOptions = {}) {
     refrescar,
     clearError,
 
+    // Métodos de error mejorados
+    obtenerMensajeUsuario,
+    getErrorType,
+    tieneAccionesRecuperacion,
+
+    // Exponer type guards para uso en componentes
+    esStockDisponibleError,
+    esMaterialNoEncontradoError,
+    esConexionDatabaseError,
+    esValidacionError,
+    esMateriaPrimaError,
+
     // Setters
     setSelectedMaterial
   }
@@ -240,14 +382,14 @@ export function useMateriaPrima(options: UseMateriaPrimaOptions = {}) {
 // Interfaces para useReducer en búsqueda avanzada
 interface SearchState {
   loading: boolean
-  error: string | null
+  error: MateriaPrimaError | null
   resultados: MateriaPrima[]
   filters: MateriaPrimaSearchCriteria
 }
 
 type SearchAction =
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'SET_ERROR'; payload: MateriaPrimaError | null }
   | { type: 'SET_RESULTS'; payload: MateriaPrima[] }
   | { type: 'UPDATE_FILTERS'; payload: Partial<MateriaPrimaSearchCriteria> }
 
@@ -318,10 +460,17 @@ export function useBusquedaAvanzada() {
 
       return resultados
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
-      dispatch({ type: 'SET_ERROR', payload: errorMsg })
-      console.error('Error en búsqueda avanzada:', err)
-      throw err
+      let errorProcesado: MateriaPrimaError;
+      if (esMateriaPrimaError(err)) {
+        errorProcesado = err;
+      } else if (err instanceof Error) {
+        errorProcesado = procesarError(err);
+      } else {
+        errorProcesado = crearErrorGenerico('Error desconocido en búsqueda avanzada');
+      }
+      dispatch({ type: 'SET_ERROR', payload: errorProcesado });
+      console.error('Error en búsqueda avanzada:', err);
+      throw errorProcesado;
     }
   }, [])
 
@@ -337,10 +486,17 @@ export function useBusquedaAvanzada() {
 
       return resultados
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
-      dispatch({ type: 'SET_ERROR', payload: errorMsg })
-      console.error('Error en búsqueda por criterios:', err)
-      throw err
+      let errorProcesado: MateriaPrimaError;
+      if (esMateriaPrimaError(err)) {
+        errorProcesado = err;
+      } else if (err instanceof Error) {
+        errorProcesado = procesarError(err);
+      } else {
+        errorProcesado = crearErrorGenerico('Error desconocido en búsqueda por criterios');
+      }
+      dispatch({ type: 'SET_ERROR', payload: errorProcesado });
+      console.error('Error en búsqueda por criterios:', err);
+      throw errorProcesado;
     }
   }, [])
 
@@ -370,7 +526,7 @@ export function useBusquedaAvanzada() {
 // Hook para gestion de stock (separa la lógica de stock del hook principal)
 export function useStockMateriaPrima() {
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<MateriaPrimaError | null>(null)
 
   // Verificar stock disponible
   const verificarStock = useCallback(async (id: string, cantidad: number) => {
@@ -380,10 +536,17 @@ export function useStockMateriaPrima() {
       const resultado = await materiaPrimaService.verificarStock(id, cantidad)
       return resultado
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
-      setError(errorMsg)
-      console.error('Error al verificar stock:', err)
-      throw err
+      let errorProcesado: MateriaPrimaError;
+      if (esMateriaPrimaError(err)) {
+        errorProcesado = err;
+      } else if (err instanceof Error) {
+        errorProcesado = procesarError(err);
+      } else {
+        errorProcesado = crearErrorGenerico('Error desconocido al verificar stock');
+      }
+      setError(errorProcesado);
+      console.error('Error al verificar stock:', err);
+      throw errorProcesado;
     } finally {
       setLoading(false)
     }
@@ -397,10 +560,17 @@ export function useStockMateriaPrima() {
       const items = await materiaPrimaService.stockBajo()
       return items
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
-      setError(errorMsg)
-      console.error('Error al obtener stock bajo:', err)
-      throw err
+      let errorProcesado: MateriaPrimaError;
+      if (esMateriaPrimaError(err)) {
+        errorProcesado = err;
+      } else if (err instanceof Error) {
+        errorProcesado = procesarError(err);
+      } else {
+        errorProcesado = crearErrorGenerico('Error desconocido al obtener stock bajo');
+      }
+      setError(errorProcesado);
+      console.error('Error al obtener stock bajo:', err);
+      throw errorProcesado;
     } finally {
       setLoading(false)
     }
@@ -417,10 +587,17 @@ export function useStockMateriaPrima() {
       const result = await materiaPrimaService.actualizarStock(id, cantidad, motivo)
       return result
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
-      setError(errorMsg)
-      console.error('Error al actualizar stock:', err)
-      throw err
+      let errorProcesado: MateriaPrimaError;
+      if (esMateriaPrimaError(err)) {
+        errorProcesado = err;
+      } else if (err instanceof Error) {
+        errorProcesado = procesarError(err);
+      } else {
+        errorProcesado = crearErrorGenerico('Error desconocido al actualizar stock');
+      }
+      setError(errorProcesado);
+      console.error('Error al actualizar stock:', err);
+      throw errorProcesado;
     } finally {
       setLoading(false)
     }
