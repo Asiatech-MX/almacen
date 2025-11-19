@@ -4,6 +4,7 @@ import type {
   NewMateriaPrima,
   MateriaPrimaUpdate,
   MateriaPrimaFilters,
+  MateriaPrimaSearchCriteria,
   LowStockItem,
   StockCheck
 } from '@/types/materiaPrima'
@@ -28,28 +29,17 @@ export class MateriaPrimaService {
   // Lista todos los materiales
   async listar(filters?: MateriaPrimaFilters): Promise<MateriaPrima[]> {
     if (!this.api) {
-      // Modo desarrollo: datos mock
-      console.log('Modo desarrollo: usando datos mock para listar')
-      return this.getMockData()
+      // Modo desarrollo: datos mock con filtering
+      console.log('Modo desarrollo: usando datos mock para listar con filtros', filters)
+      return this.applyFiltersToMockData(filters)
     }
 
     try {
       const materiales = await this.api.listar()
 
-      // Aplicar filtros si se proporcionan
+      // Apply comprehensive filtering
       if (filters) {
-        return materiales.filter(material => {
-          if (filters.nombre && !material.nombre.toLowerCase().includes(filters.nombre.toLowerCase())) {
-            return false
-          }
-          if (filters.codigo_barras && !material.codigo_barras?.includes(filters.codigo_barras)) {
-            return false
-          }
-          if (filters.categoria && material.categoria !== filters.categoria) {
-            return false
-          }
-          return true
-        })
+        return this.filterMateriales(materiales, filters)
       }
 
       return materiales
@@ -177,6 +167,35 @@ export class MateriaPrimaService {
     }
   }
 
+  // Search by multiple criteria (new method)
+  async buscarPorCriterios(criterios: MateriaPrimaSearchCriteria): Promise<MateriaPrima[]> {
+    if (!this.api) {
+      // Modo desarrollo: búsqueda por criterios mock
+      console.log('Modo desarrollo: búsqueda por criterios', criterios)
+      return this.filterMateriales(this.getMockData(), {
+        nombre: criterios.nombre,
+        categoria: criterios.categoria,
+        proveedorId: criterios.proveedorId,
+        bajoStock: criterios.bajoStock,
+        rangoStock: criterios.rangoStock
+      })
+    }
+
+    try {
+      const materiales = await this.api.listar()
+      return this.filterMateriales(materiales, {
+        nombre: criterios.nombre,
+        categoria: criterios.categoria,
+        proveedorId: criterios.proveedorId,
+        bajoStock: criterios.bajoStock,
+        rangoStock: criterios.rangoStock
+      })
+    } catch (error) {
+      console.error('Error en búsqueda por criterios:', error)
+      throw new Error('Error al buscar materiales por criterios')
+    }
+  }
+
   // Crea un nuevo material
   async crear(data: NewMateriaPrima, usuarioId?: string): Promise<MateriaPrimaDetail> {
     if (!this.api) {
@@ -287,6 +306,62 @@ export class MateriaPrimaService {
     }
   }
 
+  // Add new method for comprehensive filtering
+  private filterMateriales(materiales: MateriaPrima[], filters: MateriaPrimaFilters): MateriaPrima[] {
+    return materiales.filter(material => {
+      // Name filter
+      if (filters.nombre && !material.nombre.toLowerCase().includes(filters.nombre.toLowerCase())) {
+        return false
+      }
+
+      // Barcode filter
+      if (filters.codigo_barras && !material.codigo_barras?.includes(filters.codigo_barras)) {
+        return false
+      }
+
+      // Category filter
+      if (filters.categoria && material.categoria !== filters.categoria) {
+        return false
+      }
+
+      // Provider filter
+      if (filters.proveedorId && material.proveedor_id !== filters.proveedorId) {
+        return false
+      }
+
+      // Low stock filter
+      if (filters.bajoStock) {
+        const isLowStock = material.stock_actual <= material.stock_minimo
+        if (!isLowStock) return false
+      }
+
+      // No stock filter
+      if (filters.sinStock && material.stock_actual !== 0) {
+        return false
+      }
+
+      // Stock range filter
+      if (filters.rangoStock) {
+        if (filters.rangoStock.min !== undefined && material.stock_actual < filters.rangoStock.min) {
+          return false
+        }
+        if (filters.rangoStock.max !== undefined && material.stock_actual > filters.rangoStock.max) {
+          return false
+        }
+      }
+
+      return true
+    })
+  }
+
+  // Add new method for mock data filtering
+  private applyFiltersToMockData(filters?: MateriaPrimaFilters): MateriaPrima[] {
+    const mockData = this.getMockData()
+    if (!filters) return mockData
+
+    return this.filterMateriales(mockData, filters)
+  }
+
   // Datos mock para desarrollo
   private getMockData(): MateriaPrima[] {
     return [
@@ -340,6 +415,79 @@ export class MateriaPrimaService {
         fecha_caducidad: '2025-08-15',
         descripcion: 'Pintura látex interior color blanco mate',
         proveedor_id: 'prov-003',
+        imagen_url: '',
+        creado_en: '2024-01-01T00:00:00Z',
+        actualizado_en: '2024-01-01T00:00:00Z'
+      },
+      // Add more test data for better filtering validation
+      {
+        id: '4',
+        nombre: 'Alambre de Acero',
+        marca: 'AceroStrong',
+        modelo: 'Calibre 12',
+        categoria: 'Herramientas',
+        presentacion: 'Rollo 100m',
+        stock_actual: 5,
+        stock_minimo: 20,
+        codigo_barras: '4567890123456',
+        costo_unitario: 15.30,
+        fecha_caducidad: null,
+        descripcion: 'Alambre de acero para construcción',
+        proveedor_id: 'prov-001',
+        imagen_url: '',
+        creado_en: '2024-01-01T00:00:00Z',
+        actualizado_en: '2024-01-01T00:00:00Z'
+      },
+      {
+        id: '5',
+        nombre: 'Clavos para Madera',
+        marca: 'FixFast',
+        modelo: '3 pulgadas',
+        categoria: 'Herramientas',
+        presentacion: 'Caja 1kg',
+        stock_actual: 0,
+        stock_minimo: 50,
+        codigo_barras: '5678901234567',
+        costo_unitario: 12.80,
+        fecha_caducidad: null,
+        descripcion: 'Clavos galvanizados para madera',
+        proveedor_id: 'prov-002',
+        imagen_url: '',
+        creado_en: '2024-01-01T00:00:00Z',
+        actualizado_en: '2024-01-01T00:00:00Z'
+      },
+      {
+        id: '6',
+        nombre: 'Pintura Azul Marino',
+        marca: 'Sika',
+        modelo: 'Latex Exterior',
+        categoria: 'Pinturas',
+        presentacion: 'Galón 3.78L',
+        stock_actual: 8,
+        stock_minimo: 15,
+        codigo_barras: '6789012345678',
+        costo_unitario: 48.50,
+        fecha_caducidad: '2025-10-20',
+        descripcion: 'Pintura látex exterior color azul marino',
+        proveedor_id: 'prov-003',
+        imagen_url: '',
+        creado_en: '2024-01-01T00:00:00Z',
+        actualizado_en: '2024-01-01T00:00:00Z'
+      },
+      {
+        id: '7',
+        nombre: 'Tubo PVC',
+        marca: 'Pipesol',
+        modelo: 'Schedule 40',
+        categoria: 'Construcción',
+        presentacion: 'Barril 3m',
+        stock_actual: 75,
+        stock_minimo: 30,
+        codigo_barras: '7890123456789',
+        costo_unitario: 25.90,
+        fecha_caducidad: null,
+        descripcion: 'Tubo de PVC para instalaciones sanitarias',
+        proveedor_id: 'prov-001',
         imagen_url: '',
         creado_en: '2024-01-01T00:00:00Z',
         actualizado_en: '2024-01-01T00:00:00Z'

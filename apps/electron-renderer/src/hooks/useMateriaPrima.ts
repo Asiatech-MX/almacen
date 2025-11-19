@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useReducer } from 'react'
 import { materiaPrimaService } from '../services/materiaPrimaService'
 import type {
   MateriaPrima,
@@ -6,6 +6,7 @@ import type {
   NewMateriaPrima,
   MateriaPrimaUpdate,
   MateriaPrimaFilters,
+  MateriaPrimaSearchCriteria,
   LowStockItem,
   StockCheck
 } from '../../../../shared/types/materiaPrima'
@@ -236,75 +237,133 @@ export function useMateriaPrima(options: UseMateriaPrimaOptions = {}) {
   }
 }
 
+// Interfaces para useReducer en búsqueda avanzada
+interface SearchState {
+  loading: boolean
+  error: string | null
+  resultados: MateriaPrima[]
+  filters: MateriaPrimaSearchCriteria
+}
+
+type SearchAction =
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'SET_RESULTS'; payload: MateriaPrima[] }
+  | { type: 'UPDATE_FILTERS'; payload: Partial<MateriaPrimaSearchCriteria> }
+
+// Reducer para manejar estado de búsqueda avanzada
+function searchReducer(state: SearchState, action: SearchAction): SearchState {
+  switch (action.type) {
+    case 'SET_LOADING':
+      return {
+        ...state,
+        loading: action.payload
+      }
+
+    case 'SET_ERROR':
+      return {
+        ...state,
+        error: action.payload,
+        loading: false
+      }
+
+    case 'SET_RESULTS':
+      return {
+        ...state,
+        resultados: action.payload,
+        loading: false,
+        error: null
+      }
+
+    case 'UPDATE_FILTERS':
+      return {
+        ...state,
+        filters: {
+          ...state.filters,
+          ...action.payload
+        }
+      }
+
+    default:
+      return state
+  }
+}
+
 // Hook para búsqueda avanzada
 export function useBusquedaAvanzada() {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [resultados, setResultados] = useState<MateriaPrima[]>([])
+  // Initial state for search
+  const initialState: SearchState = {
+    loading: false,
+    error: null,
+    resultados: [],
+    filters: {
+      nombre: '',
+      categoria: '',
+      proveedorId: '',
+      bajoStock: false,
+      rangoStock: { min: undefined, max: undefined }
+    }
+  }
 
-  // Búsqueda avanzada con filtros
+  const [state, dispatch] = useReducer(searchReducer, initialState)
+
+  // Búsqueda avanzada con filtros (legacy method for compatibility)
   const buscarAvanzado = useCallback(async (termino: string, filtros?: any) => {
     try {
-      setLoading(true)
-      setError(null)
+      dispatch({ type: 'SET_LOADING', payload: true })
+      dispatch({ type: 'SET_ERROR', payload: null })
+
       const resultados = await materiaPrimaService.buscar(termino, filtros?.limit)
-      setResultados(resultados)
+      dispatch({ type: 'SET_RESULTS', payload: resultados })
+
       return resultados
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
-      setError(errorMsg)
+      dispatch({ type: 'SET_ERROR', payload: errorMsg })
       console.error('Error en búsqueda avanzada:', err)
       throw err
-    } finally {
-      setLoading(false)
     }
   }, [])
 
-  // Búsqueda por criterios múltiples
-  const buscarPorCriterios = useCallback(async (criterios: {
-    nombre?: string
-    categoria?: string
-    proveedorId?: string
-    bajoStock?: boolean
-    rangoStock?: { min?: number; max?: number }
-  }) => {
+  // Búsqueda por criterios múltiples - FIXED VERSION
+  const buscarPorCriterios = useCallback(async (criterios: MateriaPrimaSearchCriteria) => {
     try {
-      setLoading(true)
-      setError(null)
+      dispatch({ type: 'SET_LOADING', payload: true })
+      dispatch({ type: 'SET_ERROR', payload: null })
 
-      // Construir término de búsqueda
-      let searchTerm = ''
-      if (criterios.nombre) {
-        searchTerm += criterios.nombre
-      }
+      // Use the new service method with comprehensive filtering
+      const resultados = await materiaPrimaService.buscarPorCriterios(criterios)
+      dispatch({ type: 'SET_RESULTS', payload: resultados })
 
-      const resultados = await materiaPrimaService.buscar(searchTerm, 50)
-      setResultados(resultados)
       return resultados
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
-      setError(errorMsg)
+      dispatch({ type: 'SET_ERROR', payload: errorMsg })
       console.error('Error en búsqueda por criterios:', err)
       throw err
-    } finally {
-      setLoading(false)
     }
   }, [])
 
   // Limpiar resultados
   const limpiarResultados = useCallback(() => {
-    setResultados([])
-    setError(null)
+    dispatch({ type: 'SET_RESULTS', payload: [] })
+    dispatch({ type: 'SET_ERROR', payload: null })
+  }, [])
+
+  // Limpiar error
+  const clearError = useCallback(() => {
+    dispatch({ type: 'SET_ERROR', payload: null })
   }, [])
 
   return {
-    loading,
-    error,
-    resultados,
+    loading: state.loading,
+    error: state.error,
+    resultados: state.resultados,
+    filters: state.filters,
     buscarAvanzado,
     buscarPorCriterios,
     limpiarBusqueda: limpiarResultados,
-    clearError: () => setError(null)
+    clearError
   }
 }
 

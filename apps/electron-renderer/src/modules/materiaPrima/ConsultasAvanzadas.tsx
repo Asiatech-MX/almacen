@@ -91,7 +91,8 @@ export const ConsultasAvanzadas: React.FC = () => {
 
   // Ejecutar búsqueda cuando los filtros cambian
   useEffect(() => {
-    if (activeTab === 'search' && (debouncedNombre || searchFilters.categoria || searchFilters.proveedorId || searchFilters.bajoStock)) {
+    if (activeTab === 'search' && (debouncedNombre || searchFilters.categoria || searchFilters.proveedorId || searchFilters.bajoStock ||
+        (searchFilters.rangoStock.min !== undefined || searchFilters.rangoStock.max !== undefined))) {
       buscarPorCriterios({
         nombre: debouncedNombre,
         categoria: searchFilters.categoria || undefined,

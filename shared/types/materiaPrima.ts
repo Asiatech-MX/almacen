@@ -65,11 +65,21 @@ export interface MateriaPrimaUpdate {
 // Tipos para filtros y búsquedas
 export interface MateriaPrimaFilters {
   nombre?: string
-  codigoBarras?: string
+  codigo_barras?: string  // Fixed: changed from codigoBarras to match service
   categoria?: string
   proveedorId?: string
   bajoStock?: boolean
   sinStock?: boolean
+  rangoStock?: { min?: number; max?: number }  // Add stock range filtering
+}
+
+// Add new interface for advanced search criteria
+export interface MateriaPrimaSearchCriteria {
+  nombre?: string
+  categoria?: string
+  proveedorId?: string
+  bajoStock?: boolean
+  rangoStock?: { min?: number; max?: number }
 }
 
 export interface MateriaPrimaSearchOptions {
