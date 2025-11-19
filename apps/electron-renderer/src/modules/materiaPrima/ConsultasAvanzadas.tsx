@@ -81,7 +81,8 @@ export const ConsultasAvanzadas: React.FC = () => {
   const {
     materiales,
     loading: materialesLoading,
-    estadisticas
+    estadisticas,
+    cargarMateriales
   } = useMateriaPrima({ autoLoad: true })
 
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([])
@@ -89,21 +90,35 @@ export const ConsultasAvanzadas: React.FC = () => {
   // Obtener categorías únicas
   const categorias = Array.from(new Set(materiales.map(m => m.categoria).filter(Boolean)))
 
+  // Determinar si hay filtros activos
+  const tieneFiltros = debouncedNombre ||
+                      (searchFilters.categoria && searchFilters.categoria !== "") ||
+                      searchFilters.proveedorId ||
+                      searchFilters.bajoStock ||
+                      (searchFilters.rangoStock.min !== undefined || searchFilters.rangoStock.max !== undefined)
+
   // Ejecutar búsqueda cuando los filtros cambian
   useEffect(() => {
-    if (activeTab === 'search' && (debouncedNombre || searchFilters.categoria || searchFilters.proveedorId || searchFilters.bajoStock ||
-        (searchFilters.rangoStock.min !== undefined || searchFilters.rangoStock.max !== undefined))) {
-      buscarPorCriterios({
-        nombre: debouncedNombre,
-        categoria: searchFilters.categoria || undefined,
-        proveedorId: searchFilters.proveedorId || undefined,
-        bajoStock: searchFilters.bajoStock,
-        rangoStock: searchFilters.rangoStock.min !== undefined || searchFilters.rangoStock.max !== undefined
-          ? searchFilters.rangoStock
-          : undefined
-      })
+    if (activeTab === 'search') {
+      // Si no hay filtros específicos, cargar todos los materiales
+      if (!tieneFiltros) {
+        cargarMateriales()
+      } else {
+        buscarPorCriterios({
+          nombre: debouncedNombre,
+          categoria: searchFilters.categoria || undefined,
+          proveedorId: searchFilters.proveedorId || undefined,
+          bajoStock: searchFilters.bajoStock,
+          rangoStock: searchFilters.rangoStock.min !== undefined || searchFilters.rangoStock.max !== undefined
+            ? searchFilters.rangoStock
+            : undefined
+        })
+      }
     }
-  }, [debouncedNombre, searchFilters.categoria, searchFilters.proveedorId, searchFilters.bajoStock, searchFilters.rangoStock, activeTab])
+  }, [debouncedNombre, searchFilters.categoria, searchFilters.proveedorId, searchFilters.bajoStock, searchFilters.rangoStock, activeTab, tieneFiltros, cargarMateriales, buscarPorCriterios])
+
+  // Determinar qué datos mostrar
+  const datosAMostrar = tieneFiltros ? searchResults : materiales
 
   // Cargar stock bajo cuando se activa la pestaña
   useEffect(() => {
@@ -163,7 +178,7 @@ export const ConsultasAvanzadas: React.FC = () => {
 
   const exportResults = async () => {
     try {
-      const data = activeTab === 'search' ? searchResults : materiales
+      const data = activeTab === 'search' ? datosAMostrar : materiales
       const csv = [
         ['Código', 'Nombre', 'Marca', 'Presentación', 'Stock Actual', 'Stock Mínimo', 'Categoría', 'Proveedor'],
         ...data.map(item => [
@@ -275,19 +290,19 @@ export const ConsultasAvanzadas: React.FC = () => {
                   <Button variant="outline" onClick={clearFilters}>
                     🔄 Limpiar Filtros
                   </Button>
-                  <Button variant="default" onClick={exportResults} disabled={searchResults.length === 0}>
+                  <Button variant="default" onClick={exportResults} disabled={datosAMostrar.length === 0}>
                     📊 Exportar Resultados
                   </Button>
                 </div>
               </CardContent>
             </Card>
 
-            {searchResults.length > 0 && (
+            {datosAMostrar.length > 0 && (
               <Card>
                 <CardHeader>
                   <div className="flex justify-between items-center">
-                    <CardTitle>Resultados de Búsqueda</CardTitle>
-                    <Badge variant="secondary">{searchResults.length} materiales</Badge>
+                    <CardTitle>{tieneFiltros ? 'Resultados de Búsqueda' : 'Todos los Materiales'}</CardTitle>
+                    <Badge variant="secondary">{datosAMostrar.length} materiales</Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -303,7 +318,7 @@ export const ConsultasAvanzadas: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {searchResults.map((material) => (
+                      {datosAMostrar.map((material) => (
                         <TableRow key={material.id}>
                           <TableCell className="font-medium">{material.codigo_barras}</TableCell>
                           <TableCell>{material.nombre}</TableCell>
@@ -323,7 +338,7 @@ export const ConsultasAvanzadas: React.FC = () => {
               </Card>
             )}
 
-            {searchResults.length === 0 && !searchLoading && (debouncedNombre || searchFilters.categoria) && (
+            {datosAMostrar.length === 0 && !searchLoading && !materialesLoading && tieneFiltros && (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-16">
                   <div className="text-4xl mb-4">🔍</div>
