@@ -204,3 +204,17 @@ docs/build/
 # Development tools
 .eslintcache
 .stylelintcache
+
+# Chrome DevTools test artifacts (root directory only)
+/*.txt
+/*.png
+/*.jpg
+/*.jpeg
+
+# Important exceptions (preserve these files)
+!README.md
+!CLAUDE.md
+!AGENTS.md
+!CHANGELOG.md
+!CONTRIBUTING.md
+!LICENSE.md
