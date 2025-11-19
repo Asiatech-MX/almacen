@@ -3,7 +3,9 @@ import type {
   MateriaPrimaDetail,
   NewMateriaPrima,
   MateriaPrimaUpdate,
-  MateriaPrimaFilters
+  MateriaPrimaFilters,
+  LowStockItem,
+  StockCheck
 } from '@/types/materiaPrima'
 
 // Importamos la interfaz existente
@@ -117,6 +119,36 @@ export class MateriaPrimaService {
     }
   }
 
+  // Obtiene materiales con stock bajo
+  async stockBajo(): Promise<LowStockItem[]> {
+    if (!this.api) {
+      // Modo desarrollo: datos mock de stock bajo
+      console.log('Modo desarrollo: obteniendo stock bajo')
+      const materiales = this.getMockData()
+      return materiales
+        .filter(material => material.stock_actual <= material.stock_minimo)
+        .map(material => ({
+          id: material.id,
+          codigo_barras: material.codigo_barras || '',
+          nombre: material.nombre,
+          marca: material.marca || null,
+          presentacion: material.presentacion || 'N/A',
+          stock_actual: material.stock_actual,
+          stock_minimo: material.stock_minimo,
+          categoria: material.categoria || null,
+          stock_ratio: material.stock_minimo > 0 ? material.stock_actual / material.stock_minimo : null
+        }))
+    }
+
+    try {
+      const items = await this.api.stockBajo()
+      return items
+    } catch (error) {
+      console.error('Error al obtener stock bajo:', error)
+      throw new Error('Error al obtener materiales con stock bajo')
+    }
+  }
+
   // Busca materiales por término
   async buscar(searchTerm: string, limit: number = 50): Promise<MateriaPrima[]> {
     if (!this.api) {
@@ -221,6 +253,40 @@ export class MateriaPrimaService {
     }
   }
 
+  // Verifica el stock disponible
+  async verificarStock(id: string, cantidad: number): Promise<StockCheck> {
+    if (!this.api) {
+      // Modo desarrollo: verificar stock mock
+      console.log('Modo desarrollo: verificando stock', { id, cantidad })
+      return { disponible: true, stock_actual: 100 } as StockCheck
+    }
+
+    try {
+      const result = await this.api.verificarStock(id, cantidad)
+      return result
+    } catch (error) {
+      console.error('Error al verificar stock:', error)
+      throw new Error('Error al verificar stock del material')
+    }
+  }
+
+  // Actualiza el stock de un material
+  async actualizarStock(id: string, cantidad: number, motivo: string, usuarioId?: string): Promise<boolean> {
+    if (!this.api) {
+      // Modo desarrollo: actualizar stock mock
+      console.log('Modo desarrollo: actualizando stock', { id, cantidad, motivo })
+      return true
+    }
+
+    try {
+      await this.api.actualizarStock(id, cantidad, motivo, usuarioId)
+      return true
+    } catch (error) {
+      console.error('Error al actualizar stock:', error)
+      throw new Error('Error al actualizar el stock del material')
+    }
+  }
+
   // Datos mock para desarrollo
   private getMockData(): MateriaPrima[] {
     return [
@@ -230,6 +296,7 @@ export class MateriaPrimaService {
         marca: 'Holcim',
         modelo: 'Tipo Portland',
         categoria: 'Construcción',
+        presentacion: 'Saco 50kg',
         stock_actual: 150,
         stock_minimo: 50,
         codigo_barras: '1234567890123',
@@ -247,6 +314,7 @@ export class MateriaPrimaService {
         marca: 'Ladrillera',
         modelo: 'Standard',
         categoria: 'Construcción',
+        presentacion: 'Pieza',
         stock_actual: 500,
         stock_minimo: 200,
         codigo_barras: '2345678901234',
@@ -264,6 +332,7 @@ export class MateriaPrimaService {
         marca: 'Sika',
         modelo: 'Latex Interior',
         categoria: 'Pinturas',
+        presentacion: 'Galón 3.78L',
         stock_actual: 25,
         stock_minimo: 10,
         codigo_barras: '3456789012345',

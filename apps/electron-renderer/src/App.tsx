@@ -1,8 +1,9 @@
 import React from 'react'
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { NuqsAdapter } from 'nuqs/adapters/react-router/v6'
 import { LayoutPrincipal } from './components/layout/LayoutPrincipal'
 import { MateriaPrimaFormulario } from './modules/materiaPrima/Formulario'
-import { GestionMateriaPrima } from './modules/materiaPrima/GestionMateriaPrima'
+import { GestionMateriaPrimaResponsive } from './modules/materiaPrima/GestionMateriaPrimaResponsive'
 import { GestionMateriaPrimaSimple } from './modules/materiaPrima/GestionMateriaPrimaSimple'
 import { ConsultasAvanzadas } from './modules/materiaPrima/ConsultasAvanzadas'
 import DashboardPage from './modules/dashboard/DashboardPage'
@@ -30,35 +31,37 @@ const TestPage: React.FC<{ title: string }> = ({ title }) => (
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<LayoutPrincipal />}>
-          {/* Rutas principales - Dashboard */}
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="materia-prima" element={<Navigate to="/materia-prima/gestion" replace />} />
+    <NuqsAdapter>
+      <Router>
+        <Routes>
+          <Route path="/" element={<LayoutPrincipal />}>
+            {/* Rutas principales - Dashboard */}
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="materia-prima" element={<Navigate to="/materia-prima/gestion" replace />} />
 
-          {/* Módulo de Altas - Crear y Editar */}
-          <Route path="materia-prima/nueva" element={<MateriaPrimaFormulario />} />
-          <Route path="materia-prima/editar/:id" element={<MateriaPrimaFormulario />} />
+            {/* Módulo de Altas - Crear y Editar */}
+            <Route path="materia-prima/nueva" element={<MateriaPrimaFormulario />} />
+            <Route path="materia-prima/editar/:id" element={<MateriaPrimaFormulario />} />
 
-          {/* Módulo de Bajas - Gestión y Eliminación */}
-          <Route path="materia-prima/gestion" element={<GestionMateriaPrima />} />
+            {/* Módulo de Bajas - Gestión y Eliminación */}
+            <Route path="materia-prima/gestion" element={<GestionMateriaPrimaResponsive />} />
 
-          {/* Módulo de Consultas - Búsqueda Avanzada */}
-          <Route path="materia-prima/consultas" element={<ConsultasAvanzadas />} />
+            {/* Módulo de Consultas - Búsqueda Avanzada */}
+            <Route path="materia-prima/consultas" element={<ConsultasAvanzadas />} />
 
-          {/* Módulo de Aprobaciones */}
-          <Route path="aprobaciones" element={<AprobacionesPage />} />
+            {/* Módulo de Aprobaciones */}
+            <Route path="aprobaciones" element={<AprobacionesPage />} />
 
-          {/* Rutas placeholder para otros módulos */}
-          <Route path="proveedores" element={<PlaceholderPage title="Proveedores" />} />
-          <Route path="movimientos" element={<PlaceholderPage title="Movimientos" />} />
-          <Route path="solicitudes" element={<PlaceholderPage title="Solicitudes" />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
-    </Router>
+            {/* Rutas placeholder para otros módulos */}
+            <Route path="proveedores" element={<PlaceholderPage title="Proveedores" />} />
+            <Route path="movimientos" element={<PlaceholderPage title="Movimientos" />} />
+            <Route path="solicitudes" element={<PlaceholderPage title="Solicitudes" />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+      </Router>
+    </NuqsAdapter>
   )
 }
 

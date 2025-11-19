@@ -6,7 +6,8 @@ import type {
   NewMateriaPrima,
   MateriaPrimaUpdate,
   MateriaPrimaFilters,
-  LowStockItem
+  LowStockItem,
+  StockCheck
 } from '../../../../shared/types/materiaPrima'
 
 export interface UseMateriaPrimaOptions {
@@ -354,9 +355,8 @@ export function useStockMateriaPrima() {
     try {
       setLoading(true)
       setError(null)
-      // Implementar llamada a IPC cuando esté disponible
-      console.log('Actualizando stock:', { id, cantidad, motivo })
-      return true
+      const result = await materiaPrimaService.actualizarStock(id, cantidad, motivo)
+      return result
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Error desconocido'
       setError(errorMsg)

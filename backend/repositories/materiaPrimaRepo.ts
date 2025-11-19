@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { Database } from '../types/database'
 import { getDatabase } from '../db/pool'
 import { BaseRepository } from './base/BaseRepository'
+import { ProveedorMappingService } from '../services/proveedorMappingService'
 import type {
   MateriaPrima,
   MateriaPrimaDetail,
@@ -102,8 +103,10 @@ const CreateMateriaPrimaSchema = z.object({
     .nullable()
     .optional(),
 
-  proveedor_id: z.string()
-    .uuid('ID de proveedor inválido')
+  proveedor_id: z.union([
+      z.string().uuid('ID de proveedor UUID inválido'),
+      z.number().positive('ID de proveedor debe ser un número positivo')
+    ])
     .nullable()
     .optional()
 })
@@ -115,8 +118,11 @@ const UpdateMateriaPrimaSchema = CreateMateriaPrimaSchema.partial()
  * Proporciona operaciones CRUD completas con validaciones y auditoría
  */
 export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
+  private proveedorMapping: ProveedorMappingService
+
   constructor(database?: Kysely<Database>) {
     super(database, 'materia_prima')
+    this.proveedorMapping = new ProveedorMappingService(database || getDatabase())
   }
 
   // ==================== CREATE OPERATIONS ====================
@@ -147,23 +153,17 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         throw new Error(`El código de barras ${validatedData.codigo_barras} ya existe`)
       }
 
-      // TODO: Fix type mismatch between UUID (materia_prima.proveedor_id) and integer (proveedor.id)
-      // Temporarily disabled since there are no providers in the database
-      /*
-      // Verificar que el proveedor exista si se proporciona
+      // Verificar que el proveedor exista si se proporciona (soporta UUID e INTEGER)
       if (validatedData.proveedor_id) {
-        const proveedorExists = await trx
-          .selectFrom('proveedor')
-          .select('id')
-          .where('id', '=', validatedData.proveedor_id)
-          .where('activo', '=', true)
-          .executeTakeFirst()
+        const proveedorValido = await this.proveedorMapping.validateProveedor(validatedData.proveedor_id)
 
-        if (!proveedorExists) {
+        if (!proveedorValido || proveedorValido.estatus !== 'ACTIVO') {
           throw new Error('El proveedor especificado no existe o no está activo')
         }
+
+        // Convertir a UUID para almacenamiento consistente
+        validatedData.proveedor_id = await this.proveedorMapping.convertToUuid(validatedData.proveedor_id)
       }
-      */
 
       // Insertar nuevo material
       const resultado = await trx
@@ -258,7 +258,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'mp.descripcion',
         'mp.categoria',
         'mp.proveedor_id',
-        sql<string>`NULL`.as('proveedor_nombre'), // Temporarily NULL since no providers exist
+        sql<string>`NULL`.as('proveedor_nombre'), // Temporal: NULL until provider schema is fixed
         'mp.creado_en',
         'mp.actualizado_en'
       ])
@@ -326,7 +326,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'mp.descripcion',
         'mp.categoria',
         'mp.proveedor_id',
-        sql<string>`NULL`.as('proveedor_nombre'), // Temporarily NULL since no providers exist
+        'p.nombre as proveedor_nombre',
         sql<string>`NULL`.as('proveedor_rfc'), // Temporarily NULL since no providers exist
         'mp.creado_en',
         'mp.actualizado_en'
@@ -355,6 +355,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
       searchFields,
       searchTerm,
       (query) => query
+        // .leftJoin('proveedor as p', 'p.id', 'materia_prima.proveedor_id') // Disabled: type mismatch (integer vs uuid)
         .select([
           'materia_prima.id',
           'materia_prima.codigo_barras',
@@ -365,7 +366,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
           'materia_prima.stock_minimo',
           'materia_prima.categoria',
           'materia_prima.imagen_url',
-          sql<string>`NULL`.as('proveedor_nombre') // Temporarily NULL since no providers exist
+          sql<string>`NULL`.as('proveedor_nombre') // Temporal: NULL until provider schema is fixed
         ])
         .limit(limit)
         .orderBy('materia_prima.nombre')
@@ -387,12 +388,16 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'presentacion',
         'stock_actual',
         'stock_minimo',
-        'categoria'
+        'categoria',
+        sql<number | null>`CASE
+          WHEN stock_minimo > 0 THEN ROUND((stock_actual::numeric / stock_minimo::numeric), 2)
+          ELSE NULL
+        END`.as('stock_ratio')
       ])
       .where('activo', '=', true)
-      .where(sql`stock_actual <= stock_minimo`, '=', true)
+      .where(sql`stock_actual <= stock_minimo`)
       .where('stock_minimo', '>', 0)
-      .orderBy(sql`stock_actual / NULLIF(stock_minimo, 0)`, 'asc')
+      .orderBy('stock_ratio', 'asc')
       .execute() as LowStockItem[]
   }
 
@@ -440,23 +445,17 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         }
       }
 
-      // TODO: Fix type mismatch between UUID (materia_prima.proveedor_id) and integer (proveedor.id)
-      // Temporarily disabled since there are no providers in the database
-      /*
-      // Verificar proveedor si se actualiza
+      // Verificar proveedor si se actualiza (soporta UUID e INTEGER)
       if (validatedData.proveedor_id && validatedData.proveedor_id !== anterior.proveedor_id) {
-        const proveedorExists = await trx
-          .selectFrom('proveedor')
-          .select('id')
-          .where('id', '=', validatedData.proveedor_id)
-          .where('activo', '=', true)
-          .executeTakeFirst()
+        const proveedorValido = await this.proveedorMapping.validateProveedor(validatedData.proveedor_id)
 
-        if (!proveedorExists) {
+        if (!proveedorValido || proveedorValido.estatus !== 'ACTIVO') {
           throw new Error('El proveedor especificado no existe o no está activo')
         }
+
+        // Convertir a UUID para almacenamiento consistente
+        validatedData.proveedor_id = await this.proveedorMapping.convertToUuid(validatedData.proveedor_id)
       }
-      */
 
       // Actualizar registro
       await trx
@@ -748,6 +747,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
   ): Promise<MateriaPrimaDetail | null> {
     return await db
       .selectFrom('materia_prima as mp')
+      // .leftJoin('proveedor as p', 'p.id', 'mp.proveedor_id') // Disabled: type mismatch (integer vs uuid)
       .select([
         'mp.id',
         'mp.codigo_barras',
@@ -763,8 +763,9 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'mp.descripcion',
         'mp.categoria',
         'mp.proveedor_id',
-        sql<string>`NULL`.as('proveedor_nombre'), // Temporarily NULL since no providers exist
-        sql<string>`NULL`.as('proveedor_rfc'), // Temporarily NULL since no providers exist
+        sql<string>`NULL`.as('proveedor_nombre'), // Temporal: NULL until provider schema is fixed
+        sql<string>`NULL`.as('proveedor_rfc'), // Temporal: NULL until provider schema is fixed
+        sql<number>`NULL`.as('proveedor_id_legacy'), // Temporal: NULL until provider schema is fixed
         'mp.creado_en',
         'mp.actualizado_en'
       ])
