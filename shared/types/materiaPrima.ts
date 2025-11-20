@@ -186,7 +186,17 @@ export interface MateriaPrimaIPCEvents {
   'materiaPrima:actualizar': (id: string, data: MateriaPrimaUpdate, usuarioId?: string) => Promise<MateriaPrimaDetail>
   'materiaPrima:eliminar': (id: string, usuarioId?: string) => Promise<boolean>
   'materiaPrima:actualizarStock': (id: string, cantidad: number, motivo: string, usuarioId?: string) => Promise<boolean>
+  'materiaPrima:actualizarEstatus': (data: MateriaPrimaEstatusUpdate) => Promise<MateriaPrimaDetail>
   'materiaPrima:exportar': (options: MateriaPrimaExportOptions) => Promise<Buffer>
+}
+
+// Tipos para gestión de estatus
+export type MateriaPrimaEstatus = 'ACTIVO' | 'INACTIVO'
+
+export interface MateriaPrimaEstatusUpdate {
+  id: string
+  estatus: MateriaPrimaEstatus
+  usuarioId?: string
 }
 
 // Tipos de respuesta estandarizados

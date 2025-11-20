@@ -9,8 +9,9 @@ import type {
   StockCheck,
   LowStockItem,
   MateriaPrimaStats,
-  AuditTrail
-} from '@shared-types/materiaPrima'
+  AuditTrail,
+  MateriaPrimaEstatusUpdate
+} from '@shared-types/index'
 
 // Variable privada para el repository (factory pattern)
 let materiaPrimaRepo: MateriaPrimaRepository | null = null
@@ -216,6 +217,37 @@ export function setupMateriaPrimaHandlers(): void {
       return result
     } catch (error) {
       console.error('❌ Error actualizando materia prima:', error)
+      throw error
+    }
+  })
+
+  // ✅ Actualizar estatus del material
+  ipcMain.handle('materiaPrima:actualizarEstatus', async (_, data: MateriaPrimaEstatusUpdate) => {
+    try {
+      console.log('📡 materiaPrima:actualizarEstatus handled')
+
+      // Validación de parámetros
+      if (!data || typeof data !== 'object') {
+        throw new Error('Datos de actualización inválidos')
+      }
+
+      if (!data.id || typeof data.id !== 'string') {
+        throw new Error('ID del material es requerido')
+      }
+
+      if (!data.estatus || !['ACTIVO', 'INACTIVO'].includes(data.estatus)) {
+        throw new Error('Estatus inválido. Debe ser ACTIVO o INACTIVO')
+      }
+
+      if (data.usuarioId && typeof data.usuarioId !== 'string') {
+        throw new Error('ID de usuario debe ser una cadena de texto')
+      }
+
+      const result = await getMateriaPrimaRepository().updateEstatus(data)
+      console.log(`🔄 Estatus actualizado para ${data.id}: ${data.estatus}`)
+      return result
+    } catch (error) {
+      console.error('❌ Error actualizando estatus de materia prima:', error)
       throw error
     }
   })

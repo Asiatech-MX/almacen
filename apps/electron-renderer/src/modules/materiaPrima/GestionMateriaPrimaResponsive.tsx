@@ -18,7 +18,7 @@ import { DataTableColumnHeader } from '../../components/data-table/data-table-co
 import { DataTableToolbar } from '../../components/data-table/data-table-toolbar'
 import { useDataTable } from '../../hooks/use-data-table'
 import { ColumnDef } from '@tanstack/react-table'
-import { MoreHorizontal, Eye, Edit, Package, Trash2, Search, Filter, Plus } from 'lucide-react'
+import { MoreHorizontal, Eye, Edit, Package, Trash2, Search, Filter, Plus, Power, PowerOff } from 'lucide-react'
 
 // Importaciones de shadcn/ui para todos los componentes
 import { Button } from '../../components/ui/button'
@@ -45,10 +45,32 @@ import {
 } from '../../components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { Textarea } from '../../components/ui/textarea'
+import { toast } from 'sonner'
+import { Skeleton } from '../../components/ui/skeleton'
 
 // Componentes de utilidad para loading y errores
 const LoadingSpinner = () => (
   <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-blue-600"></div>
+)
+
+// Componente Skeleton para la tabla
+const TableSkeleton = ({ rows = 10 }) => (
+  <div className="space-y-3">
+    {Array.from({ length: rows }).map((_, index) => (
+      <div key={index} className="flex items-center space-x-4 p-4 border rounded-lg">
+        <Skeleton className="h-12 w-12 rounded-lg" />
+        <div className="space-y-2 flex-1">
+          <Skeleton className="h-4 w-[250px]" />
+          <Skeleton className="h-4 w-[200px]" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-[100px]" />
+          <Skeleton className="h-4 w-[80px]" />
+        </div>
+        <Skeleton className="h-8 w-8 rounded" />
+      </div>
+    ))}
+  </div>
 )
 
 // Definición de columnas para el DataTable
@@ -56,7 +78,9 @@ const createColumns = (
   onEdit: (material: MateriaPrima) => void,
   onDelete: (material: MateriaPrima) => void,
   onStockUpdate: (material: MateriaPrima) => void,
-  onViewDetails: (material: MateriaPrima) => void
+  onViewDetails: (material: MateriaPrima) => void,
+  onToggleStatus: (material: MateriaPrima) => void,
+  updatingStatus: string | null
 ): ColumnDef<MateriaPrima>[] => [
   {
     id: 'codigo_barras',
@@ -141,48 +165,50 @@ const createColumns = (
     enableColumnFilter: false,
   },
   {
-    id: 'estado',
-    accessorKey: 'stock_actual',
-    header: 'Estado',
+    id: 'estatus',
+    accessorKey: 'estatus',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Estado" />
+    ),
     cell: ({ row }) => {
-      const stockActual = row.getValue('stock_actual') as number
+      const estatus = row.getValue('estatus') as string || 'ACTIVO'
+      const stockActual = row.original.stock_actual || 0
       const stockMinimo = row.original.stock_minimo || 0
 
-      let status: 'default' | 'secondary' | 'destructive'
+      let statusVariant: 'default' | 'secondary' | 'destructive' | 'outline'
       let label: string
 
-      if (stockActual === 0) {
-        status = 'destructive'
-        label = 'Agotado'
+      // Priorizar el estado del estatus del material
+      if (estatus === 'INACTIVO') {
+        statusVariant = 'outline'
+        label = '🔒 Inhabilitado'
+      } else if (stockActual === 0) {
+        statusVariant = 'destructive'
+        label = '❌ Agotado'
       } else if (stockActual <= stockMinimo) {
-        status = 'secondary'
-        label = 'Bajo'
+        statusVariant = 'secondary'
+        label = '⚠️ Bajo'
       } else {
-        status = 'default'
-        label = 'Normal'
+        statusVariant = 'default'
+        label = '✅ Activo'
       }
 
       return (
-        <Badge variant={status}>
+        <Badge variant={statusVariant} className="whitespace-nowrap">
           {label}
         </Badge>
       )
     },
-    enableColumnFilter: true,
-    meta: {
-      label: 'Estado',
-      variant: 'select',
-      options: [
-        { label: 'Normal', value: 'normal' },
-        { label: 'Bajo', value: 'low' },
-        { label: 'Agotado', value: 'out' },
-      ],
-    },
+    enableColumnFilter: false, // Disable DataTable column filtering - using local state filtering instead
   },
   {
     id: 'actions',
     cell: ({ row }) => {
       const material = row.original
+      const stockActual = material.stock_actual || 0
+      const estatus = material.estatus || 'ACTIVO'
+      const canDelete = estatus === 'INACTIVO'
+      const isActive = estatus === 'ACTIVO'
 
       return (
         <DropdownMenu modal={false}>
@@ -207,10 +233,51 @@ const createColumns = (
               Ajustar stock
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onDelete(material)} className="text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Eliminar
-            </DropdownMenuItem>
+
+            {/* Acciones de estado - deshabilitar/habilitar */}
+            {isActive ? (
+              <DropdownMenuItem
+                onClick={() => onToggleStatus(material)}
+                disabled={updatingStatus === material.id}
+              >
+                {updatingStatus === material.id ? (
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-amber-600" />
+                ) : (
+                  <PowerOff className="mr-2 h-4 w-4" />
+                )}
+                <span className="text-amber-600">
+                  {updatingStatus === material.id ? 'Deshabilitando...' : 'Deshabilitar'}
+                </span>
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                onClick={() => onToggleStatus(material)}
+                disabled={updatingStatus === material.id}
+              >
+                {updatingStatus === material.id ? (
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-green-600" />
+                ) : (
+                  <Power className="mr-2 h-4 w-4" />
+                )}
+                <span className="text-green-600">
+                  {updatingStatus === material.id ? 'Habilitando...' : 'Habilitar'}
+                </span>
+              </DropdownMenuItem>
+            )}
+
+            {/* Eliminar solo si el estatus es INACTIVO */}
+            {canDelete && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => onDelete(material)}
+                  className="text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Eliminar
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )
@@ -251,15 +318,18 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
   const [searchTerm, setSearchTerm] = useState('')
   const [categoriaFilter, setCategoriaFilter] = useState('')
   const [stockFilter, setStockFilter] = useState<'all' | 'low' | 'out'>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [selectedMaterial, setSelectedMaterial] = useState<MateriaPrima | null>(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showStockModal, setShowStockModal] = useState(false)
+  const [showStatusModal, setShowStatusModal] = useState(false)
   const [stockAmount, setStockAmount] = useState('')
   const [stockReason, setStockReason] = useState('')
   const [showViewModal, setShowViewModal] = useState(false)
   const [materialDetalle, setMaterialDetalle] = useState<MateriaPrimaDetail | null>(null)
   const [loadingDetalle, setLoadingDetalle] = useState(false)
   const [detalleError, setDetalleError] = useState<string | null>(null)
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
@@ -277,6 +347,7 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
       const categoria = safeGet(material, 'categoria', '')
       const stockActual = safeGet(material, 'stock_actual', 0)
       const stockMinimo = safeGet(material, 'stock_minimo', 0)
+      const estatus = safeGet(material, 'estatus', 'ACTIVO')
 
       const matchesSearch = !debouncedSearchTerm ||
         nombre.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
@@ -289,9 +360,15 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
         (stockFilter === 'low' && stockActual <= stockMinimo) ||
         (stockFilter === 'out' && stockActual === 0)
 
-      return matchesSearch && matchesCategoria && matchesStock
+      const matchesStatus = statusFilter === 'all' ||
+        (statusFilter === 'ACTIVO' && estatus === 'ACTIVO') ||
+        (statusFilter === 'INACTIVO' && estatus === 'INACTIVO') ||
+        (statusFilter === 'out' && stockActual === 0) ||
+        (statusFilter === 'low' && stockActual <= stockMinimo && stockActual > 0)
+
+      return matchesSearch && matchesCategoria && matchesStock && matchesStatus
     })
-  }, [materiales, debouncedSearchTerm, categoriaFilter, stockFilter])
+  }, [materiales, debouncedSearchTerm, categoriaFilter, stockFilter, statusFilter])
 
   useEffect(() => {
     cargarMateriales({
@@ -311,11 +388,70 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
 
     try {
       await eliminarMaterial(selectedMaterial.id)
+      toast.success('Material eliminado permanentemente')
       setShowDeleteModal(false)
       setSelectedMaterial(null)
+      // Recargar materiales para reflejar el cambio
+      cargarMateriales()
     } catch (err) {
       console.error('Error al eliminar material:', err)
+      toast.error(err instanceof Error ? err.message : 'Error al eliminar el material')
     }
+  }
+
+  const handleToggleStatus = async () => {
+    if (!selectedMaterial) return
+
+    setUpdatingStatus(selectedMaterial.id)
+
+    try {
+      // Validar que el estatus actual exista, si no, asumir ACTIVO por defecto
+      const estatusActual = (selectedMaterial.estatus as 'ACTIVO' | 'INACTIVO') || 'ACTIVO'
+      let nuevoEstatus: 'ACTIVO' | 'INACTIVO'
+
+      // Determinar el nuevo estatus según el estado actual
+      switch (estatusActual) {
+        case 'ACTIVO':
+          nuevoEstatus = 'INACTIVO'
+          break
+        case 'INACTIVO':
+          nuevoEstatus = 'ACTIVO'
+          break
+        default:
+          nuevoEstatus = 'ACTIVO'
+      }
+
+      // Llamar al servicio para actualizar el estatus
+      await materiaPrimaService.actualizarEstatus({
+        id: selectedMaterial.id,
+        estatus: nuevoEstatus,
+        usuarioId: null // Temporalmente null hasta implementar autenticación
+      })
+
+      // Mostrar notificación de éxito
+      const mensaje = nuevoEstatus === 'ACTIVO'
+        ? 'Material habilitado exitosamente'
+        : 'Material deshabilitado exitosamente'
+
+      toast.success(mensaje)
+
+      // Cerrar modal y limpiar estado
+      setShowStatusModal(false)
+      setSelectedMaterial(null)
+
+      // Recargar materiales para reflejar el cambio
+      cargarMateriales()
+    } catch (err) {
+      console.error('Error al cambiar estatus del material:', err)
+      toast.error(err instanceof Error ? err.message : 'Error al cambiar el estatus del material')
+    } finally {
+      setUpdatingStatus(null)
+    }
+  }
+
+  const openStatusModal = (material: MateriaPrima) => {
+    setSelectedMaterial(material)
+    setShowStatusModal(true)
   }
 
   const handleStockUpdate = async () => {
@@ -391,8 +527,8 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
 
   // Definir columnas con las funciones de callback
   const columns = useMemo(
-    () => createColumns(handleEdit, openDeleteModal, openStockModal, openViewModal),
-    []
+    () => createColumns(handleEdit, openDeleteModal, openStockModal, openViewModal, openStatusModal, updatingStatus),
+    [updatingStatus]
   )
 
   // Configurar DataTable
@@ -409,9 +545,23 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
 
   if (loading && materiales.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-10 text-gray-600 text-lg gap-4">
-        <LoadingSpinner />
-        <span>Cargando materiales...</span>
+      <div className="max-w-6xl mx-auto p-5">
+        <div className="flex justify-between items-center mb-8 flex-wrap gap-5">
+          <h2 className="text-slate-700 text-2xl font-semibold flex items-center gap-2.5">
+            🗂️ Gestión de Materia Prima
+          </h2>
+          <Button onClick={() => navigate('/materia-prima/nuevo')}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Material
+          </Button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-medium">Cargando materiales...</h3>
+          </div>
+          <TableSkeleton rows={8} />
+        </div>
       </div>
     )
   }
@@ -497,7 +647,11 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
 
         {/* DataTable Integration */}
         <DataTable table={table}>
-          <DataTableToolbar table={table} />
+          <DataTableToolbar
+            table={table}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+          />
         </DataTable>
       </div>
 
@@ -598,7 +752,11 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
                 📋 Lista de Materiales
               </h2>
               <DataTable table={table}>
-                <DataTableToolbar table={table} />
+                <DataTableToolbar
+                  table={table}
+                  statusFilter={statusFilter}
+                  setStatusFilter={setStatusFilter}
+                />
               </DataTable>
             </ScrollSpySection>
           </ScrollSpyViewport>
@@ -615,11 +773,17 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <p><strong>¿Estás seguro de que deseas eliminar este material?</strong></p>
-            <p>Este proceso no se puede deshacer.</p>
-            <div className="space-y-2 text-sm">
+            <p><strong>¿Estás seguro de que deseas eliminar permanentemente este material?</strong></p>
+            <p className="text-amber-600 font-medium">
+              ⚠️ Esta acción eliminará el material permanentemente de la base de datos y no se puede deshacer.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Solo se pueden eliminar materiales con estatus <span className="font-semibold">INACTIVO</span>.
+            </p>
+            <div className="space-y-2 text-sm bg-amber-50 p-3 rounded-lg border border-amber-200">
               <p><strong>Material:</strong> {safeGet(selectedMaterial, 'nombre', 'N/A')}</p>
               <p><strong>Código:</strong> {safeGet(selectedMaterial, 'codigo_barras', 'N/A')}</p>
+              <p><strong>Estatus:</strong> {safeGet(selectedMaterial, 'estatus', 'N/A')}</p>
               <p><strong>Stock actual:</strong> {safeGet(selectedMaterial, 'stock_actual', 0)}</p>
             </div>
           </div>
@@ -682,6 +846,58 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
               disabled={!stockAmount || !stockReason || stockLoading}
             >
               {stockLoading ? 'Actualizando...' : 'Actualizar Stock'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de confirmación de cambio de estatus */}
+      <Dialog open={showStatusModal} onOpenChange={setShowStatusModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedMaterial?.estatus === 'ACTIVO' ? '🔒 Deshabilitar Material' : '✅ Habilitar Material'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p>
+              <strong>
+                {selectedMaterial?.estatus === 'ACTIVO'
+                  ? '¿Estás seguro de que deseas deshabilitar este material?'
+                  : '¿Estás seguro de que deseas habilitar este material?'
+                }
+              </strong>
+            </p>
+            <p>
+              {selectedMaterial?.estatus === 'ACTIVO'
+                ? 'El material deshabilitado no aparecerá en las búsquedas normales y no podrá ser utilizado en movimientos.'
+                : 'El material habilitado volverá a aparecer en las búsquedas y podrá ser utilizado normalmente.'
+              }
+            </p>
+            <div className="space-y-2 text-sm">
+              <p><strong>Material:</strong> {safeGet(selectedMaterial, 'nombre', 'N/A')}</p>
+              <p><strong>Código:</strong> {safeGet(selectedMaterial, 'codigo_barras', 'N/A')}</p>
+              <p><strong>Estado actual:</strong>
+                <span className={`ml-2 px-2 py-1 rounded text-xs ${
+                  selectedMaterial?.estatus === 'ACTIVO'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {safeGet(selectedMaterial, 'estatus', 'N/A')}
+                </span>
+              </p>
+              <p><strong>Stock actual:</strong> {safeGet(selectedMaterial, 'stock_actual', 0)}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowStatusModal(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleToggleStatus}
+              variant={selectedMaterial?.estatus === 'ACTIVO' ? 'secondary' : 'default'}
+            >
+              {selectedMaterial?.estatus === 'ACTIVO' ? 'Deshabilitar' : 'Habilitar'}
             </Button>
           </DialogFooter>
         </DialogContent>

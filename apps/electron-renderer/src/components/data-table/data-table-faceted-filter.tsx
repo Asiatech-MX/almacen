@@ -29,12 +29,14 @@ interface DataTableFacetedFilterProps<TData, TValue> {
     value: string
     icon?: React.ComponentType<{ className?: string }>
   }[]
+  singleSelect?: boolean // Add prop for single selection mode
 }
 
 export function DataTableFacetedFilter<TData, TValue>({
   column,
   title,
   options,
+  singleSelect = false,
 }: DataTableFacetedFilterProps<TData, TValue>) {
   const facets = column?.getFacetedUniqueValues()
   const selectedValues = new Set(column?.getFilterValue() as string[])
@@ -92,15 +94,27 @@ export function DataTableFacetedFilter<TData, TValue>({
                   <CommandItem
                     key={option.value}
                     onSelect={() => {
-                      if (isSelected) {
-                        selectedValues.delete(option.value)
+                      if (singleSelect) {
+                        // Single selection mode: replace current selection
+                        if (isSelected) {
+                          // If clicking the already selected option, deselect it
+                          column?.setFilterValue(undefined)
+                        } else {
+                          // Select only this option
+                          column?.setFilterValue([option.value])
+                        }
                       } else {
-                        selectedValues.add(option.value)
+                        // Multiple selection mode (original behavior)
+                        if (isSelected) {
+                          selectedValues.delete(option.value)
+                        } else {
+                          selectedValues.add(option.value)
+                        }
+                        const filterValues = Array.from(selectedValues)
+                        column?.setFilterValue(
+                          filterValues.length ? filterValues : undefined
+                        )
                       }
-                      const filterValues = Array.from(selectedValues)
-                      column?.setFilterValue(
-                        filterValues.length ? filterValues : undefined
-                      )
                     }}
                   >
                     <div

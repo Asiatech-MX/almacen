@@ -4,14 +4,24 @@ import { Table } from '@tanstack/react-table'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { DataTableViewOptions } from './data-table-view-options'
-import { DataTableFacetedFilter } from './data-table-faceted-filter'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select'
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>
+  statusFilter: string
+  setStatusFilter: (filter: string) => void
 }
 
 export function DataTableToolbar<TData>({
   table,
+  statusFilter,
+  setStatusFilter,
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0
 
@@ -26,33 +36,31 @@ export function DataTableToolbar<TData>({
           }
           className="h-8 w-[150px] lg:w-[250px]"
         />
-        {table.getColumn('categoria') && (
-          <DataTableFacetedFilter
-            column={table.getColumn('categoria')}
-            title="Categoría"
-            options={[
-              { label: 'Electrónica', value: 'electrónica' },
-              { label: 'Herramientas', value: 'herramientas' },
-              { label: 'Materiales', value: 'materiales' },
-              { label: 'Otros', value: 'otros' },
-            ]}
-          />
-        )}
-        {table.getColumn('estado') && (
-          <DataTableFacetedFilter
-            column={table.getColumn('estado')}
-            title="Estado"
-            options={[
-              { label: 'Normal', value: 'normal' },
-              { label: 'Bajo', value: 'low' },
-              { label: 'Agotado', value: 'out' },
-            ]}
-          />
-        )}
+
+        {/* Status Filter using native Select */}
+        <Select
+          value={statusFilter}
+          onValueChange={setStatusFilter}
+        >
+          <SelectTrigger className="h-8 w-[180px]">
+            <SelectValue placeholder="Filtrar por estado" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los estados</SelectItem>
+            <SelectItem value="ACTIVO">✅ Activo</SelectItem>
+            <SelectItem value="INACTIVO">🔒 Inhabilitado</SelectItem>
+            <SelectItem value="out">❌ Agotado</SelectItem>
+            <SelectItem value="low">⚠️ Stock Bajo</SelectItem>
+          </SelectContent>
+        </Select>
+
         {isFiltered && (
           <Button
             variant="ghost"
-            onClick={() => table.resetColumnFilters()}
+            onClick={() => {
+              table.resetColumnFilters()
+              setStatusFilter('all')
+            }}
             className="h-8 px-2 lg:px-3"
           >
             Reset

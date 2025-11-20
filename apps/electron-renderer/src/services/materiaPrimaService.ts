@@ -6,7 +6,9 @@ import type {
   MateriaPrimaFilters,
   MateriaPrimaSearchCriteria,
   LowStockItem,
-  StockCheck
+  StockCheck,
+  MateriaPrimaEstatus,
+  MateriaPrimaEstatusUpdate
 } from '../../../../shared/types/materiaPrima'
 
 // Importamos la interfaz existente
@@ -447,6 +449,88 @@ export class MateriaPrimaService {
     }
   }
 
+  // Actualiza el estatus de un material (ACTIVO, INACTIVO)
+  async actualizarEstatus(data: MateriaPrimaEstatusUpdate): Promise<MateriaPrimaDetail> {
+    const { id, estatus, usuarioId } = data
+
+    if (!this.api) {
+      // Modo desarrollo: simulación de actualización de estatus
+      console.log('Modo desarrollo: actualizando estatus', { id, estatus, usuarioId })
+
+      const materiales = this.getMockData()
+      const index = materiales.findIndex(item => item.id === id)
+
+      if (index === -1) {
+        throw new Error('Material no encontrado')
+      }
+
+      // Validar transiciones permitidas
+      const materialActual = materiales[index]
+      const estatusActual = materialActual.estatus as MateriaPrimaEstatus
+
+      if (!this.validarTransicionEstatus(estatusActual, estatus, materialActual.stock_actual)) {
+        throw new Error(`Transición no permitida: ${estatusActual} → ${estatus}`)
+      }
+
+      // Simular actualización
+      const actualizado = {
+        ...materialActual,
+        estatus,
+        actualizado_en: new Date().toISOString()
+      }
+
+      return actualizado as MateriaPrimaDetail
+    }
+
+    try {
+      // Validar transición de estatus antes de enviar al backend
+      const materialActual = await this.obtener(id)
+      if (!this.validarTransicionEstatus(
+        materialActual.estatus as MateriaPrimaEstatus,
+        estatus,
+        materialActual.stock_actual
+      )) {
+        throw new Error(`Transición no permitida: ${materialActual.estatus} → ${estatus}`)
+      }
+
+      const result = await this.api.actualizarEstatus(data)
+      return result
+    } catch (error) {
+      console.error('Error al actualizar estatus:', error)
+      const errorProcesado = this.procesarErrorServicio(error, {
+        idMaterial: id,
+        nombreMaterial: 'Material desconocido'
+      })
+      throw errorProcesado
+    }
+  }
+
+  // Valida si la transición entre estatus está permitida
+  private validarTransicionEstatus(
+    estatusActual: MateriaPrimaEstatus,
+    nuevoEstatus: MateriaPrimaEstatus,
+    stockActual: number
+  ): boolean {
+    // Si no hay cambio, es válido
+    if (estatusActual === nuevoEstatus) {
+      return true
+    }
+
+    // Reglas de transición
+    switch (estatusActual) {
+      case 'ACTIVO':
+        // ACTIVO puede pasar a INACTIVO
+        return nuevoEstatus === 'INACTIVO'
+
+      case 'INACTIVO':
+        // INACTIVO puede pasar a ACTIVO
+        return nuevoEstatus === 'ACTIVO'
+
+      default:
+        return false
+    }
+  }
+
   // Add new method for comprehensive filtering
   private filterMateriales(materiales: MateriaPrima[], filters: MateriaPrimaFilters): MateriaPrima[] {
     return materiales.filter(material => {
@@ -632,6 +716,64 @@ export class MateriaPrimaService {
         imagen_url: '',
         creado_en: '2024-01-01T00:00:00Z',
         actualizado_en: '2024-01-01T00:00:00Z'
+      },
+      // Items con estatus explícito para probar filtros
+      {
+        id: '8',
+        nombre: 'Martillo Carpintero',
+        marca: 'Stanley',
+        modelo: 'Professional',
+        categoria: 'Herramientas',
+        presentacion: 'Pieza',
+        stock_actual: 50,
+        stock_minimo: 10,
+        codigo_barras: '8901234567890',
+        costo_unitario: 85.00,
+        fecha_caducidad: null,
+        descripcion: 'Martillo profesional para carpintería',
+        proveedor_id: 'prov-004',
+        imagen_url: '',
+        creado_en: '2024-01-01T00:00:00Z',
+        actualizado_en: '2024-01-01T00:00:00Z',
+        estatus: 'INACTIVO'
+      },
+      {
+        id: '9',
+        nombre: 'Clavos de Acero',
+        marca: 'FixFast',
+        modelo: '3 pulgadas',
+        categoria: 'Herramientas',
+        presentacion: 'Caja 1kg',
+        stock_actual: 200,
+        stock_minimo: 50,
+        codigo_barras: '9012345678901',
+        costo_unitario: 12.50,
+        fecha_caducidad: null,
+        descripcion: 'Clavos de acero para construcción',
+        proveedor_id: 'prov-004',
+        imagen_url: '',
+        creado_en: '2024-01-01T00:00:00Z',
+        actualizado_en: '2024-01-01T00:00:00Z',
+        estatus: 'INACTIVO'
+      },
+      {
+        id: '10',
+        nombre: 'Disco Corte',
+        marca: 'Bosch',
+        modelo: 'Industrial',
+        categoria: 'Herramientas',
+        presentacion: 'Pieza',
+        stock_actual: 25,
+        stock_minimo: 15,
+        codigo_barras: '0123456789012',
+        costo_unitario: 45.75,
+        fecha_caducidad: null,
+        descripcion: 'Disco de corte para metal',
+        proveedor_id: 'prov-004',
+        imagen_url: '',
+        creado_en: '2024-01-01T00:00:00Z',
+        actualizado_en: '2024-01-01T00:00:00Z',
+        estatus: 'ACTIVO'
       }
     ]
   }

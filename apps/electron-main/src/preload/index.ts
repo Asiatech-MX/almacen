@@ -9,8 +9,9 @@ import type {
   LowStockItem,
   MateriaPrimaStats,
   AuditTrail,
-  MateriaPrimaSearch
-} from '@shared-types/materiaPrima'
+  MateriaPrimaSearch,
+  MateriaPrimaEstatusUpdate
+} from '@shared-types/index'
 
 /**
  * API segura para el renderer process utilizando contextBridge
@@ -50,6 +51,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     actualizar: (id: string, data: MateriaPrimaUpdate, usuarioId?: string): Promise<MateriaPrimaDetail> =>
       ipcRenderer.invoke('materiaPrima:actualizar', id, data, usuarioId),
+
+    actualizarEstatus: (data: MateriaPrimaEstatusUpdate): Promise<MateriaPrimaDetail> =>
+      ipcRenderer.invoke('materiaPrima:actualizarEstatus', data),
 
     actualizarStock: (id: string, cantidad: number, motivo: string, usuarioId?: string): Promise<boolean> =>
       ipcRenderer.invoke('materiaPrima:actualizarStock', id, cantidad, motivo, usuarioId),
@@ -107,6 +111,7 @@ declare global {
         // Operaciones de escritura
         crear: (data: NewMateriaPrima, usuarioId?: string) => Promise<MateriaPrimaDetail>
         actualizar: (id: string, data: MateriaPrimaUpdate, usuarioId?: string) => Promise<MateriaPrimaDetail>
+        actualizarEstatus: (data: MateriaPrimaEstatusUpdate) => Promise<MateriaPrimaDetail>
         actualizarStock: (id: string, cantidad: number, motivo: string, usuarioId?: string) => Promise<boolean>
         eliminar: (id: string, usuarioId?: string) => Promise<boolean>
 
