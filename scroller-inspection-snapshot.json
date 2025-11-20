@@ -1,0 +1,333 @@
+uid=1_0 RootWebArea "Sistema de Almacén" url="http://localhost:5173/#/dashboard"
+  uid=1_1 ignored
+    uid=1_2 ignored
+      uid=1_3 generic
+        uid=1_4 ignored
+          uid=1_5 ignored
+            uid=1_6 generic
+            uid=1_7 generic
+              uid=1_8 ignored
+                uid=1_9 ignored
+                  uid=1_10 list
+                    uid=1_11 listitem level="1"
+                      uid=1_12 button "Sistema Almacén Control de Inventario"
+                        uid=1_13 ignored
+                        uid=1_14 ignored
+                          uid=1_15 ignored
+                            uid=1_16 StaticText "Sistema Almacén"
+                              uid=1_17 InlineTextBox "Sistema Almacén"
+                          uid=1_18 ignored
+                            uid=1_19 StaticText "Control de Inventario"
+                              uid=1_20 InlineTextBox "Control de Inventario"
+                uid=1_21 ignored
+                  uid=1_22 generic
+                    uid=1_23 ignored
+                      uid=1_24 StaticText "Navegación Principal"
+                        uid=1_25 InlineTextBox "Navegación Principal"
+                    uid=1_26 ignored
+                      uid=1_27 list
+                        uid=1_28 listitem level="1"
+                          uid=1_29 link "Dashboard" url="http://localhost:5173/#/dashboard"
+                            uid=1_30 ignored
+                              uid=1_31 StaticText "Dashboard"
+                                uid=1_32 InlineTextBox "Dashboard"
+                        uid=1_33 ignored
+                          uid=1_34 listitem level="1"
+                            uid=1_35 button "Materia Prima" expandable expanded
+                              uid=1_36 ignored
+                                uid=1_37 StaticText "Materia Prima"
+                                  uid=1_38 InlineTextBox "Materia Prima"
+                            uid=1_39 generic
+                              uid=1_40 list
+                                uid=1_41 listitem level="2"
+                                  uid=1_42 link "Gestión" url="http://localhost:5173/#/materia-prima/gestion"
+                                    uid=1_43 ignored
+                                      uid=1_44 StaticText "Gestión"
+                                        uid=1_45 InlineTextBox "Gestión"
+                                uid=1_46 listitem level="2"
+                                  uid=1_47 link "Consultas" url="http://localhost:5173/#/materia-prima/consultas"
+                                    uid=1_48 ignored
+                                      uid=1_49 StaticText "Consultas"
+                                        uid=1_50 InlineTextBox "Consultas"
+                                uid=1_51 listitem level="2"
+                                  uid=1_52 link "Altas" url="http://localhost:5173/#/materia-prima/nueva"
+                                    uid=1_53 ignored
+                                      uid=1_54 StaticText "Altas"
+                                        uid=1_55 InlineTextBox "Altas"
+                        uid=1_56 listitem level="1"
+                          uid=1_57 link "Proveedores" url="http://localhost:5173/#/proveedores"
+                            uid=1_58 ignored
+                              uid=1_59 StaticText "Proveedores"
+                                uid=1_60 InlineTextBox "Proveedores"
+                        uid=1_61 listitem level="1"
+                          uid=1_62 link "Movimientos" url="http://localhost:5173/#/movimientos"
+                            uid=1_63 ignored
+                              uid=1_64 StaticText "Movimientos"
+                                uid=1_65 InlineTextBox "Movimientos"
+                        uid=1_66 listitem level="1"
+                          uid=1_67 link "Aprobaciones 3" url="http://localhost:5173/#/aprobaciones"
+                            uid=1_68 ignored
+                              uid=1_69 StaticText "Aprobaciones"
+                                uid=1_70 InlineTextBox "Aprobaciones"
+                            uid=1_71 ignored
+                              uid=1_72 StaticText "3"
+                                uid=1_73 InlineTextBox "3"
+                        uid=1_74 listitem level="1"
+                          uid=1_75 link "Solicitudes" url="http://localhost:5173/#/solicitudes"
+                            uid=1_76 ignored
+                              uid=1_77 StaticText "Solicitudes"
+                                uid=1_78 InlineTextBox "Solicitudes"
+                uid=1_79 ignored
+                  uid=1_80 list
+                    uid=1_81 listitem level="1"
+                      uid=1_82 button "U Usuario admin@almacen.com" haspopup="menu"
+                        uid=1_83 ignored
+                          uid=1_84 ignored
+                            uid=1_85 StaticText "U"
+                              uid=1_86 InlineTextBox "U"
+                        uid=1_87 ignored
+                          uid=1_88 ignored
+                            uid=1_89 StaticText "Usuario"
+                              uid=1_90 InlineTextBox "Usuario"
+                          uid=1_91 ignored
+                            uid=1_92 StaticText "admin@almacen.com"
+                              uid=1_93 InlineTextBox "admin@almacen.com"
+                uid=1_94 button "Toggle Sidebar" description="Toggle Sidebar"
+          uid=1_95 main
+            uid=1_96 sectionheader
+              uid=1_97 ignored
+                uid=1_98 ignored
+                  uid=1_99 ignored
+                    uid=1_100 button "Toggle Sidebar"
+                      uid=1_101 ignored
+                        uid=1_102 StaticText "Toggle Sidebar"
+                          uid=1_103 InlineTextBox "Toggle Sidebar"
+                  uid=1_104 ignored
+                    uid=1_105 heading "Gestion de Almacen" level="1"
+                      uid=1_106 StaticText "Gestion de Almacen"
+                        uid=1_107 InlineTextBox "Gestion de Almacen"
+                    uid=1_108 paragraph
+                      uid=1_109 StaticText "Sistema integral de control de inventario"
+                        uid=1_110 InlineTextBox "Sistema integral de control de inventario"
+                uid=1_111 ignored
+                  uid=1_112 button "Toggle theme"
+                    uid=1_113 ignored
+                      uid=1_114 StaticText "Toggle theme"
+                        uid=1_115 InlineTextBox "Toggle theme"
+                  uid=1_116 button haspopup="menu"
+            uid=1_117 main
+              uid=1_118 ignored
+                uid=1_119 ignored
+                  uid=1_120 navigation "breadcrumb"
+                    uid=1_121 list
+                      uid=1_122 listitem level="1"
+                        uid=1_123 link "Inicio" url="http://localhost:5173/#/dashboard"
+                          uid=1_124 StaticText "Inicio"
+                            uid=1_125 InlineTextBox "Inicio"
+                      uid=1_126 listitem level="1"
+                        uid=1_127 link "Dashboard" disableable disabled
+                          uid=1_128 StaticText "Dashboard"
+                            uid=1_129 InlineTextBox "Dashboard"
+                  uid=1_130 ignored
+                    uid=1_131 ignored
+                      uid=1_132 ignored
+                        uid=1_133 heading "Dashboard" level="1"
+                          uid=1_134 StaticText "Dashboard"
+                            uid=1_135 InlineTextBox "Dashboard"
+                        uid=1_136 paragraph
+                          uid=1_137 StaticText "Panel de control del sistema de gestión de almacén"
+                            uid=1_138 InlineTextBox "Panel de control del sistema de gestión de almacén"
+                      uid=1_139 ignored
+                        uid=1_140 button "Última actualización: 1:57:03 p.m."
+                          uid=1_141 StaticText "Última actualización: "
+                            uid=1_142 InlineTextBox "Última actualización: "
+                          uid=1_143 StaticText "1:57:03 p.m."
+                            uid=1_144 InlineTextBox "1:57:03 p.m."
+                        uid=1_145 button "Actualizar"
+                          uid=1_146 StaticText "Actualizar"
+                            uid=1_147 InlineTextBox "Actualizar"
+                    uid=1_148 ignored
+                      uid=1_149 tablist orientation="horizontal"
+                        uid=1_150 tab "Resumen" selectable selected
+                          uid=1_151 ignored
+                            uid=1_152 ignored
+                            uid=1_153 ignored
+                            uid=1_154 ignored
+                            uid=1_155 ignored
+                          uid=1_156 StaticText "Resumen"
+                            uid=1_157 InlineTextBox "Resumen"
+                        uid=1_158 tab "Detalles"
+                          uid=1_159 ignored
+                            uid=1_160 ignored
+                            uid=1_161 ignored
+                          uid=1_162 StaticText "Detalles"
+                            uid=1_163 InlineTextBox "Detalles"
+                        uid=1_164 tab "Operaciones"
+                          uid=1_165 ignored
+                            uid=1_166 ignored
+                            uid=1_167 ignored
+                            uid=1_168 ignored
+                            uid=1_169 ignored
+                          uid=1_170 StaticText "Operaciones"
+                            uid=1_171 InlineTextBox "Operaciones"
+                      uid=1_172 tabpanel "Resumen"
+                        uid=1_173 main "Panel de control de inventario"
+                          uid=1_174 ignored
+                            uid=1_175 region "Total de Materiales: 7"
+                              uid=1_176 ignored
+                                uid=1_177 heading "Total de Materiales" level="3"
+                                  uid=1_178 StaticText "Total de Materiales"
+                                    uid=1_179 InlineTextBox "Total de Materiales"
+                              uid=1_180 ignored
+                                uid=1_181 generic
+                                  uid=1_182 StaticText "7"
+                                    uid=1_183 InlineTextBox "7"
+                                uid=1_184 paragraph
+                                  uid=1_185 StaticText "Total de Materiales"
+                                    uid=1_186 InlineTextBox "Total de Materiales"
+                            uid=1_187 region "Unidades en Stock: 763"
+                              uid=1_188 ignored
+                                uid=1_189 heading "Unidades en Stock" level="3"
+                                  uid=1_190 StaticText "Unidades en Stock"
+                                    uid=1_191 InlineTextBox "Unidades en Stock"
+                              uid=1_192 ignored
+                                uid=1_193 generic
+                                  uid=1_194 StaticText "763"
+                                    uid=1_195 InlineTextBox "763"
+                                uid=1_196 paragraph
+                                  uid=1_197 StaticText "Unidades en Stock"
+                                    uid=1_198 InlineTextBox "Unidades en Stock"
+                            uid=1_199 region "Alertas de stock: 3 productos con stock bajo"
+                              uid=1_200 ignored
+                                uid=1_201 heading "Alertas de Stock" level="3"
+                                  uid=1_202 StaticText "Alertas de Stock"
+                                    uid=1_203 InlineTextBox "Alertas de Stock"
+                              uid=1_204 ignored
+                                uid=1_205 generic
+                                  uid=1_206 StaticText "3"
+                                    uid=1_207 InlineTextBox "3"
+                                uid=1_208 paragraph
+                                  uid=1_209 StaticText "Productos con stock bajo"
+                                    uid=1_210 InlineTextBox "Productos con stock bajo"
+                                uid=1_211 list "Productos con stock bajo"
+                                  uid=1_212 listitem level="1"
+                                    uid=1_213 ignored
+                                      uid=1_214 StaticText "Alambre de Acero"
+                                        uid=1_215 InlineTextBox "Alambre de Acero"
+                                    uid=1_216 generic "Stock crítico: 5 unidades"
+                                      uid=1_217 StaticText "5"
+                                        uid=1_218 InlineTextBox "5"
+                                  uid=1_219 listitem level="1"
+                                    uid=1_220 ignored
+                                      uid=1_221 StaticText "Clavos para Madera"
+                                        uid=1_222 InlineTextBox "Clavos para Madera"
+                                    uid=1_223 generic "Stock crítico: 0 unidades"
+                                      uid=1_224 StaticText "0"
+                                        uid=1_225 InlineTextBox "0"
+                                  uid=1_226 listitem level="1"
+                                    uid=1_227 ignored
+                                      uid=1_228 StaticText "Pintura Azul Marino"
+                                        uid=1_229 InlineTextBox "Pintura Azul Marino"
+                                    uid=1_230 generic "Stock crítico: 8 unidades"
+                                      uid=1_231 StaticText "8"
+                                        uid=1_232 InlineTextBox "8"
+                            uid=1_233 region "Movimientos hoy: 12"
+                              uid=1_234 ignored
+                                uid=1_235 heading "Movimientos Hoy" level="3"
+                                  uid=1_236 StaticText "Movimientos Hoy"
+                                    uid=1_237 InlineTextBox "Movimientos Hoy"
+                              uid=1_238 ignored
+                                uid=1_239 generic
+                                  uid=1_240 StaticText "12"
+                                    uid=1_241 InlineTextBox "12"
+                                uid=1_242 paragraph
+                                  uid=1_243 StaticText "Entradas y salidas"
+                                    uid=1_244 InlineTextBox "Entradas y salidas"
+                          uid=1_245 ignored
+                            uid=1_246 region "Acciones rápidas"
+                              uid=1_247 ignored
+                                uid=1_248 heading "Acciones Rápidas" level="3"
+                                  uid=1_249 StaticText "Acciones Rápidas"
+                                    uid=1_250 InlineTextBox "Acciones Rápidas"
+                              uid=1_251 generic
+                                uid=1_252 button "Crear nuevo material"
+                                  uid=1_253 StaticText "➕ Nuevo Material"
+                                    uid=1_254 InlineTextBox "➕ Nuevo Material"
+                                uid=1_255 button "Registrar movimiento"
+                                  uid=1_256 StaticText "📊 Registrar Movimiento"
+                                    uid=1_257 InlineTextBox "📊 Registrar Movimiento"
+                                uid=1_258 button "Generar reporte"
+                                  uid=1_259 StaticText "📈 Generar Reporte"
+                                    uid=1_260 InlineTextBox "📈 Generar Reporte"
+                            uid=1_261 region "Categorías: 3"
+                              uid=1_262 ignored
+                                uid=1_263 heading "Categorías" level="3"
+                                  uid=1_264 StaticText "Categorías"
+                                    uid=1_265 InlineTextBox "Categorías"
+                              uid=1_266 ignored
+                                uid=1_267 generic
+                                  uid=1_268 StaticText "3"
+                                    uid=1_269 InlineTextBox "3"
+                                uid=1_270 paragraph
+                                  uid=1_271 StaticText "Categorías"
+                                    uid=1_272 InlineTextBox "Categorías"
+                        uid=1_273 ignored
+                          uid=1_274 ignored
+                            uid=1_275 ignored
+                              uid=1_276 heading "Total Materiales" level="3"
+                                uid=1_277 StaticText "Total Materiales"
+                                  uid=1_278 InlineTextBox "Total Materiales"
+                            uid=1_279 ignored
+                              uid=1_280 generic
+                                uid=1_281 StaticText "7"
+                                  uid=1_282 InlineTextBox "7"
+                              uid=1_283 paragraph
+                                uid=1_284 StaticText "Tipos de materiales en inventario"
+                                  uid=1_285 InlineTextBox "Tipos de materiales en inventario"
+                          uid=1_286 ignored
+                            uid=1_287 ignored
+                              uid=1_288 heading "Stock Total" level="3"
+                                uid=1_289 StaticText "Stock Total"
+                                  uid=1_290 InlineTextBox "Stock Total"
+                            uid=1_291 ignored
+                              uid=1_292 generic
+                                uid=1_293 StaticText "763"
+                                  uid=1_294 InlineTextBox "763"
+                              uid=1_295 paragraph
+                                uid=1_296 StaticText "Unidades totales en almacén"
+                                  uid=1_297 InlineTextBox "Unidades totales en almacén"
+                          uid=1_298 ignored
+                            uid=1_299 ignored
+                              uid=1_300 heading "Stock Bajo" level="3"
+                                uid=1_301 StaticText "Stock Bajo"
+                                  uid=1_302 InlineTextBox "Stock Bajo"
+                            uid=1_303 ignored
+                              uid=1_304 generic
+                                uid=1_305 StaticText "3"
+                                  uid=1_306 InlineTextBox "3"
+                              uid=1_307 paragraph
+                                uid=1_308 StaticText "Materiales necesitan reabastecimiento"
+                                  uid=1_309 InlineTextBox "Materiales necesitan reabastecimiento"
+                          uid=1_310 ignored
+                            uid=1_311 ignored
+                              uid=1_312 heading "Sin Stock" level="3"
+                                uid=1_313 StaticText "Sin Stock"
+                                  uid=1_314 InlineTextBox "Sin Stock"
+                            uid=1_315 ignored
+                              uid=1_316 generic
+                                uid=1_317 StaticText "1"
+                                  uid=1_318 InlineTextBox "1"
+                              uid=1_319 paragraph
+                                uid=1_320 StaticText "Materiales agotados"
+                                  uid=1_321 InlineTextBox "Materiales agotados"
+        uid=1_322 region "Notifications (F8)"
+          uid=1_323 list
+        uid=1_324 ignored
+          uid=1_325 generic
+            uid=1_326 generic
+              uid=1_327 button "Open Tanstack query devtools"
+                uid=1_328 image
+                  uid=1_329 ignored
+                  uid=1_330 ignored
+                  uid=1_331 ignored
+                  uid=1_332 ignored

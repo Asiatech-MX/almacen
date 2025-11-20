@@ -1,0 +1,21 @@
+{
+  "camelCase": true,
+  "dateParser": "timestamp",
+  "defaultSchemas": ["public"],
+  "dialect": "postgres",
+  "domains": true,
+  "envFile": ".env",
+  "excludePattern": null,
+  "includePattern": "public.*",
+  "logLevel": "info",
+  "numericParser": "number",
+  "outFile": "./backend/types/generated/database.types.ts",
+  "overrides": {},
+  "partitions": false,
+  "print": false,
+  "runtimeEnums": false,
+  "singularize": false,
+  "typeOnlyImports": true,
+  "url": "env(DATABASE_URL)",
+  "verify": false
+}
