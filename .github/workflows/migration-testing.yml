@@ -52,7 +52,7 @@ jobs:
           ${{ runner.os }}-pnpm-store-
 
     - name: Install dependencies
-      run: pnpm install --frozen-lockfile
+      run: pnpm install --no-frozen-lockfile
 
     - name: Setup test environment
       run: |
@@ -73,7 +73,7 @@ jobs:
       run: pnpm test tests/performance
 
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results
@@ -83,7 +83,7 @@ jobs:
           docs/PHASE1_*.json
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       if: always()
       with:
         file: ./coverage/lcov.info
@@ -120,7 +120,7 @@ jobs:
           ${{ runner.os }}-pnpm-store-
 
     - name: Install dependencies
-      run: pnpm install --frozen-lockfile
+      run: pnpm install --no-frozen-lockfile
 
     - name: Generate PGTyped types
       run: pnpm db:generate-types
@@ -138,7 +138,7 @@ jobs:
         # This will be expanded with automated type checking
 
     - name: Upload type generation results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: type-results
@@ -162,7 +162,7 @@ jobs:
         version: 8
 
     - name: Install dependencies
-      run: pnpm install --frozen-lockfile
+      run: pnpm install --no-frozen-lockfile
 
     - name: Run security audit
       run: pnpm audit --audit-level moderate
