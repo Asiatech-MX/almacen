@@ -15,8 +15,10 @@ import type {
   MateriaPrimaStats,
   StockMovementData,
   AuditoriaFilters,
-  AuditTrail
-} from '../../shared/types/materiaPrima'
+  AuditTrail,
+  MateriaPrimaEstatus,
+  MateriaPrimaEstatusUpdate
+} from '../../shared-types/src/index'
 import {
   transformMateriaPrimaData,
   mapZodErrorToSpanish,
@@ -258,11 +260,14 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'mp.descripcion',
         'mp.categoria',
         'mp.proveedor_id',
+        sql<string>`CASE
+          WHEN mp.activo = true THEN 'ACTIVO'
+          ELSE 'INACTIVO'
+        END`.as('estatus'),
         sql<string>`NULL`.as('proveedor_nombre'), // Temporal: NULL until provider schema is fixed
         'mp.creado_en',
         'mp.actualizado_en'
       ])
-      .where('mp.activo', '=', true)
 
     // Aplicar filtros dinámicamente
     if (filters) {
@@ -503,6 +508,93 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
       // Re-lanzar otros errores
       throw error
     }
+  }
+
+  /**
+   * Actualizar el estatus de un material con validaciones de negocio completas
+   * @param data Datos de actualización de estatus
+   * @returns Material actualizado con información completa
+   */
+  async updateEstatus(data: MateriaPrimaEstatusUpdate): Promise<MateriaPrimaDetail> {
+    const { id, estatus, usuarioId } = data
+
+    // Validar que el estatus sea válido
+    if (!['ACTIVO', 'INACTIVO'].includes(estatus)) {
+      throw new Error('Estatus no válido. Debe ser ACTIVO o INACTIVO')
+    }
+
+    return await this.transaction(async (trx) => {
+      // Obtener datos actuales del material con estatus calculado
+      const actual = await trx
+        .selectFrom('materia_prima')
+        .selectAll()
+        .select((eb) => [
+          sql<boolean>`COALESCE(activo, false)`.as('activo_bool'),
+          sql<string>`CASE
+            WHEN activo = true THEN 'ACTIVO'
+            ELSE 'INACTIVO'
+          END`.as('estatus')
+        ])
+        .where('id', '=', id)
+        .executeTakeFirst()
+
+      if (!actual) {
+        throw new Error('Material no encontrado')
+      }
+
+      const estatusActual = actual.estatus as MateriaPrimaEstatus
+      const stockActual = Number(actual.stock_actual || 0)
+
+      // Validar transiciones permitidas
+      if (!this._validarTransicionEstatus(estatusActual, estatus, stockActual)) {
+        throw new Error(this._obtenerMensajeErrorTransicion(estatusActual, estatus, stockActual))
+      }
+
+      // Verificar proveedor activo al activar material
+      if (estatus === 'ACTIVO' && actual.proveedor_id) {
+        const proveedorValido = await this.proveedorMapping.validateProveedor(actual.proveedor_id)
+        if (!proveedorValido || proveedorValido.estatus !== 'ACTIVO') {
+          throw new Error('No se puede activar el material porque el proveedor asociado no está activo')
+        }
+      }
+
+      // Determinar valor del campo activo basado en el estatus
+      const nuevoActivo = estatus === 'ACTIVO'
+
+      // Actualizar el material
+      await trx
+        .updateTable('materia_prima')
+        .set({
+          activo: nuevoActivo,
+          actualizado_en: new Date()
+        })
+        .where('id', '=', id)
+        .execute()
+
+      // Obtener información completa actualizada
+      const resultado = await this.getDetalleConProveedor(trx, id)
+
+      // Registrar auditoría del cambio de estatus
+      await this.registrarAuditoria(
+        trx,
+        id,
+        'STATUS_UPDATE',
+        {
+          estatus_anterior: estatusActual,
+          activo_anterior: actual.activo,
+          stock_actual: stockActual
+        },
+        {
+          estatus_nuevo: estatus,
+          activo_nuevo: nuevoActivo,
+          usuario_id: usuarioId,
+          motivo: `Cambio de estatus: ${estatusActual} → ${estatus}`
+        },
+        usuarioId
+      )
+
+      return resultado
+    })
   }
 
   // ==================== DELETE OPERATIONS ====================
@@ -766,6 +858,10 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         sql<string>`NULL`.as('proveedor_nombre'), // Temporal: NULL until provider schema is fixed
         sql<string>`NULL`.as('proveedor_rfc'), // Temporal: NULL until provider schema is fixed
         sql<number>`NULL`.as('proveedor_id_legacy'), // Temporal: NULL until provider schema is fixed
+        sql<string>`CASE
+          WHEN mp.activo = true THEN 'ACTIVO'
+          ELSE 'INACTIVO'
+        END`.as('estatus'),
         'mp.creado_en',
         'mp.actualizado_en'
       ])
@@ -803,6 +899,103 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
   }
 
   /**
+   * Validar que la transición de estatus sea permitida según las reglas de negocio
+   * @param estatusActual Estatus actual del material
+   * @param nuevoEstatus Nuevo estatus deseado
+   * @param stockActual Stock actual del material
+   * @returns true si la transición es válida, false si no
+   */
+  private _validarTransicionEstatus(
+    estatusActual: MateriaPrimaEstatus,
+    nuevoEstatus: MateriaPrimaEstatus,
+    stockActual: number
+  ): boolean {
+    // Si no hay cambio, no permitir
+    if (estatusActual === nuevoEstatus) {
+      return false
+    }
+
+    // Reglas de transición permitidas
+    switch (estatusActual) {
+      case 'ACTIVO':
+        // ACTIVO puede pasar a INACTIVO
+        return nuevoEstatus === 'INACTIVO'
+
+      case 'INACTIVO':
+        // INACTIVO puede pasar a ACTIVO
+        return nuevoEstatus === 'ACTIVO'
+
+      default:
+        return false
+    }
+  }
+
+  /**
+   * Generar mensaje de error específico para la transición no permitida
+   * @param estatusActual Estatus actual del material
+   * @param nuevoEstatus Nuevo estatus deseado
+   * @param stockActual Stock actual del material
+   * @returns Mensaje de error descriptivo
+   */
+  private _obtenerMensajeErrorTransicion(
+    estatusActual: MateriaPrimaEstatus,
+    nuevoEstatus: MateriaPrimaEstatus,
+    stockActual: number
+  ): string {
+    if (estatusActual === nuevoEstatus) {
+      return `El material ya tiene el estatus ${estatusActual}`
+    }
+
+    const stockInfo = stockActual > 0
+      ? ` (stock actual: ${stockActual})`
+      : ' (sin stock)'
+
+    switch (estatusActual) {
+      case 'ACTIVO':
+        return `No se puede cambiar de ACTIVO a ${nuevoEstatus}`
+
+      case 'INACTIVO':
+        return `No se puede cambiar de INACTIVO a ${nuevoEstatus}`
+
+      default:
+        return `Transición no permitida: ${estatusActual} → ${nuevoEstatus}`
+    }
+  }
+
+  /**
+   * Validar si un string tiene formato UUID válido
+   * @param uuid String a validar
+   * @returns true si es UUID válido, false en caso contrario
+   */
+  private isValidUuid(uuid: string): boolean {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    return uuidRegex.test(uuid)
+  }
+
+  /**
+   * Manejar conversión de usuarioId para registros de auditoría
+   * Convierte IDs legacy a null para prevenir errores de UUID
+   * @param usuarioId ID del usuario a validar
+   * @returns UUID válido o null
+   */
+  private handleUsuarioIdForAudit(usuarioId?: string): string | null {
+    // Si no hay usuarioId, usar null
+    if (!usuarioId) {
+      return null
+    }
+
+    // Si ya es un UUID válido, usarlo
+    if (this.isValidUuid(usuarioId)) {
+      return usuarioId
+    }
+
+    // Si es un ID legacy (como '1', '2', etc.), convertir a null
+    // Esto previene errores de validación UUID
+    console.warn(`⚠️ Legacy usuarioId detectado: ${usuarioId}. Convirtiendo a null para registro de auditoría.`)
+    return null
+  }
+
+  /**
    * Registrar entrada en auditoría
    * @param trx Transacción de Kysely
    * @param materiaPrimaId UUID del material
@@ -819,6 +1012,9 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
     datosNuevos?: any,
     usuarioId?: string
   ): Promise<void> {
+    // Manejar conversión de usuarioId para prevenir errores de UUID
+    const validUsuarioId = this.handleUsuarioIdForAudit(usuarioId)
+
     await trx
       .insertInto('materia_prima_auditoria')
       .values({
@@ -827,7 +1023,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         accion,
         datos_anteriores: datosAnteriores ? JSON.stringify(datosAnteriores) : null,
         datos_nuevos: datosNuevos ? JSON.stringify(datosNuevos) : null,
-        usuario_id: usuarioId,
+        usuario_id: validUsuarioId, // Ahora siempre null o UUID válido
         fecha: new Date()
       })
       .execute()

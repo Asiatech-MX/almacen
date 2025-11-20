@@ -5,12 +5,22 @@ import useDebounce from '../../hooks/useDebounce'
 import { materiaPrimaService } from '../../services/materiaPrimaService'
 import type { MateriaPrima, MateriaPrimaDetail } from '../../../../shared/types/materiaPrima'
 
+// Importar componentes de error mejorados
+import { MateriaPrimaErrorDisplay } from '../../components/MateriaPrimaErrorDisplay'
+import { MateriaPrimaErrorText } from '../../components/MateriaPrimaErrorDisplay'
+
 // Importaciones de shadcn/ui
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import { Badge } from '../../components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../../components/ui/tooltip'
 import {
   Dialog,
   DialogContent,
@@ -46,6 +56,13 @@ const safeGet = <T, K extends keyof T>(obj: T | null | undefined, key: K, defaul
   return (value === undefined || value === null) ? defaultValue : value
 }
 
+// Función helper para obtener stock como número de forma segura
+const getStockAsNumber = (material: any): number => {
+  const stock = safeGet(material, 'stock_actual', 0)
+  // Convertir a número si es string
+  return typeof stock === 'string' ? parseFloat(stock) || 0 : Number(stock) || 0
+}
+
 export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = () => {
   const navigate = useNavigate()
   const {
@@ -55,7 +72,11 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = () => {
     cargarMateriales,
     eliminarMaterial,
     estadisticas,
-    clearError
+    clearError,
+    obtenerMensajeUsuario,
+    getErrorType,
+    tieneAccionesRecuperacion,
+    esStockDisponibleError
   } = useMateriaPrima({ autoLoad: true })
 
   const { loading: stockLoading, actualizarStock } = useStockMateriaPrima()
@@ -117,6 +138,32 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = () => {
     })
   }, [categoriaFilter, stockFilter])
 
+  // Event listeners para acciones de recuperación desde componentes de error
+  useEffect(() => {
+    const handleRecargarMateriales = () => {
+      clearError()
+      cargarMateriales()
+    }
+
+    const handleReintentarOperacion = () => {
+      clearError()
+      // Reintentar la última operación si hay un material seleccionado
+      if (selectedMaterial) {
+        handleDelete()
+      }
+    }
+
+    // Agregar event listeners
+    window.addEventListener('recargarMateriales', handleRecargarMateriales)
+    window.addEventListener('reintentarOperacion', handleReintentarOperacion)
+
+    // Limpiar event listeners al desmontar
+    return () => {
+      window.removeEventListener('recargarMateriales', handleRecargarMateriales)
+      window.removeEventListener('reintentarOperacion', handleReintentarOperacion)
+    }
+  }, [selectedMaterial, clearError, cargarMateriales])
+
   const getStockStatus = (material: MateriaPrima | null | undefined): 'normal' | 'low' | 'out' => {
     if (!material) return 'out'
 
@@ -137,6 +184,57 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = () => {
       setSelectedMaterial(null)
     } catch (err) {
       console.error('Error al eliminar material:', err)
+      // El error ya se maneja a través del hook y se muestra en el componente de error
+      // No necesitamos manejarlo aquí con alerts
+    }
+  }
+
+  // Manejador para acciones de recuperación desde el componente de error
+  const handleRecovery = (action: string) => {
+    if (!error) return
+
+    switch (action) {
+      case 'gestionar_stock':
+        // Abrir modal de gestión de stock para el material con error
+        if (esStockDisponibleError(error)) {
+          // Buscar el material en la lista
+          const material = materiales.find(m => m.id === error.idMaterial)
+          if (material) {
+            setSelectedMaterial(material)
+            setShowStockModal(true)
+          }
+        }
+        break
+
+      case 'desactivar_material':
+        // Navegar a desactivación o mostrar confirmación
+        if (esStockDisponibleError(error)) {
+          const confirmed = window.confirm(
+            `¿Desea desactivar el material "${error.nombreMaterial}" en lugar de eliminarlo?\n\n` +
+            'El material permanecerá en el sistema pero no estará disponible para nuevas operaciones.'
+          )
+          if (confirmed) {
+            // Aquí iría la lógica para desactivar el material
+            console.log('Desactivar material:', error.idMaterial)
+          }
+        }
+        break
+
+      case 'reintentar':
+        // Reintentar la operación que falló
+        if (selectedMaterial) {
+          handleDelete()
+        }
+        break
+
+      case 'recargar':
+        // Recargar la lista de materiales
+        clearError()
+        cargarMateriales()
+        break
+
+      default:
+        console.log('Acción de recuperación no reconocida:', action)
     }
   }
 
@@ -250,12 +348,12 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = () => {
         </div>
       </div>
 
-      {error && (
-        <div className="bg-destructive/15 border border-destructive/50 text-destructive p-4 rounded-lg flex items-center gap-2">
-          <span className="text-xl">⚠️</span>
-          {error}
-        </div>
-      )}
+      {/* Panel de errores mejorado */}
+      <MateriaPrimaErrorDisplay
+        error={error}
+        onDismiss={clearError}
+        onRecovery={handleRecovery}
+      />
 
       {/* Tarjetas de estadísticas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -312,7 +410,8 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = () => {
 
       {/* Tabla de materiales */}
       <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
-        <Table>
+        <TooltipProvider>
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Código</TableHead>
@@ -321,6 +420,7 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = () => {
               <TableHead>Categoría</TableHead>
               <TableHead className="text-center">Stock</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead className="text-center">Disponibilidad</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -362,6 +462,17 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = () => {
                       {stockStatus === 'out' && '❌ Agotado'}
                     </Badge>
                   </TableCell>
+                  <TableCell className="text-center">
+                    {getStockAsNumber(material) > 0 ? (
+                      <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-200">
+                        ❌ No eliminable
+                      </Badge>
+                    ) : (
+                      <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+                        ✅ Puede eliminar
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-1">
                       <Button
@@ -388,22 +499,38 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = () => {
                       >
                         📦
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openDeleteModal(material)}
-                        title="Eliminar"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        🗑️
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openDeleteModal(material)}
+                            className={
+                              getStockAsNumber(material) > 0
+                                ? "text-muted-foreground cursor-not-allowed opacity-50"
+                                : "text-destructive hover:text-destructive hover:bg-destructive/10"
+                            }
+                          >
+                            🗑️
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>
+                            {getStockAsNumber(material) > 0
+                              ? "No se puede eliminar: tiene stock disponible"
+                              : "Eliminar material"
+                            }
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   </TableCell>
                 </TableRow>
               )
             })}
           </TableBody>
-        </Table>
+          </Table>
+        </TooltipProvider>
 
         {materialesFiltrados.length === 0 && !loading && (
           <div className="text-center p-10 text-muted-foreground">
@@ -428,21 +555,69 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = () => {
             <DialogTitle className="flex items-center gap-2">
               🗑️ Eliminar Material
             </DialogTitle>
+            <DialogDescription>
+              Confirmación para eliminar un material del inventario. Esta acción no se puede deshacer.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <p><strong>¿Estás seguro de que deseas eliminar este material?</strong></p>
             <p>Este proceso no se puede deshacer.</p>
+
             <div className="space-y-2 text-sm">
               <p><strong>Material:</strong> {safeGet(selectedMaterial, 'nombre', 'N/A')}</p>
               <p><strong>Código:</strong> {safeGet(selectedMaterial, 'codigo_barras', 'N/A')}</p>
-              <p><strong>Stock actual:</strong> {safeGet(selectedMaterial, 'stock_actual', 0)}</p>
+              <p><strong>Stock actual:</strong>
+                <span className={
+                  getStockAsNumber(selectedMaterial) > 0
+                    ? 'text-red-600 font-bold ml-2'
+                    : 'text-green-600 font-bold ml-2'
+                }>
+                  {getStockAsNumber(selectedMaterial)} unidades
+                </span>
+              </p>
             </div>
+
+            {/* Warning for materials with stock */}
+            {selectedMaterial && getStockAsNumber(selectedMaterial) > 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-2 text-yellow-800">
+                  <span className="text-lg">⚠️</span>
+                  <strong>Advertencia de Inventario</strong>
+                </div>
+                <p className="text-yellow-700 text-sm">
+                  Este material tiene {getStockAsNumber(selectedMaterial)} unidades en stock.
+                  Por políticas de control de inventario, <strong>no se pueden eliminar materiales con stock disponible</strong>.
+                </p>
+                <p className="text-yellow-700 text-sm">
+                  Para eliminar este material, primero debe ajustar su stock a cero usando la opción
+                  <strong> "📦 Ajustar Stock"</strong>.
+                </p>
+              </div>
+            )}
+
+            {/* Warning for materials without stock */}
+            {selectedMaterial && getStockAsNumber(selectedMaterial) === 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 text-green-800">
+                  <span className="text-lg">✅</span>
+                  <span className="text-sm">Este material puede ser eliminado (stock: 0)</span>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={loading}>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={loading || (selectedMaterial && getStockAsNumber(selectedMaterial) > 0)}
+              title={selectedMaterial && getStockAsNumber(selectedMaterial) > 0
+                ? "No se puede eliminar: tiene stock disponible"
+                : "Eliminar material"
+              }
+            >
               {loading ? 'Eliminando...' : 'Eliminar'}
             </Button>
           </DialogFooter>
@@ -456,6 +631,9 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = () => {
             <DialogTitle className="flex items-center gap-2">
               📦 Ajustar Stock
             </DialogTitle>
+            <DialogDescription>
+              Ajustar la cantidad de stock para el material seleccionado. Especifique la cantidad y el motivo del ajuste.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2 text-sm">
@@ -512,6 +690,9 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = () => {
             <DialogTitle className="flex items-center gap-2">
               📋 Detalles del Material
             </DialogTitle>
+            <DialogDescription>
+              Vista detallada de toda la información del material seleccionado, incluyendo especificaciones y datos de inventario.
+            </DialogDescription>
           </DialogHeader>
           <div>
             {loadingDetalle ? (

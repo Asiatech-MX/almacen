@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Scroller } from "@/components/ui/scroller"
 
 type TabType = 'search' | 'lowStock' | 'statistics'
 
@@ -305,35 +306,39 @@ export const ConsultasAvanzadas: React.FC = () => {
                     <Badge variant="secondary">{datosAMostrar.length} materiales</Badge>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Código</TableHead>
-                        <TableHead>Nombre</TableHead>
-                        <TableHead>Marca</TableHead>
-                        <TableHead>Categoría</TableHead>
-                        <TableHead>Stock</TableHead>
-                        <TableHead>Estado</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {datosAMostrar.map((material) => (
-                        <TableRow key={material.id}>
-                          <TableCell className="font-medium">{material.codigo_barras}</TableCell>
-                          <TableCell>{material.nombre}</TableCell>
-                          <TableCell>{material.marca || '-'}</TableCell>
-                          <TableCell>{material.categoria || '-'}</TableCell>
-                          <TableCell>{material.stock_actual}</TableCell>
-                          <TableCell>
-                            <Badge variant={getStockBadgeVariant(material)}>
-                              {getStockStatusText(material)}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                <CardContent className="p-0">
+                  <Scroller orientation="horizontal" size={16} offset={8}>
+                    <div className="min-w-max">
+                      <Table>
+                        <TableHeader className="sticky top-0 bg-background z-10">
+                          <TableRow>
+                            <TableHead className="w-32">Código</TableHead>
+                            <TableHead className="w-48">Nombre</TableHead>
+                            <TableHead className="w-32">Marca</TableHead>
+                            <TableHead className="w-36">Categoría</TableHead>
+                            <TableHead className="w-24 text-center">Stock</TableHead>
+                            <TableHead className="w-28 text-center">Estado</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {datosAMostrar.map((material) => (
+                            <TableRow key={material.id}>
+                              <TableCell className="font-medium w-32">{material.codigo_barras}</TableCell>
+                              <TableCell className="w-48">{material.nombre}</TableCell>
+                              <TableCell className="w-32">{material.marca || '-'}</TableCell>
+                              <TableCell className="w-36">{material.categoria || '-'}</TableCell>
+                              <TableCell className="w-24 text-center">{material.stock_actual}</TableCell>
+                              <TableCell className="w-28 text-center">
+                                <Badge variant={getStockBadgeVariant(material)}>
+                                  {getStockStatusText(material)}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </Scroller>
                 </CardContent>
               </Card>
             )}
@@ -368,33 +373,37 @@ export const ConsultasAvanzadas: React.FC = () => {
                     <Badge variant="secondary">{lowStockItems.length} materiales</Badge>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Código</TableHead>
-                        <TableHead>Nombre</TableHead>
-                        <TableHead>Marca</TableHead>
-                        <TableHead>Presentación</TableHead>
-                        <TableHead>Stock Actual</TableHead>
-                        <TableHead>Stock Mínimo</TableHead>
-                        <TableHead>Categoría</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {lowStockItems.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.codigo_barras}</TableCell>
-                          <TableCell>{item.nombre}</TableCell>
-                          <TableCell>{item.marca || '-'}</TableCell>
-                          <TableCell>{item.presentacion}</TableCell>
-                          <TableCell>{item.stock_actual}</TableCell>
-                          <TableCell>{item.stock_minimo}</TableCell>
-                          <TableCell>{item.categoria || '-'}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                <CardContent className="p-0">
+                  <Scroller orientation="horizontal" size={16} offset={8}>
+                    <div className="min-w-max">
+                      <Table>
+                        <TableHeader className="sticky top-0 bg-background z-10">
+                          <TableRow>
+                            <TableHead className="w-32">Código</TableHead>
+                            <TableHead className="w-48">Nombre</TableHead>
+                            <TableHead className="w-32">Marca</TableHead>
+                            <TableHead className="w-36">Presentación</TableHead>
+                            <TableHead className="w-28 text-center">Stock Actual</TableHead>
+                            <TableHead className="w-28 text-center">Stock Mínimo</TableHead>
+                            <TableHead className="w-36">Categoría</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {lowStockItems.map((item) => (
+                            <TableRow key={item.id}>
+                              <TableCell className="font-medium w-32">{item.codigo_barras}</TableCell>
+                              <TableCell className="w-48">{item.nombre}</TableCell>
+                              <TableCell className="w-32">{item.marca || '-'}</TableCell>
+                              <TableCell className="w-36">{item.presentacion}</TableCell>
+                              <TableCell className="w-28 text-center">{item.stock_actual}</TableCell>
+                              <TableCell className="w-28 text-center">{item.stock_minimo}</TableCell>
+                              <TableCell className="w-36">{item.categoria || '-'}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </Scroller>
                 </CardContent>
               </Card>
             )}
@@ -413,39 +422,41 @@ export const ConsultasAvanzadas: React.FC = () => {
 
       case 'statistics':
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-            <Card className="border-l-4 border-l-blue-500 transition-all duration-200 ease-in-out hover:shadow-lg hover:scale-105">
-              <CardContent className="p-6">
-                <h4 className="text-sm font-medium text-gray-600 mb-2">Total Materiales</h4>
-                <div className="text-3xl font-bold text-blue-600 transition-transform duration-200 ease-in-out hover:scale-110">{estadisticas.total}</div>
-                <p className="text-sm text-gray-500">Materiales registrados</p>
-              </CardContent>
-            </Card>
+          <Scroller viewportAware size={16} offset={8}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8 pb-4">
+              <Card className="border-l-4 border-l-blue-500 transition-all duration-200 ease-in-out hover:shadow-lg hover:scale-105">
+                <CardContent className="p-6">
+                  <h4 className="text-sm font-medium text-gray-600 mb-2">Total Materiales</h4>
+                  <div className="text-3xl font-bold text-blue-600 transition-transform duration-200 ease-in-out hover:scale-110">{estadisticas.total}</div>
+                  <p className="text-sm text-gray-500">Materiales registrados</p>
+                </CardContent>
+              </Card>
 
-            <Card className="border-l-4 border-l-amber-500 transition-all duration-200 ease-in-out hover:shadow-lg hover:scale-105">
-              <CardContent className="p-6">
-                <h4 className="text-sm font-medium text-gray-600 mb-2">Stock Bajo</h4>
-                <div className="text-3xl font-bold text-amber-600 transition-transform duration-200 ease-in-out hover:scale-110">{estadisticas.bajoStock}</div>
-                <p className="text-sm text-gray-500">Necesitan reabastecer</p>
-              </CardContent>
-            </Card>
+              <Card className="border-l-4 border-l-amber-500 transition-all duration-200 ease-in-out hover:shadow-lg hover:scale-105">
+                <CardContent className="p-6">
+                  <h4 className="text-sm font-medium text-gray-600 mb-2">Stock Bajo</h4>
+                  <div className="text-3xl font-bold text-amber-600 transition-transform duration-200 ease-in-out hover:scale-110">{estadisticas.bajoStock}</div>
+                  <p className="text-sm text-gray-500">Necesitan reabastecer</p>
+                </CardContent>
+              </Card>
 
-            <Card className="border-l-4 border-l-red-500 transition-all duration-200 ease-in-out hover:shadow-lg hover:scale-105">
-              <CardContent className="p-6">
-                <h4 className="text-sm font-medium text-gray-600 mb-2">Sin Stock</h4>
-                <div className="text-3xl font-bold text-red-600 transition-transform duration-200 ease-in-out hover:scale-110">{estadisticas.sinStock}</div>
-                <p className="text-sm text-gray-500">Agotados</p>
-              </CardContent>
-            </Card>
+              <Card className="border-l-4 border-l-red-500 transition-all duration-200 ease-in-out hover:shadow-lg hover:scale-105">
+                <CardContent className="p-6">
+                  <h4 className="text-sm font-medium text-gray-600 mb-2">Sin Stock</h4>
+                  <div className="text-3xl font-bold text-red-600 transition-transform duration-200 ease-in-out hover:scale-110">{estadisticas.sinStock}</div>
+                  <p className="text-sm text-gray-500">Agotados</p>
+                </CardContent>
+              </Card>
 
-            <Card className="border-l-4 border-l-green-500 transition-all duration-200 ease-in-out hover:shadow-lg hover:scale-105">
-              <CardContent className="p-6">
-                <h4 className="text-sm font-medium text-gray-600 mb-2">Valor Total</h4>
-                <div className="text-3xl font-bold text-green-600 transition-transform duration-200 ease-in-out hover:scale-110">${estadisticas.valorTotal.toFixed(2)}</div>
-                <p className="text-sm text-gray-500">Valor del inventario</p>
-              </CardContent>
-            </Card>
-          </div>
+              <Card className="border-l-4 border-l-green-500 transition-all duration-200 ease-in-out hover:shadow-lg hover:scale-105">
+                <CardContent className="p-6">
+                  <h4 className="text-sm font-medium text-gray-600 mb-2">Valor Total</h4>
+                  <div className="text-3xl font-bold text-green-600 transition-transform duration-200 ease-in-out hover:scale-110">${estadisticas.valorTotal.toFixed(2)}</div>
+                  <p className="text-sm text-gray-500">Valor del inventario</p>
+                </CardContent>
+              </Card>
+            </div>
+          </Scroller>
         )
 
       default:

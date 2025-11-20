@@ -6,9 +6,7 @@
       "emitTemplate": "backend/types/generated/${name}.types.ts"
     }
   ],
-  "dbUrl": {
-    "env": "DATABASE_URL"
-  },
+  "dbUrl": "postgresql://postgres:password@localhost:5432/almacen",
   "srcDir": "./backend",
   "searchPath": ["public"],
   "camelCaseColumnNames": true

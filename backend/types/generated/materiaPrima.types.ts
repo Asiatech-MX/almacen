@@ -17,6 +17,7 @@ export interface FindAllMateriaPrimaResult {
   descripcion: string | null
   categoria: string | null
   proveedor_id: string | null
+  estatus: string
   proveedor_nombre: string | null
   proveedor_rfc: string | null
   creado_en: Date

@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MaskInput } from '@/components/ui/mask-input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FieldSet, FieldLegend, FieldGroup, FieldContent, FieldTitle, FieldDescription, FieldError, Field, FieldSeparator } from '@/components/ui/fieldset'
+import { Scroller } from '@/components/ui/scroller'
 
 import useMateriaPrima, { UseMateriaPrimaOptions } from '../../hooks/useMateriaPrima'
 import type {
@@ -301,8 +302,9 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
             </div>
           </CardHeader>
           <CardContent className="p-6 sm:p-8 lg:p-10">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+            <Scroller viewportAware size={16} offset={8}>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 pb-4">
                 <Tabs defaultValue="basic-info" className="w-full">
                   {/* Tabs Navigation - Dashboard Moderno */}
                   <TabsList className="grid w-full grid-cols-3 h-auto p-1 mb-8 bg-muted/50 backdrop-blur-sm rounded-xl">
@@ -693,8 +695,9 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                     </Button>
                   </div>
                 </Tabs>
-                    </form>
-                  </Form>
+                </form>
+              </Form>
+            </Scroller>
           </CardContent>
         </Card>
       </div>
