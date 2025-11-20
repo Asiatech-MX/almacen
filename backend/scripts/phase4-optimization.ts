@@ -5,6 +5,8 @@
  * Incluye optimización de performance, código, infraestructura y configuración.
  */
 
+import { getErrorMessage } from '../types/kysely-helpers'
+
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { exec } from 'child_process';
@@ -101,8 +103,9 @@ export class SystemOptimizer {
       console.log('✅ System optimization completed successfully');
       return result;
 
-    } catch (error) {
-      console.error('❌ System optimization failed:', error.message);
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      console.error('❌ System optimization failed:', message);
       throw error;
     }
   }
@@ -131,8 +134,9 @@ export class SystemOptimizer {
 
       console.log('  Baseline measured successfully');
 
-    } catch (error) {
-      console.warn('Could not measure some baseline metrics:', error.message);
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      console.warn('Could not measure some baseline metrics:', message);
     }
   }
 
@@ -205,7 +209,7 @@ export class SystemOptimizer {
     try {
       console.log(`  🔄 ${task.name}...`);
 
-      let result: OptimizationTask['result'];
+      let result: OptimizationTask['result'] = { success: false };
 
       switch (task.name) {
         case 'Kysely Query Optimization':
@@ -247,10 +251,11 @@ export class SystemOptimizer {
 
       console.log(`  ${result.success ? '✅' : '⚠️'} ${task.name}: ${result.success ? 'Completed' : 'Skipped'}`);
 
-    } catch (error) {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
       task.status = 'SKIPPED';
-      task.result = { success: false, recommendations: [`Error: ${error.message}`] };
-      console.warn(`  ⚠️ ${task.name}: Skipped due to error`);
+      task.result = { success: false, recommendations: [`Error: ${message}`] };
+      console.warn(`  ⚠️ ${task.name}: Skipped due to error: ${message}`);
     }
   }
 
@@ -278,8 +283,9 @@ export class SystemOptimizer {
 
       console.log('  Post-optimization metrics measured successfully');
 
-    } catch (error) {
-      console.warn('Could not measure some post-optimization metrics:', error.message);
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      console.warn('Could not measure some post-optimization metrics:', message);
     }
   }
 
@@ -353,8 +359,9 @@ export class SystemOptimizer {
       // Analizar queries generadas por Kysely
       console.log('    ✅ Query optimization analysis completed');
       return { success: true, recommendations };
-    } catch (error) {
-      return { success: false, recommendations: [`Could not analyze queries: ${error.message}`] };
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      return { success: false, recommendations: [`Could not analyze queries: ${message}`] };
     }
   }
 
@@ -400,8 +407,9 @@ export class SystemOptimizer {
       ];
 
       return { success: true, recommendations };
-    } catch (error) {
-      return { success: false, recommendations: [`Failed to optimize TypeScript: ${error.message}`] };
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      return { success: false, recommendations: [`Failed to optimize TypeScript: ${message}`] };
     }
   }
 
@@ -450,8 +458,9 @@ export class SystemOptimizer {
       ];
 
       return { success: true, recommendations, metrics: { dependenciesAnalyzed: stdout.split('\n').length - 2 } };
-    } catch (error) {
-      return { success: false, recommendations: [`Failed to analyze dependencies: ${error.message}`] };
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      return { success: false, recommendations: [`Failed to analyze dependencies: ${message}`] };
     }
   }
 

@@ -4,8 +4,10 @@
  */
 
 // Materia Prima adapters
+export type {
+  MateriaPrimaUnificada
+} from './materiaPrima.adapter';
 export {
-  MateriaPrimaUnificada,
   adaptKyselyMateriaPrisma,
   adaptLegacyMateriaPrisma,
   adaptToKyselyMateriaPrisma,
@@ -13,8 +15,10 @@ export {
 } from './materiaPrima.adapter';
 
 // Proveedores adapters
+export type {
+  ProveedorUnificado
+} from './proveedores.adapter';
 export {
-  ProveedorUnificado,
   adaptKyselyProveedor,
   adaptToKyselyProveedor,
   validateProveedorConsistency
