@@ -140,10 +140,6 @@ jobs:
         sleep 5
         echo "Database ready for type generation"
 
-    - name: Generate PGTyped types
-      run: pnpm db:generate-types
-      continue-on-error: true
-
     - name: Generate Kysely types
       run: pnpm db:codegen
 
