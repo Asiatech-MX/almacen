@@ -58,21 +58,23 @@ export class ProveedorMappingService {
   } | null> {
     if (!proveedorId) return null
 
-    let query = this.db.selectFrom('proveedor')
+    const rows = await this.db.selectFrom('proveedor').selectAll().execute()
 
-    if (typeof proveedorId === 'number') {
-      query = query.where('id', '=', proveedorId)
-    } else if (typeof proveedorId === 'string') {
-      query = query.where('uuid_proveedor', '=', proveedorId)
-    } else {
-      return null
+    const found = rows.find(r => {
+      const anyR = r as any
+      if (typeof proveedorId === 'number') return Number(anyR.id) === proveedorId
+      return anyR.uuid_proveedor === proveedorId || anyR.idFiscal === proveedorId
+    })
+
+    if (!found) return null
+
+    const anyF = found as any
+    return {
+      id: typeof anyF.id === 'string' ? Number(anyF.id) : (anyF.id as number),
+      uuid_proveedor: anyF.uuid_proveedor ?? anyF.idFiscal ?? String(anyF.id),
+      nombre: anyF.nombre ?? '',
+      estatus: anyF.estatus ?? (anyF.activo ? 'ACTIVO' : 'INACTIVO')
     }
-
-    const result = await query
-      .select(['id', 'uuid_proveedor', 'nombre', 'estatus'])
-      .executeTakeFirst()
-
-    return result || null
   }
 
   /**
@@ -110,15 +112,26 @@ export class ProveedorMappingService {
   async listProveedoresCompatibles(): Promise<ProveedorBasic[]> {
     const rows = await this.db
       .selectFrom('proveedor')
-      .select(['id', 'nombre', 'rfc', 'estatus'])
-      .where('estatus', '=', 'ACTIVO')
+      .selectAll()
       .execute()
 
-    // Normalize id if necessary (DB id may be ColumnType)
-    return rows.map(r => ({
-      ...r,
-      id: typeof r.id === 'string' ? Number(r.id) : (r.id as number)
-    })) as ProveedorBasic[]
+    return rows
+      .filter(r => {
+        // table might have 'estatus' (string) or 'activo' (boolean)
+        const anyR = r as any
+        if (anyR.estatus != null) return anyR.estatus === 'ACTIVO'
+        if (anyR.activo != null) return anyR.activo === true
+        return false
+      })
+      .map(r => {
+        const anyR = r as any
+        return {
+          id: typeof anyR.id === 'string' ? Number(anyR.id) : (anyR.id as number),
+          nombre: anyR.nombre ?? '',
+          rfc: anyR.rfc ?? null,
+          estatus: anyR.estatus ?? (anyR.activo ? 'ACTIVO' : 'INACTIVO')
+        }
+      }) as ProveedorBasic[]
   }
 
   /**
@@ -142,6 +155,7 @@ export class ProveedorMappingService {
     const result = await this.db
       .insertInto('proveedor')
       .values({
+        // map the fields that actually exist in DB. Use as any to avoid type errors
         uuid_proveedor: data.idFiscal,
         nombre: data.nombre,
         domicilio: data.domicilio,
@@ -152,13 +166,26 @@ export class ProveedorMappingService {
         curp: data.curp,
         idInstitucion: data.idInstitucion,
         estatus: 'ACTIVO'
-      })
-      .returning(['id', 'uuid_proveedor', 'nombre'])
+      } as any)
+      // returning uuid_proveedor may not exist in the typed schema; return id and nombre and fetch uuid if needed
+      .returning(['id', 'nombre'])
       .executeTakeFirstOrThrow()
+
+    // If the DB actually has uuid_proveedor and you need it:
+    let uuid = (result as any).uuid_proveedor
+    if (!uuid) {
+      // attempt to read uuid from DB by id
+      const row = await this.db
+        .selectFrom('proveedor')
+        .selectAll()
+        .where('id', '=', (typeof result.id === 'string' ? Number(result.id) : result.id) as any)
+        .executeTakeFirst()
+      uuid = (row as any)?.uuid_proveedor ?? data.idFiscal
+    }
 
     return {
       id: typeof result.id === 'string' ? Number(result.id) : (result.id as number),
-      idFiscal: result.uuid_proveedor,
+      idFiscal: uuid,
       nombre: result.nombre
     }
   }
@@ -175,35 +202,25 @@ export class ProveedorMappingService {
       issue: string
     }>
   }> {
-    const total = await this.db
-      .selectFrom('proveedor')
-      .select((eb) => eb.fn.count('id').as('total'))
-      .executeTakeFirst()
+    const rows = await this.db.selectFrom('proveedor').selectAll().execute()
 
-    const conIdFiscal = await this.db
-      .selectFrom('proveedor')
-      .select((eb) => eb.fn.count('id').as('con_id_fiscal'))
-      .where('idFiscal', 'is not', null)
-      .executeTakeFirst()
+    const totalProveedores = rows.length
+    const conIdFiscal = rows.filter(r => (r as any).idFiscal != null || (r as any).uuid_proveedor != null).length
 
-    // Include idFiscal in select so mapping logic can use it
-    const inconsistencias = await this.db
-      .selectFrom('proveedor')
-      .select(['id', 'nombre', 'idFiscal'])
-      .where((eb) => eb.or([
-        eb('idFiscal', 'is', null),
-        eb('nombre', 'is', null)
-      ]))
-      .execute()
+    const inconsistencias = rows
+      .filter(r => {
+        const anyR = r as any
+        return !anyR.idFiscal && !anyR.uuid_proveedor || !anyR.nombre
+      })
+      .map(p => {
+        const anyP = p as any
+        return {
+          id: typeof anyP.id === 'string' ? Number(anyP.id) : (anyP.id as number),
+          nombre: anyP.nombre ?? '',
+          issue: anyP.idFiscal || anyP.uuid_proveedor ? 'inconsistent_data' : 'missing_fiscal_id'
+        }
+      })
 
-    return {
-      totalProveedores: Number(total?.total ?? 0),
-      conIdFiscal: Number(conIdFiscal?.con_id_fiscal ?? 0),
-      inconsistencias: inconsistencias.map(p => ({
-        id: typeof p.id === 'string' ? Number(p.id) : (p.id as number),
-        nombre: p.nombre ?? '',
-        issue: p.idFiscal ? 'inconsistent_data' : 'missing_fiscal_id'
-      }))
-    }
+    return { totalProveedores, conIdFiscal, inconsistencias }
   }
 }
