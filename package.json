@@ -11,11 +11,11 @@
     "db:generate-types": "pgtyped -w -c .pgtypedrc.json",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:codegen": "kysely-codegen",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "test:contract": "jest tests/contract",
-    "test:contract:watch": "jest tests/contract --watch"
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
+    "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
+    "test:contract": "NODE_OPTIONS='--experimental-vm-modules' jest tests/contract",
+    "test:contract:watch": "NODE_OPTIONS='--experimental-vm-modules' jest tests/contract --watch"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.17",
