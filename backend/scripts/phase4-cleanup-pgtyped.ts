@@ -5,6 +5,7 @@
  * Incluye validaciones para asegurar que no se pierda funcionalidad.
  */
 
+import { getErrorMessage } from '../types/kysely-helpers'
 import { promises as fs } from 'fs';
 import { join, dirname, basename } from 'path';
 import { exec } from 'child_process';
@@ -92,10 +93,10 @@ export class PGTypedCleanup {
       console.log('✅ PGTyped cleanup completed successfully');
       return this.results;
 
-    } catch (error) {
+    } catch (error: unknown) {
       this.results.success = false;
-      this.results.errors.push(error.message);
-      console.error('❌ PGTyped cleanup failed:', error.message);
+      this.results.errors.push(getErrorMessage(error));
+      console.error('❌ PGTyped cleanup failed:', getErrorMessage(error));
       return this.results;
     }
   }
@@ -169,12 +170,12 @@ export class PGTypedCleanup {
               await fs.unlink(file);
               this.results.removedFiles.push(file);
               console.log(`  Removed: ${file}`);
-            } catch (error) {
-              this.results.warnings.push(`Could not remove file: ${file} - ${error.message}`);
+            } catch (error: unknown) {
+              this.results.warnings.push(`Could not remove file: ${file} - ${getErrorMessage(error)}`);
             }
           }
         }
-      } catch (error) {
+      } catch (error: unknown) {
         // Ignorar errores de find
       }
     }
@@ -190,12 +191,12 @@ export class PGTypedCleanup {
             await execAsync(`rm -rf "${dir}"`);
             this.results.removedFiles.push(dir + ' (directory)');
             console.log(`  Removed directory: ${dir}`);
-          } catch (error) {
-            this.results.warnings.push(`Could not remove directory: ${dir} - ${error.message}`);
+          } catch (error: unknown) {
+            this.results.warnings.push(`Could not remove directory: ${dir} - ${getErrorMessage(error)}`);
           }
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       // Ignorar errores
     }
   }
@@ -222,7 +223,7 @@ export class PGTypedCleanup {
         await fs.unlink(configPath);
         this.results.removedFiles.push(configFile);
         console.log(`  Removed config: ${configFile}`);
-      } catch (error) {
+      } catch (error: unknown) {
         // El archivo podría no existir, lo cual está bien
       }
     }
@@ -279,8 +280,8 @@ export class PGTypedCleanup {
       this.results.updatedFiles.push(packageJsonPath);
       console.log('  Updated package.json');
 
-    } catch (error) {
-      throw new Error(`Failed to update package.json: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to update package.json: ${getErrorMessage(error)}`);
     }
   }
 
@@ -300,8 +301,8 @@ export class PGTypedCleanup {
           await this.updateFileReferences(file);
         }
       }
-    } catch (error) {
-      console.warn('Could not search for code references:', error.message);
+    } catch (error: unknown) {
+      console.warn('Could not search for code references:', getErrorMessage(error));
     }
   }
 
@@ -342,8 +343,8 @@ export class PGTypedCleanup {
         console.log(`  Updated references in: ${filePath}`);
       }
 
-    } catch (error) {
-      this.results.warnings.push(`Could not update file ${filePath}: ${error.message}`);
+    } catch (error: unknown) {
+      this.results.warnings.push(`Could not update file ${filePath}: ${getErrorMessage(error)}`);
     }
   }
 
@@ -363,14 +364,14 @@ export class PGTypedCleanup {
           this.results.warnings.push(`Script contains PGTyped references: ${script} - Manual review required`);
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
       // Ignorar errores
     }
 
     // Limpiar archivos temporales
     try {
       await execAsync(`find "${this.projectRoot}" -name "*.pgtyped.tmp" -delete 2>/dev/null || true`);
-    } catch (error) {
+    } catch (error: unknown) {
       // Ignorar errores
     }
   }
@@ -424,7 +425,7 @@ export class PGTypedCleanup {
     try {
       await execAsync('pnpm test', { cwd: this.projectRoot });
       console.log('  ✅ Full test suite passed');
-    } catch (error) {
+    } catch (error: unknown) {
       throw new Error('Final test suite failed');
     }
 
@@ -432,7 +433,7 @@ export class PGTypedCleanup {
     try {
       await execAsync('pnpm build', { cwd: this.projectRoot });
       console.log('  ✅ Full build successful');
-    } catch (error) {
+    } catch (error: unknown) {
       throw new Error('Final build failed');
     }
 
@@ -440,7 +441,7 @@ export class PGTypedCleanup {
     try {
       await execAsync('pnpm type-check', { cwd: this.projectRoot });
       console.log('  ✅ TypeScript compilation successful');
-    } catch (error) {
+    } catch (error: unknown) {
       throw new Error('TypeScript compilation failed');
     }
   }
@@ -497,7 +498,7 @@ The codebase is now free of PGTyped dependencies and fully migrated to Kysely.
     try {
       const { stdout, stderr } = await execAsync('pnpm test --testPathPattern=kysely', { cwd: this.projectRoot });
       return stderr.includes('PASS') && !stderr.includes('FAIL');
-    } catch (error) {
+    } catch (error: unknown) {
       return false;
     }
   }
@@ -507,7 +508,7 @@ The codebase is now free of PGTyped dependencies and fully migrated to Kysely.
       const { stdout } = await execAsync('pnpm test:coverage --coverageReporters=text-summary', { cwd: this.projectRoot });
       const match = stdout.match(/All files\s+\|\s+([\d.]+)/);
       return match ? parseFloat(match[1]) : 0;
-    } catch (error) {
+    } catch (error: unknown) {
       return 0;
     }
   }
@@ -526,7 +527,7 @@ The codebase is now free of PGTyped dependencies and fully migrated to Kysely.
     try {
       const { stdout } = await execAsync(`grep -r "@pgtyped" "${this.projectRoot}" --include="*.ts" --include="*.tsx" --exclude-dir=node_modules --exclude-dir=dist 2>/dev/null || true`);
       return stdout.trim() === '';
-    } catch (error) {
+    } catch (error: unknown) {
       return true; // Si hay error, asumir que no hay imports
     }
   }
@@ -535,7 +536,7 @@ The codebase is now free of PGTyped dependencies and fully migrated to Kysely.
     try {
       await execAsync('pnpm test', { cwd: this.projectRoot });
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       return false;
     }
   }
@@ -544,7 +545,7 @@ The codebase is now free of PGTyped dependencies and fully migrated to Kysely.
     try {
       await execAsync('pnpm build', { cwd: this.projectRoot });
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       return false;
     }
   }

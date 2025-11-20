@@ -6,7 +6,8 @@
  */
 
 import { featureFlagManager } from '../config/featureFlags';
-import { performanceMonitor } from '../scripts/phase3-monitor';
+import Phase3MigrationMonitor from '../scripts/phase3-monitor';
+import { getErrorMessage } from '../types/kysely-helpers';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -139,9 +140,9 @@ export class ProductionDeploymentValidator {
 
       console.log('✅ System Health validation completed');
 
-    } catch (error) {
+    } catch (error: unknown) {
       result.isValid = false;
-      result.errors.push(`System health validation failed: ${error.message}`);
+      result.errors.push(`System health validation failed: ${getErrorMessage(error)}`);
     }
 
     this.checklist.systemHealth = result;
@@ -196,9 +197,9 @@ export class ProductionDeploymentValidator {
 
       console.log('✅ Migration Status validation completed');
 
-    } catch (error) {
+    } catch (error: unknown) {
       result.isValid = false;
-      result.errors.push(`Migration status validation failed: ${error.message}`);
+      result.errors.push(`Migration status validation failed: ${getErrorMessage(error)}`);
     }
 
     this.checklist.migrationStatus = result;
@@ -263,9 +264,9 @@ export class ProductionDeploymentValidator {
 
       console.log('✅ Performance Baseline validation completed');
 
-    } catch (error) {
+    } catch (error: unknown) {
       result.isValid = false;
-      result.errors.push(`Performance validation failed: ${error.message}`);
+      result.errors.push(`Performance validation failed: ${getErrorMessage(error)}`);
     }
 
     this.checklist.performanceValidation = result;
@@ -319,9 +320,9 @@ export class ProductionDeploymentValidator {
 
       console.log('✅ Security Checks validation completed');
 
-    } catch (error) {
+    } catch (error: unknown) {
       result.isValid = false;
-      result.errors.push(`Security validation failed: ${error.message}`);
+      result.errors.push(`Security validation failed: ${getErrorMessage(error)}`);
     }
 
     this.checklist.securityChecks = result;
@@ -375,9 +376,9 @@ export class ProductionDeploymentValidator {
 
       console.log('✅ Monitoring Setup validation completed');
 
-    } catch (error) {
+    } catch (error: unknown) {
       result.isValid = false;
-      result.errors.push(`Monitoring validation failed: ${error.message}`);
+      result.errors.push(`Monitoring validation failed: ${getErrorMessage(error)}`);
     }
 
     this.checklist.monitoringSetup = result;
@@ -431,9 +432,9 @@ export class ProductionDeploymentValidator {
 
       console.log('✅ Rollback Capability validation completed');
 
-    } catch (error) {
+    } catch (error: unknown) {
       result.isValid = false;
-      result.errors.push(`Rollback validation failed: ${error.message}`);
+      result.errors.push(`Rollback validation failed: ${getErrorMessage(error)}`);
     }
 
     this.checklist.rollbackCapability = result;

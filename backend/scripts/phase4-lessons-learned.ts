@@ -5,6 +5,7 @@
  * y facilitar la transferencia de conocimiento al equipo.
  */
 
+import { getErrorMessage } from '../types/kysely-helpers'
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { exec } from 'child_process';
@@ -140,8 +141,8 @@ export class LessonsLearnedProcessor {
       console.log('✅ Lessons Learned processing completed');
       return report;
 
-    } catch (error) {
-      console.error('❌ Lessons Learned processing failed:', error.message);
+    } catch (error: unknown) {
+      console.error('❌ Lessons Learned processing failed:', getErrorMessage(error));
       throw error;
     }
   }
