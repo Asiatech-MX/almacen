@@ -24,22 +24,22 @@ export class ProveedorMappingService {
     if (typeof proveedorId === 'string') {
       const exists = await this.db
         .selectFrom('proveedor')
-        .select(['proveedor.idFiscal'])
-        .where('proveedor.idFiscal', '=', proveedorId)
+        .select('uuid_proveedor')
+        .where('idFiscal', '=', proveedorId)
         .executeTakeFirst()
 
-      return exists?.idFiscal ?? null
+      return exists?.uuid_proveedor ?? null
     }
 
-    // Si es número, buscar el idFiscal correspondiente
+    // Si es número, buscar el uuid_proveedor correspondiente
     if (typeof proveedorId === 'number') {
       const result = await this.db
         .selectFrom('proveedor')
-        .select(['proveedor.idFiscal'])
-        .where('proveedor.id', '=', proveedorId)
+        .select('uuid_proveedor')
+        .where('id', '=', proveedorId)
         .executeTakeFirst()
 
-      return result?.idFiscal ?? null
+      return result?.uuid_proveedor ?? null
     }
 
     return null
@@ -94,8 +94,8 @@ export class ProveedorMappingService {
   async getProveedorIdByUuid(uuid: string): Promise<number | null> {
     const result = await this.db
       .selectFrom('proveedor')
-      .select(['proveedor.id'])
-      .where('proveedor.idFiscal', '=', uuid)
+      .select('id')
+      .where('uuid_proveedor', '=', uuid)
       .executeTakeFirst()
 
     if (result?.id == null) return null
@@ -110,13 +110,8 @@ export class ProveedorMappingService {
   async listProveedoresCompatibles(): Promise<ProveedorBasic[]> {
     const rows = await this.db
       .selectFrom('proveedor')
-      .select([
-        'proveedor.id',
-        'proveedor.nombre',
-        'proveedor.rfc',
-        'proveedor.estatus'
-      ])
-      .where('proveedor.estatus', '=', 'ACTIVO')
+      .select(['id', 'nombre', 'rfc', 'estatus'])
+      .where('estatus', '=', 'ACTIVO')
       .execute()
 
     // Normalize id if necessary (DB id may be ColumnType)
@@ -147,13 +142,25 @@ export class ProveedorMappingService {
     const result = await this.db
       .insertInto('proveedor')
       .values({
-        ...data,
+        uuid_proveedor: data.idFiscal,
+        nombre: data.nombre,
+        domicilio: data.domicilio,
+        telefono: data.telefono,
+        email: data.email,
+        contacto: data.contacto,
+        rfc: data.rfc,
+        curp: data.curp,
+        idInstitucion: data.idInstitucion,
         estatus: 'ACTIVO'
       })
       .returning(['id', 'uuid_proveedor', 'nombre'])
       .executeTakeFirstOrThrow()
 
-    return result
+    return {
+      id: typeof result.id === 'string' ? Number(result.id) : (result.id as number),
+      idFiscal: result.uuid_proveedor,
+      nombre: result.nombre
+    }
   }
 
   /**
@@ -170,26 +177,22 @@ export class ProveedorMappingService {
   }> {
     const total = await this.db
       .selectFrom('proveedor')
-      .select((eb) => eb.fn.count('proveedor.id').as('total'))
+      .select((eb) => eb.fn.count('id').as('total'))
       .executeTakeFirst()
 
     const conIdFiscal = await this.db
       .selectFrom('proveedor')
-      .select((eb) => eb.fn.count('proveedor.id').as('con_id_fiscal'))
-      .where('proveedor.idFiscal', 'is not', null)
+      .select((eb) => eb.fn.count('id').as('con_id_fiscal'))
+      .where('idFiscal', 'is not', null)
       .executeTakeFirst()
 
     // Include idFiscal in select so mapping logic can use it
     const inconsistencias = await this.db
       .selectFrom('proveedor')
-      .select([
-        'proveedor.id',
-        'proveedor.nombre',
-        'proveedor.idFiscal'
-      ])
+      .select(['id', 'nombre', 'idFiscal'])
       .where((eb) => eb.or([
-        eb('proveedor.idFiscal', 'is', null),
-        eb('proveedor.nombre', 'is', null)
+        eb('idFiscal', 'is', null),
+        eb('nombre', 'is', null)
       ]))
       .execute()
 
