@@ -1,5 +1,9 @@
-import type { Kysely } from 'kysely'
+import type { Kysely, Selectable } from 'kysely'
 import type { Database } from '../types/database'
+
+// Helper types using official Kysely patterns
+type ProveedorRow = Selectable<Database['proveedor']>
+type ProveedorBasic = Pick<ProveedorRow, 'id' | 'nombre' | 'rfc' | 'estatus'>
 
 /**
  * Servicio para manejar la conversión y compatibilidad entre IDs UUID e INTEGER de proveedores
@@ -16,26 +20,26 @@ export class ProveedorMappingService {
   async convertToUuid(proveedorId: number | string | null | undefined): Promise<string | null> {
     if (!proveedorId) return null
 
-    // Si ya es UUID, validar y retornar
+    // Si ya es string (asumimos que es idFiscal), buscar y retornar
     if (typeof proveedorId === 'string') {
       const exists = await this.db
         .selectFrom('proveedor')
-        .select('uuid_proveedor')
-        .where('uuid_proveedor', '=', proveedorId)
+        .select(['proveedor.idFiscal'])
+        .where('proveedor.idFiscal', '=', proveedorId)
         .executeTakeFirst()
 
-      return exists?.uuid_proveedor || null
+      return exists?.idFiscal ?? null
     }
 
-    // Si es número, buscar el UUID correspondiente
+    // Si es número, buscar el idFiscal correspondiente
     if (typeof proveedorId === 'number') {
       const result = await this.db
         .selectFrom('proveedor')
-        .select('uuid_proveedor')
-        .where('id', '=', proveedorId)
+        .select(['proveedor.idFiscal'])
+        .where('proveedor.id', '=', proveedorId)
         .executeTakeFirst()
 
-      return result?.uuid_proveedor || null
+      return result?.idFiscal ?? null
     }
 
     return null
@@ -90,35 +94,43 @@ export class ProveedorMappingService {
   async getProveedorIdByUuid(uuid: string): Promise<number | null> {
     const result = await this.db
       .selectFrom('proveedor')
-      .select('id')
-      .where('uuid_proveedor', '=', uuid)
+      .select(['proveedor.id'])
+      .where('proveedor.idFiscal', '=', uuid)
       .executeTakeFirst()
 
-    return result?.id || null
+    if (result?.id == null) return null
+
+    // Convert to number since Database types may use ColumnType
+    return typeof result.id === 'string' ? Number(result.id) : (result.id as number)
   }
 
   /**
    * Lista todos los proveedores con ambos IDs para compatibilidad
    */
-  async listProveedoresCompatibles(): Promise<Array<{
-    id: number
-    uuid_proveedor: string
-    nombre: string
-    rfc: string
-    estatus: string
-  }>> {
-    return await this.db
+  async listProveedoresCompatibles(): Promise<ProveedorBasic[]> {
+    const rows = await this.db
       .selectFrom('proveedor')
-      .select(['id', 'uuid_proveedor', 'nombre', 'rfc', 'estatus'])
-      .where('estatus', '=', 'ACTIVO')
+      .select([
+        'proveedor.id',
+        'proveedor.nombre',
+        'proveedor.rfc',
+        'proveedor.estatus'
+      ])
+      .where('proveedor.estatus', '=', 'ACTIVO')
       .execute()
+
+    // Normalize id if necessary (DB id may be ColumnType)
+    return rows.map(r => ({
+      ...r,
+      id: typeof r.id === 'string' ? Number(r.id) : (r.id as number)
+    })) as ProveedorBasic[]
   }
 
   /**
    * Crea un nuevo proveedor con ambos IDs (UUID e INTEGER)
    */
   async createWithDualKeys(data: {
-    id_fiscal: string
+    idFiscal: string
     nombre: string
     domicilio?: string
     telefono?: string
@@ -126,10 +138,10 @@ export class ProveedorMappingService {
     contacto?: string
     rfc?: string
     curp?: string
-    id_institucion: number
+    idInstitucion: number
   }): Promise<{
     id: number
-    uuid_proveedor: string
+    idFiscal: string
     nombre: string
   }> {
     const result = await this.db
@@ -149,7 +161,7 @@ export class ProveedorMappingService {
    */
   async checkConsistency(): Promise<{
     totalProveedores: number
-    conUuid: number
+    conIdFiscal: number
     inconsistencias: Array<{
       id: number
       nombre: string
@@ -158,31 +170,36 @@ export class ProveedorMappingService {
   }> {
     const total = await this.db
       .selectFrom('proveedor')
-      .select(eb => eb.fn.count('id').as('total'))
+      .select((eb) => eb.fn.count('proveedor.id').as('total'))
       .executeTakeFirst()
 
-    const conUuid = await this.db
+    const conIdFiscal = await this.db
       .selectFrom('proveedor')
-      .select(eb => eb.fn.count('id').as('con_uuid'))
-      .where('uuid_proveedor', 'is not', null)
+      .select((eb) => eb.fn.count('proveedor.id').as('con_id_fiscal'))
+      .where('proveedor.idFiscal', 'is not', null)
       .executeTakeFirst()
 
+    // Include idFiscal in select so mapping logic can use it
     const inconsistencias = await this.db
       .selectFrom('proveedor')
-      .select(['id', 'nombre'])
-      .where(eb => eb.or([
-        eb('uuid_proveedor', 'is', null),
-        eb('id_fiscal', 'is', null),
-        eb('nombre', 'is', null)
+      .select([
+        'proveedor.id',
+        'proveedor.nombre',
+        'proveedor.idFiscal'
+      ])
+      .where((eb) => eb.or([
+        eb('proveedor.idFiscal', 'is', null),
+        eb('proveedor.nombre', 'is', null)
       ]))
       .execute()
 
     return {
-      totalProveedores: Number(total?.total || 0),
-      conUuid: Number(conUuid?.con_uuid || 0),
+      totalProveedores: Number(total?.total ?? 0),
+      conIdFiscal: Number(conIdFiscal?.con_id_fiscal ?? 0),
       inconsistencias: inconsistencias.map(p => ({
-        ...p,
-        issue: p.uuid_proveedor ? 'missing_data' : 'missing_uuid'
+        id: typeof p.id === 'string' ? Number(p.id) : (p.id as number),
+        nombre: p.nombre ?? '',
+        issue: p.idFiscal ? 'inconsistent_data' : 'missing_fiscal_id'
       }))
     }
   }
