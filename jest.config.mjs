@@ -8,6 +8,7 @@ export default {
   globals: {
     'ts-jest': {
       useESM: true,
+      isolatedModules: true,
     },
   },
   moduleNameMapper: {
@@ -18,6 +19,7 @@ export default {
       'ts-jest',
       {
         useESM: true,
+        isolatedModules: true,
       },
     ],
   },

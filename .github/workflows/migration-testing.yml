@@ -56,8 +56,12 @@ jobs:
 
     - name: Setup test environment
       run: |
-        echo "TEST_DATABASE_URL=postgresql://postgres:password@localhost:5432/almacen_test" >> .env.test
+        echo "TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/almacen_test" >> .env.test
         echo "NODE_ENV=test" >> .env.test
+
+    - name: Setup Kysely environment
+      run: |
+        echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/almacen_test" >> .env.test
 
     - name: Wait for database
       run: |
@@ -65,10 +69,10 @@ jobs:
         echo "Database ready for testing"
 
     - name: Run contract tests
-      run: NODE_OPTIONS='--experimental-vm-modules' pnpm test:contract
+      run: pnpm test:contract
 
     - name: Run performance baseline tests
-      run: NODE_OPTIONS='--experimental-vm-modules' pnpm test tests/performance
+      run: pnpm test tests/performance
 
     - name: Upload test results
       uses: actions/upload-artifact@v4
@@ -139,6 +143,10 @@ jobs:
       run: |
         sleep 5
         echo "Database ready for type generation"
+
+    - name: Setup Kysely environment for validation
+      run: |
+        echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/almacen_test" >> .env.test
 
     - name: Generate Kysely types
       run: pnpm db:codegen
