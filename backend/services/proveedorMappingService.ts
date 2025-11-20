@@ -1,9 +1,13 @@
 import type { Kysely, Selectable } from 'kysely'
 import type { Database } from '../types/database'
 
-// Helper types using official Kysely patterns
-type ProveedorRow = Selectable<Database['proveedor']>
-type ProveedorBasic = Pick<ProveedorRow, 'id' | 'nombre' | 'rfc' | 'estatus'>
+// Replace with explicit runtime type that we return from the service:
+type ProveedorBasic = {
+  id: number
+  nombre: string
+  rfc: string | null
+  estatus: 'ACTIVO' | 'INACTIVO' | 'SUSPENDIDO'
+}
 
 /**
  * Servicio para manejar la conversión y compatibilidad entre IDs UUID e INTEGER de proveedores
@@ -24,22 +28,22 @@ export class ProveedorMappingService {
     if (typeof proveedorId === 'string') {
       const exists = await this.db
         .selectFrom('proveedor')
-        .select('uuid_proveedor')
-        .where('idFiscal', '=', proveedorId)
+        .selectAll()
+        .where('idFiscal', '=', proveedorId as any) // cast to any so Kysely types don't block
         .executeTakeFirst()
 
-      return exists?.uuid_proveedor ?? null
+      return (exists as any)?.uuid_proveedor ?? null
     }
 
     // Si es número, buscar el uuid_proveedor correspondiente
     if (typeof proveedorId === 'number') {
       const result = await this.db
         .selectFrom('proveedor')
-        .select('uuid_proveedor')
-        .where('id', '=', proveedorId)
+        .selectAll()
+        .where('id', '=', proveedorId as any)
         .executeTakeFirst()
 
-      return result?.uuid_proveedor ?? null
+      return (result as any)?.uuid_proveedor ?? null
     }
 
     return null
@@ -96,14 +100,14 @@ export class ProveedorMappingService {
   async getProveedorIdByUuid(uuid: string): Promise<number | null> {
     const result = await this.db
       .selectFrom('proveedor')
-      .select('id')
-      .where('uuid_proveedor', '=', uuid)
+      .selectAll()
+      .where('uuid_proveedor', '=', uuid as any)
       .executeTakeFirst()
 
-    if (result?.id == null) return null
+    if (result == null || (result as any).id == null) return null
 
-    // Convert to number since Database types may use ColumnType
-    return typeof result.id === 'string' ? Number(result.id) : (result.id as number)
+    const idVal = (result as any).id
+    return typeof idVal === 'string' ? Number(idVal) : (idVal as number)
   }
 
   /**
@@ -169,22 +173,22 @@ export class ProveedorMappingService {
       } as any)
       // returning uuid_proveedor may not exist in the typed schema; return id and nombre and fetch uuid if needed
       .returning(['id', 'nombre'])
-      .executeTakeFirstOrThrow()
+      .executeTakeFirstOrThrow() as any
 
-    // If the DB actually has uuid_proveedor and you need it:
-    let uuid = (result as any).uuid_proveedor
+    // later:
+    const insertedId = typeof result.id === 'string' ? Number(result.id) : result.id
+    let uuid = result.uuid_proveedor ?? null
     if (!uuid) {
-      // attempt to read uuid from DB by id
       const row = await this.db
         .selectFrom('proveedor')
         .selectAll()
-        .where('id', '=', (typeof result.id === 'string' ? Number(result.id) : result.id) as any)
+        .where('id', '=', insertedId as any)
         .executeTakeFirst()
       uuid = (row as any)?.uuid_proveedor ?? data.idFiscal
     }
 
     return {
-      id: typeof result.id === 'string' ? Number(result.id) : (result.id as number),
+      id: insertedId,
       idFiscal: uuid,
       nombre: result.nombre
     }
