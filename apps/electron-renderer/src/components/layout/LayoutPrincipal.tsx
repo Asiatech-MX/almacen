@@ -1,10 +1,102 @@
 import React, { useEffect } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation, Link } from 'react-router-dom'
 import NotificacionesPanel from '../notificaciones/NotificacionesPanel'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebarContent } from './AppSidebar'
 import { Separator } from '@/components/ui/separator'
+import { Scroller } from '@/components/ui/scroller'
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
+
+// Componente Breadcrumb dinámico
+const DynamicBreadcrumb: React.FC = () => {
+  const location = useLocation()
+
+  const generateBreadcrumbs = () => {
+    const pathnames = location.pathname.split('/').filter(x => x)
+    const breadcrumbs = []
+
+    // Mapeo de rutas a nombres legibles
+    const routeNames: Record<string, string> = {
+      'dashboard': 'Dashboard',
+      'materia-prima': 'Materia Prima',
+      'nueva': 'Altas',
+      'editar': 'Editar',
+      'gestion': 'Gestión',
+      'consultas': 'Consultas Avanzadas',
+      'proveedores': 'Proveedores',
+      'movimientos': 'Movimientos',
+      'solicitudes': 'Solicitudes',
+      'aprobaciones': 'Aprobaciones'
+    }
+
+    // Siempre añadir inicio
+    breadcrumbs.push({
+      path: '/dashboard',
+      name: 'Inicio',
+      isLast: pathnames.length === 0
+    })
+
+    // Generar breadcrumb items basados en la ruta actual
+    let currentPath = ''
+    pathnames.forEach((segment, index) => {
+      currentPath += `/${segment}`
+      const isLast = index === pathnames.length - 1
+
+      // Obtener nombre del mapa o usar el segmento
+      let name = routeNames[segment] || segment
+
+      // Para IDs numéricos o UUID, usar el nombre anterior
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segment) || /^\d+$/.test(segment)) {
+        name = 'Detalles'
+      }
+
+      breadcrumbs.push({
+        path: isLast && name === 'Detalles' ? currentPath : currentPath,
+        name: name,
+        isLast
+      })
+    })
+
+    return breadcrumbs
+  }
+
+  const breadcrumbs = generateBreadcrumbs()
+
+  return (
+    <Breadcrumb className="mb-4">
+      <BreadcrumbList>
+        {breadcrumbs.map((breadcrumb, index) => (
+          <React.Fragment key={`${breadcrumb.path}-${index}`}>
+            <BreadcrumbItem>
+              {breadcrumb.isLast ? (
+                <BreadcrumbPage className="capitalize">
+                  {breadcrumb.name === 'Altas' ? '➕ Altas' :
+                   breadcrumb.name === 'Editar' ? '✏️ Editar' :
+                   breadcrumb.name}
+                </BreadcrumbPage>
+              ) : (
+                <BreadcrumbLink asChild>
+                  <Link to={breadcrumb.path} className="capitalize">
+                    {breadcrumb.name}
+                  </Link>
+                </BreadcrumbLink>
+              )}
+            </BreadcrumbItem>
+            {!breadcrumb.isLast && <BreadcrumbSeparator />}
+          </React.Fragment>
+        ))}
+      </BreadcrumbList>
+    </Breadcrumb>
+  )
+}
 
 // Header responsive que integra el trigger del sidebar
 const ResponsiveHeader = () => {
@@ -88,10 +180,19 @@ export const LayoutPrincipal: React.FC = () => {
       <SidebarInset className="flex min-h-screen flex-1 flex-col bg-background">
         <ResponsiveHeader />
 
-        <main className="flex-1 overflow-auto">
-          <div className="px-3 pb-6 md:px-6 md:pb-8">
-            <Outlet />
-          </div>
+        <main className="flex-1 min-h-0">
+          <Scroller
+            viewportAware
+            size={20}
+            offset={10}
+            className="h-full"
+          >
+            <div className="px-3 pb-6 md:px-6 md:pb-8">
+              {/* Breadcrumb dinámico */}
+              <DynamicBreadcrumb />
+              <Outlet />
+            </div>
+          </Scroller>
         </main>
       </SidebarInset>
     </SidebarProvider>

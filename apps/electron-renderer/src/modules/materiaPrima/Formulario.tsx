@@ -1,6 +1,22 @@
+"use client"
+
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import styled from 'styled-components'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
+
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { MaskInput } from '@/components/ui/mask-input'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { FieldSet, FieldLegend, FieldGroup, FieldContent, FieldTitle, FieldDescription, FieldError, Field, FieldSeparator } from '@/components/ui/fieldset'
+import { Scroller } from '@/components/ui/scroller'
+
 import useMateriaPrima, { UseMateriaPrimaOptions } from '../../hooks/useMateriaPrima'
 import type {
   MateriaPrimaDetail,
@@ -11,308 +27,6 @@ import {
   prepareFormDataForSubmission,
   extractValidationErrors
 } from '../../utils/formDataNormalizer'
-
-const Container = styled.div`
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 20px;
-`
-
-const Title = styled.h2`
-  margin-bottom: 30px;
-  color: #2c3e50;
-  font-size: 1.8rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-`
-
-const Subtitle = styled.p`
-  color: #7f8c8d;
-  margin-bottom: 25px;
-  font-size: 1rem;
-`
-
-const Form = styled.form`
-  background-color: white;
-  padding: 30px;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-`
-
-const FormGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
-`
-
-const FormGroup = styled.div`
-  margin-bottom: 20px;
-
-  &.full-width {
-    grid-column: 1 / -1;
-  }
-`
-
-const Label = styled.label`
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 600;
-  color: #34495e;
-  font-size: 0.95rem;
-
-  ${props => props.required && `
-    &::after {
-      content: ' *';
-      color: #e74c3c;
-    }
-  `}
-`
-
-const Input = styled.input`
-  width: 100%;
-  padding: 12px 16px;
-  border: 2px solid #ecf0f1;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: all 0.2s ease;
-  background-color: #fff;
-
-  &:focus {
-    outline: none;
-    border-color: #3498db;
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-  }
-
-  &:disabled {
-    background-color: #f8f9fa;
-    cursor: not-allowed;
-    opacity: 0.6;
-  }
-
-  ${props => props.error && `
-    border-color: #e74c3c;
-    box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
-  `}
-`
-
-const Select = styled.select`
-  width: 100%;
-  padding: 12px 16px;
-  border: 2px solid #ecf0f1;
-  border-radius: 8px;
-  font-size: 1rem;
-  background-color: white;
-  transition: all 0.2s ease;
-  cursor: pointer;
-
-  &:focus {
-    outline: none;
-    border-color: #3498db;
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-  }
-
-  &:disabled {
-    background-color: #f8f9fa;
-    cursor: not-allowed;
-    opacity: 0.6;
-  }
-
-  ${props => props.error && `
-    border-color: #e74c3c;
-    box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
-  `}
-`
-
-const TextArea = styled.textarea`
-  width: 100%;
-  padding: 12px 16px;
-  border: 2px solid #ecf0f1;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: all 0.2s ease;
-  resize: vertical;
-  min-height: 100px;
-  font-family: inherit;
-
-  &:focus {
-    outline: none;
-    border-color: #3498db;
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-  }
-
-  &:disabled {
-    background-color: #f8f9fa;
-    cursor: not-allowed;
-    opacity: 0.6;
-  }
-
-  ${props => props.error && `
-    border-color: #e74c3c;
-    box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
-  `}
-`
-
-const ImagePreview = styled.div`
-  margin-top: 10px;
-  padding: 20px;
-  border: 2px dashed #ddd;
-  border-radius: 8px;
-  text-align: center;
-  background-color: #f8f9fa;
-
-  img {
-    max-width: 200px;
-    max-height: 200px;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  }
-
-  .placeholder {
-    color: #7f8c8d;
-    font-size: 0.9rem;
-  }
-`
-
-const ButtonGroup = styled.div`
-  display: flex;
-  gap: 12px;
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid #ecf0f1;
-`
-
-const Button = styled.button`
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-width: 120px;
-
-  ${props => props.variant === 'primary' && `
-    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-    color: white;
-
-    &:hover:not(:disabled) {
-      background: linear-gradient(135deg, #2980b9 0%, #21618c 100%);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
-    }
-
-    &:active:not(:disabled) {
-      transform: translateY(0);
-    }
-  `}
-
-  ${props => props.variant === 'secondary' && `
-    background: #95a5a6;
-    color: white;
-
-    &:hover:not(:disabled) {
-      background: #7f8c8d;
-      transform: translateY(-1px);
-    }
-  `}
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none !important;
-  }
-`
-
-const ErrorMessage = styled.div`
-  background-color: #fee;
-  border: 1px solid #fcc;
-  color: #c33;
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  &::before {
-    content: '⚠️';
-    font-size: 1.2rem;
-  }
-`
-
-const SuccessMessage = styled.div`
-  background-color: #d4edda;
-  border: 1px solid #c3e6cb;
-  color: #155724;
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  &::before {
-    content: '✅';
-    font-size: 1.2rem;
-  }
-`
-
-const LoadingMessage = styled.div`
-  text-align: center;
-  padding: 40px;
-  color: #7f8c8d;
-  font-size: 1.1rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-
-  &::after {
-    content: '';
-    width: 40px;
-    height: 40px;
-    border: 4px solid #ecf0f1;
-    border-top: 4px solid #3498db;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`
-
-const FieldError = styled.span`
-  color: #e74c3c;
-  font-size: 0.85rem;
-  margin-top: 5px;
-  display: block;
-`
-
-const SectionTitle = styled.h3`
-  margin: 30px 0 20px 0;
-  color: #2c3e50;
-  font-size: 1.3rem;
-  font-weight: 600;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #ecf0f1;
-`
-
-const BarcodeSection = styled.div`
-  background-color: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  border: 1px solid #e9ecef;
-`
 
 const presentaciones = [
   'Unidad',
@@ -348,6 +62,48 @@ const categorias = [
   'Otros'
 ]
 
+// Función para validar dígito de control EAN-13
+const validateEAN13 = (barcode: string): boolean => {
+  // Remove any non-digit characters
+  const digits = barcode.replace(/\D/g, '');
+
+  // Must be exactly 13 digits
+  if (digits.length !== 13) return false;
+
+  // Calculate checksum
+  let sum = 0;
+  for (let i = 0; i < 12; i++) {
+    const digit = parseInt(digits[i]);
+    sum += (i % 2 === 0) ? digit : digit * 3;
+  }
+  const checksum = (10 - (sum % 10)) % 10;
+
+  return checksum === parseInt(digits[12]);
+};
+
+// Schema Zod para validación
+const materiaPrimaSchema = z.object({
+  codigo_barras: z.string()
+    .min(13, 'El código de barras debe tener exactamente 13 dígitos')
+    .max(13, 'El código de barras debe tener exactamente 13 dígitos')
+    .regex(/^\d{13}$/, 'El código de barras debe contener solo números')
+    .refine((barcode) => validateEAN13(barcode), 'Código de barras EAN-13 inválido'),
+  nombre: z.string().min(1, 'El nombre es requerido'),
+  marca: z.string().optional(),
+  modelo: z.string().optional(),
+  presentacion: z.string().min(1, 'La presentación es requerida'),
+  stock_actual: z.number().min(0, 'El stock actual no puede ser negativo'),
+  stock_minimo: z.number().min(0, 'El stock mínimo no puede ser negativo'),
+  costo_unitario: z.number().nullable().optional(),
+  fecha_caducidad: z.string().nullable().optional(),
+  imagen_url: z.string().nullable().optional(),
+  descripcion: z.string().optional(),
+  categoria: z.string().optional(),
+  proveedor_id: z.string().nullable().optional()
+})
+
+type MateriaPrimaFormData = z.infer<typeof materiaPrimaSchema>
+
 interface FormularioMateriaPrimaProps {
   materialId?: string
   onSave?: (material: MateriaPrimaDetail) => void
@@ -373,24 +129,29 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     clearError
   } = useMateriaPrima({ autoLoad: false })
 
-  const [formData, setFormData] = useState<NewMateriaPrima | MateriaPrimaUpdate>(() => ({
-    codigo_barras: '',
-    nombre: '',
-    marca: '',
-    modelo: '',
-    presentacion: 'Unidad',
-    stock_actual: 0,
-    stock_minimo: 0,
-    costo_unitario: null,
-    fecha_caducidad: null,
-    imagen_url: '',
-    descripcion: '',
-    categoria: '',
-    proveedor_id: null
-  }))
-
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [success, setSuccess] = useState(false)
+  const [imagePreviewError, setImagePreviewError] = useState(false)
+
+  // Configuración de React Hook Form
+  const form = useForm<MateriaPrimaFormData>({
+    resolver: zodResolver(materiaPrimaSchema),
+    defaultValues: {
+      codigo_barras: '',
+      nombre: '',
+      marca: '',
+      modelo: '',
+      presentacion: 'Unidad',
+      stock_actual: 0,
+      stock_minimo: 0,
+      costo_unitario: null,
+      fecha_caducidad: '',
+      imagen_url: '',
+      descripcion: '',
+      categoria: '',
+      proveedor_id: null
+    },
+    mode: 'onChange'
+  })
 
   useEffect(() => {
     if (esEdicion && finalId) {
@@ -403,7 +164,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
       clearError()
       const data = await obtenerMaterial(id)
 
-      setFormData({
+      form.reset({
         codigo_barras: data.codigo_barras || '',
         nombre: data.nombre || '',
         marca: data.marca || '',
@@ -424,96 +185,13 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     }
   }
 
-  const validateForm = (): boolean => {
-    const errors: Record<string, string> = {}
-
-    // Validaciones requeridas
-    if (!formData.codigo_barras?.trim()) {
-      errors.codigo_barras = 'El código de barras es requerido'
-    }
-
-    if (!formData.nombre?.trim()) {
-      errors.nombre = 'El nombre es requerido'
-    }
-
-    if (!formData.presentacion?.trim()) {
-      errors.presentacion = 'La presentación es requerida'
-    }
-
-    // Validaciones de formato
-    if (formData.stock_actual !== undefined && formData.stock_actual < 0) {
-      errors.stock_actual = 'El stock actual no puede ser negativo'
-    }
-
-    if (formData.stock_minimo !== undefined && formData.stock_minimo < 0) {
-      errors.stock_minimo = 'El stock mínimo no puede ser negativo'
-    }
-
-    if (formData.costo_unitario !== null && formData.costo_unitario !== undefined && formData.costo_unitario < 0) {
-      errors.costo_unitario = 'El costo unitario no puede ser negativo'
-    }
-
-    // Validación de URL
-    if (formData.imagen_url && formData.imagen_url.trim()) {
-      try {
-        new URL(formData.imagen_url)
-      } catch {
-        errors.imagen_url = 'La URL de la imagen no es válida'
-      }
-    }
-
-    setFieldErrors(errors)
-    return Object.keys(errors).length === 0
-  }
-
-  const handleChange = (field: keyof typeof formData) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
-    const value = e.target.value
-
-    // 🔥 MEJORADO: Manejo específico de tipos de campo
-    let processedValue: any = value
-
-    // Campos numéricos
-    if (field === 'stock_actual' || field === 'stock_minimo') {
-      // Para campos de stock, valor vacío es 0
-      processedValue = value === '' ? 0 : Number(value)
-      if (isNaN(processedValue)) processedValue = 0
-    } else if (field === 'costo_unitario') {
-      // Para costo unitario, valor vacío es null
-      processedValue = value === '' ? null : Number(value)
-      if (processedValue !== null && isNaN(processedValue)) processedValue = null
-    } else if (field === 'proveedor_id') {
-      // Para proveedor_id, valor vacío es null
-      processedValue = value.trim() === '' ? null : value.trim()
-    } else if (field === 'imagen_url' || field === 'marca' || field === 'modelo' ||
-               field === 'descripcion' || field === 'categoria') {
-      // Para campos opcionales de texto, valor vacío es null o string vacío según corresponda
-      processedValue = value.trim()
-    }
-
-    setFormData(prev => ({
-      ...prev,
-      [field]: processedValue
-    }))
-
-    // Limpiar error del campo
-    if (fieldErrors[field]) {
-      setFieldErrors(prev => ({
-        ...prev,
-        [field]: ''
-      }))
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (data: MateriaPrimaFormData) => {
     clearError()
     setSuccess(false)
 
     try {
-      // 🔥 NUEVO: Preparar y normalizar datos antes de enviar
-      const normalizedData = prepareFormDataForSubmission(formData, esEdicion)
+      // Preparar y normalizar datos antes de enviar
+      const normalizedData = prepareFormDataForSubmission(data, esEdicion)
 
       let materialGuardado: MateriaPrimaDetail
 
@@ -535,18 +213,17 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     } catch (err: any) {
       console.error('Error al guardar material:', err)
 
-      // 🔥 NUEVO: Enhanced error mapping
+      // Enhanced error mapping
       const { generalError, fieldErrors } = extractValidationErrors(err)
 
       // Actualizar errores de campo específicos
       if (Object.keys(fieldErrors).length > 0) {
-        setFieldErrors(fieldErrors)
-      }
-
-      // El error general se maneja a través del hook useMateriaPrima
-      // pero también lo mostramos directamente si no está disponible en el hook
-      if (!error) {
-        console.error('Backend error:', generalError)
+        Object.entries(fieldErrors).forEach(([field, message]) => {
+          form.setError(field as keyof MateriaPrimaFormData, {
+            type: 'manual',
+            message: message as string
+          })
+        })
       }
     }
   }
@@ -559,266 +236,472 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     }
   }
 
-  if (loading && esEdicion) {
-    return <LoadingMessage>Cargando material...</LoadingMessage>
+  const handleImageError = () => {
+    setImagePreviewError(true)
   }
 
   if (loading && esEdicion) {
-    return <LoadingMessage>Cargando materia prima...</LoadingMessage>
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Cargando materia prima...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <Container>
-      <Title>
-        {esEdicion ? '✏️ Editar Material' : '➕ Nuevo Material'}
-      </Title>
+    <div className="w-full bg-background">
+      {/* Contenedor principal sin width constraints */}
+      <div className="w-full p-4 sm:p-6 lg:p-8">
+        {/* Mensajes de estado */}
+        {error && (
+          <div className="mb-6 p-4 rounded-md bg-destructive/15 border border-destructive/30">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">⚠️</span>
+              <span className="text-destructive font-medium">{error}</span>
+            </div>
+          </div>
+        )}
 
-      <Subtitle>
-        {esEdicion
-          ? 'Modifica los datos del material seleccionado'
-          : 'Completa los datos para agregar un nuevo material al inventario'
-        }
-      </Subtitle>
+        {success && (
+          <div className="mb-6 p-4 rounded-md bg-green-50 border border-green-200 dark:bg-green-900/20 dark:border-green-800">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">✅</span>
+              <span className="text-green-800 dark:text-green-200 font-medium">
+                {esEdicion ? 'Material actualizado correctamente' : 'Material creado correctamente'}
+              </span>
+            </div>
+          </div>
+        )}
 
-      {error && <ErrorMessage>{error}</ErrorMessage>}
-      {success && <SuccessMessage>
-        {esEdicion ? 'Material actualizado correctamente' : 'Material creado correctamente'}
-      </SuccessMessage>}
+        {/* Layout Dashboard Moderno con Cards Mejoradas */}
+        <Card className="shadow-lg border-0 bg-gradient-to-br from-card to-card/95 backdrop-blur-sm">
+          {/* Header Optimizado con métricas contextuales */}
+          <CardHeader className="pb-6 border-b bg-muted/30">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-2">
+                <CardTitle className="flex items-center gap-3 text-2xl">
+                  <span className="text-3xl">📝</span>
+                  <span>Formulario de Material</span>
+                  <div className="ml-auto">
+                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      esEdicion
+                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                        : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                    }`}>
+                      {esEdicion ? '✏️ Editando' : '➕ Creando'}
+                    </div>
+                  </div>
+                </CardTitle>
+                <CardDescription className="text-base leading-relaxed">
+                  Complete la información para {esEdicion ? 'actualizar' : 'registrar'} un nuevo material en el sistema.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 sm:p-8 lg:p-10">
+            <Scroller viewportAware size={16} offset={8}>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 pb-4">
+                <Tabs defaultValue="basic-info" className="w-full">
+                  {/* Tabs Navigation - Dashboard Moderno */}
+                  <TabsList className="grid w-full grid-cols-3 h-auto p-1 mb-8 bg-muted/50 backdrop-blur-sm rounded-xl">
+                    <TabsTrigger
+                      value="basic-info"
+                      className="flex items-center gap-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-border rounded-lg py-3 transition-all duration-200"
+                    >
+                      <span className="text-lg">📋</span>
+                      <span className="hidden xs:inline sm:hidden">Info</span>
+                      <span className="hidden sm:inline lg:hidden">Información</span>
+                      <span className="hidden lg:inline">Información Básica</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="stock-management"
+                      className="flex items-center gap-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-border rounded-lg py-3 transition-all duration-200"
+                    >
+                      <span className="text-lg">📦</span>
+                      <span className="hidden sm:inline">Gestión de Stock</span>
+                      <span className="sm:hidden">Stock</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="additional-info"
+                      className="flex items-center gap-2 text-sm font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-border rounded-lg py-3 transition-all duration-200"
+                    >
+                      <span className="text-lg">ℹ️</span>
+                      <span className="hidden xs:inline sm:hidden">Más</span>
+                      <span className="hidden sm:inline lg:hidden">Adicional</span>
+                      <span className="hidden lg:inline">Información Adicional</span>
+                    </TabsTrigger>
+                  </TabsList>
 
-      <Form onSubmit={handleSubmit}>
-        {/* Sección de Información Básica */}
-        <SectionTitle>📋 Información Básica</SectionTitle>
-        <FormGrid>
-          <FormGroup>
-            <Label htmlFor="codigo_barras" required>Código de Barras</Label>
-            <Input
-              type="text"
-              id="codigo_barras"
-              value={formData.codigo_barras || ''}
-              onChange={handleChange('codigo_barras')}
-              placeholder="Ej: 7501234567890"
-              error={!!fieldErrors.codigo_barras}
-              disabled={loading}
-            />
-            {fieldErrors.codigo_barras && <FieldError>{fieldErrors.codigo_barras}</FieldError>}
-          </FormGroup>
+                  {/* Tab Content */}
+                  <div className="space-y-6">
+                    {/* Sección: Información Básica */}
+                    <TabsContent value="basic-info" className="space-y-6 mt-0">
+                      <FieldSet className="space-y-4">
+                        <FieldLegend className="flex items-center gap-3 text-xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+                          <span className="text-3xl">📋</span>
+                          Información Básica
+                        </FieldLegend>
+                        <FieldDescription className="text-base text-muted-foreground leading-relaxed">
+                          Datos principales del material para identificación en el sistema. Los campos marcados con <span className="text-destructive">*</span> son obligatorios.
+                        </FieldDescription>
+                        <FieldGroup className="grid-cols-1 xs:grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
+                            <FormField
+                              control={form.control}
+                              name="codigo_barras"
+                              render={({ field, fieldState }) => (
+                                <FormItem className="space-y-2">
+                                  <FormLabel className="font-medium flex items-center gap-2">
+                                    Código de Barras
+                                    <span className="text-destructive">*</span>
+                                  </FormLabel>
+                                  <FormControl>
+                                    <MaskInput
+                                      mask="custom"
+                                      pattern="9999999999999"
+                                      placeholder="Ej: 7501234567890"
+                                      value={field.value}
+                                      onValueChange={(masked, unmasked) => {
+                                        field.onChange(unmasked)
+                                      }}
+                                      className={`transition-colors focus:ring-2 focus:ring-primary/20 ${fieldState.invalid ? "border-destructive" : ""}`}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
 
-          <FormGroup>
-            <Label htmlFor="nombre" required>Nombre del Material</Label>
-            <Input
-              type="text"
-              id="nombre"
-              value={formData.nombre || ''}
-              onChange={handleChange('nombre')}
-              placeholder="Ej: Tornillo Phillips"
-              error={!!fieldErrors.nombre}
-              disabled={loading}
-            />
-            {fieldErrors.nombre && <FieldError>{fieldErrors.nombre}</FieldError>}
-          </FormGroup>
+                            <FormField
+                              control={form.control}
+                              name="nombre"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Nombre del Material</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      placeholder="Ej: Tornillo Phillips"
+                                      {...field}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
 
-          <FormGroup>
-            <Label htmlFor="marca">Marca</Label>
-            <Input
-              type="text"
-              id="marca"
-              value={formData.marca || ''}
-              onChange={handleChange('marca')}
-              placeholder="Ej: Stanley"
-              disabled={loading}
-            />
-          </FormGroup>
+                            <FormField
+                              control={form.control}
+                              name="marca"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Marca</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Ej: Stanley" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
 
-          <FormGroup>
-            <Label htmlFor="modelo">Modelo</Label>
-            <Input
-              type="text"
-              id="modelo"
-              value={formData.modelo || ''}
-              onChange={handleChange('modelo')}
-              placeholder="Ej: PH-2"
-              disabled={loading}
-            />
-          </FormGroup>
+                            <FormField
+                              control={form.control}
+                              name="modelo"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Modelo</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Ej: PH-2" {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
 
-          <FormGroup>
-            <Label htmlFor="presentacion" required>Presentación</Label>
-            <Select
-              id="presentacion"
-              value={formData.presentacion || 'Unidad'}
-              onChange={handleChange('presentacion')}
-              error={!!fieldErrors.presentacion}
-              disabled={loading}
-            >
-              {presentaciones.map(pres => (
-                <option key={pres} value={pres}>
-                  {pres}
-                </option>
-              ))}
-            </Select>
-            {fieldErrors.presentacion && <FieldError>{fieldErrors.presentacion}</FieldError>}
-          </FormGroup>
+                            <FormField
+                              control={form.control}
+                              name="presentacion"
+                              render={({ field, fieldState }) => (
+                                <FormItem>
+                                  <FormLabel>Presentación</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger className={fieldState.invalid ? "border-destructive" : ""}>
+                                        <SelectValue placeholder="Seleccionar presentación" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {presentaciones.map(pres => (
+                                        <SelectItem key={pres} value={pres}>
+                                          {pres}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
 
-          <FormGroup>
-            <Label htmlFor="categoria">Categoría</Label>
-            <Select
-              id="categoria"
-              value={formData.categoria || ''}
-              onChange={handleChange('categoria')}
-              disabled={loading}
-            >
-              <option value="">Seleccionar categoría</option>
-              {categorias.map(cat => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </Select>
-          </FormGroup>
-        </FormGrid>
+                            <FormField
+                              control={form.control}
+                              name="categoria"
+                              render={({ field }) => (
+                                <FormItem className="sm:col-span-2 lg:col-span-1 xl:col-span-1 2xl:col-span-2">
+                                  <FormLabel>Categoría</FormLabel>
+                                  <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Seleccionar categoría" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {categorias.map(cat => (
+                                        <SelectItem key={cat} value={cat}>
+                                          {cat}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                        </FieldGroup>
+                      </FieldSet>
+                    </TabsContent>
 
-        {/* Sección de Stock */}
-        <SectionTitle>📦 Gestión de Stock</SectionTitle>
-        <FormGrid>
-          <FormGroup>
-            <Label htmlFor="stock_actual">Stock Actual</Label>
-            <Input
-              type="number"
-              id="stock_actual"
-              value={formData.stock_actual || 0}
-              onChange={handleChange('stock_actual')}
-              min="0"
-              step="0.01"
-              placeholder="0"
-              error={!!fieldErrors.stock_actual}
-              disabled={loading}
-            />
-            {fieldErrors.stock_actual && <FieldError>{fieldErrors.stock_actual}</FieldError>}
-          </FormGroup>
+                    {/* Sección: Gestión de Stock */}
+                    <TabsContent value="stock-management" className="space-y-6 mt-0">
+                      <FieldSet className="space-y-4">
+                        <FieldLegend className="flex items-center gap-3 text-xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+                          <span className="text-3xl">📦</span>
+                          Gestión de Stock
+                        </FieldLegend>
+                        <FieldDescription className="text-base text-muted-foreground leading-relaxed">
+                          Configure los niveles de inventario y costos del material. Mantenga el control sobre el flujo de productos.
+                        </FieldDescription>
+                        <FieldGroup className="grid-cols-1 xs:grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-6 lg:gap-8">
+                            <FormField
+                              control={form.control}
+                              name="stock_actual"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Stock Actual</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      placeholder="0"
+                                      {...field}
+                                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
 
-          <FormGroup>
-            <Label htmlFor="stock_minimo">Stock Mínimo</Label>
-            <Input
-              type="number"
-              id="stock_minimo"
-              value={formData.stock_minimo || 0}
-              onChange={handleChange('stock_minimo')}
-              min="0"
-              step="0.01"
-              placeholder="0"
-              error={!!fieldErrors.stock_minimo}
-              disabled={loading}
-            />
-            {fieldErrors.stock_minimo && <FieldError>{fieldErrors.stock_minimo}</FieldError>}
-          </FormGroup>
+                            <FormField
+                              control={form.control}
+                              name="stock_minimo"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Stock Mínimo</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      placeholder="0"
+                                      {...field}
+                                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
 
-          <FormGroup>
-            <Label htmlFor="costo_unitario">Costo Unitario</Label>
-            <Input
-              type="number"
-              id="costo_unitario"
-              value={formData.costo_unitario || ''}
-              onChange={handleChange('costo_unitario')}
-              min="0"
-              step="0.01"
-              placeholder="0.00"
-              error={!!fieldErrors.costo_unitario}
-              disabled={loading}
-            />
-            {fieldErrors.costo_unitario && <FieldError>{fieldErrors.costo_unitario}</FieldError>}
-          </FormGroup>
+                            <FormField
+                              control={form.control}
+                              name="costo_unitario"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Costo Unitario</FormLabel>
+                                  <FormControl>
+                                    <MaskInput
+                                      mask="currency"
+                                      currency="USD"
+                                      placeholder="$0.00"
+                                      value={field.value?.toString() || ''}
+                                      onValueChange={(masked, unmasked) => {
+                                        field.onChange(unmasked ? parseFloat(unmasked) : null)
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
 
-          <FormGroup>
-            <Label htmlFor="fecha_caducidad">Fecha de Caducidad</Label>
-            <Input
-              type="date"
-              id="fecha_caducidad"
-              value={formData.fecha_caducidad || ''}
-              onChange={handleChange('fecha_caducidad')}
-              disabled={loading}
-            />
-          </FormGroup>
-        </FormGrid>
+                            <FormField
+                              control={form.control}
+                              name="fecha_caducidad"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Fecha de Caducidad</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="date"
+                                      {...field}
+                                      value={field.value || ''}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                      </FieldGroup>
+                      </FieldSet>
+                    </TabsContent>
 
-        {/* Sección de Información Adicional */}
-        <SectionTitle>ℹ️ Información Adicional</SectionTitle>
-        <FormGrid>
-          <FormGroup className="full-width">
-            <Label htmlFor="proveedor_id">ID del Proveedor</Label>
-            <Input
-              type="text"
-              id="proveedor_id"
-              value={formData.proveedor_id || ''}
-              onChange={handleChange('proveedor_id')}
-              placeholder="UUID del proveedor (opcional)"
-              disabled={loading}
-            />
-          </FormGroup>
+                    {/* Sección: Información Adicional */}
+                    <TabsContent value="additional-info" className="space-y-6 mt-0">
+                      <FieldSet className="space-y-4">
+                        <FieldLegend className="flex items-center gap-3 text-xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+                          <span className="text-3xl">ℹ️</span>
+                          Información Adicional
+                        </FieldLegend>
+                        <FieldDescription className="text-base text-muted-foreground leading-relaxed">
+                          Información complementaria y detalles extra del material. Agregue contexto para mejorar la gestión.
+                        </FieldDescription>
+                        <FieldGroup className="grid-cols-1 xs:grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+                            <FormField
+                              control={form.control}
+                              name="proveedor_id"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>ID del Proveedor</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      placeholder="UUID del proveedor (opcional)"
+                                      {...field}
+                                      value={field.value || ''}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
 
-          <FormGroup className="full-width">
-            <Label htmlFor="imagen_url">URL de Imagen</Label>
-            <Input
-              type="url"
-              id="imagen_url"
-              value={formData.imagen_url || ''}
-              onChange={handleChange('imagen_url')}
-              placeholder="https://ejemplo.com/imagen.jpg"
-              error={!!fieldErrors.imagen_url}
-              disabled={loading}
-            />
-            {fieldErrors.imagen_url && <FieldError>{fieldErrors.imagen_url}</FieldError>}
+                            <FormField
+                              control={form.control}
+                              name="imagen_url"
+                              render={({ field }) => (
+                                <FormItem className="space-y-3">
+                                  <FormLabel>URL de Imagen</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="url"
+                                      placeholder="https://ejemplo.com/imagen.jpg"
+                                      {...field}
+                                      value={field.value || ''}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
 
-            {(formData.imagen_url) && (
-              <ImagePreview>
-                {formData.imagen_url ? (
-                  <img
-                    src={formData.imagen_url}
-                    alt="Vista previa"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                    }}
-                  />
-                ) : (
-                  <div className="placeholder">Sin imagen</div>
-                )}
-              </ImagePreview>
-            )}
-          </FormGroup>
+                                  {/* Preview de imagen */}
+                                  {field.value && (
+                                    <div className="mt-3">
+                                      <FormDescription>Vista previa de la imagen:</FormDescription>
+                                      <div className="mt-2 p-4 border-2 border-dashed border-border rounded-lg bg-muted/30">
+                                        {!imagePreviewError ? (
+                                          <img
+                                            src={field.value}
+                                            alt="Vista previa"
+                                            className="max-w-xs max-h-48 object-contain rounded mx-auto"
+                                            onError={handleImageError}
+                                          />
+                                        ) : (
+                                          <div className="text-center text-muted-foreground py-8">
+                                            <div className="text-4xl mb-2">🖼️</div>
+                                            <p className="text-sm">No se pudo cargar la imagen</p>
+                                            <p className="text-xs mt-1">URL: {field.value}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </FormItem>
+                              )}
+                            />
 
-          <FormGroup className="full-width">
-            <Label htmlFor="descripcion">Descripción</Label>
-            <TextArea
-              id="descripcion"
-              value={formData.descripcion || ''}
-              onChange={handleChange('descripcion')}
-              placeholder="Descripción detallada del material..."
-              disabled={loading}
-            />
-          </FormGroup>
-        </FormGrid>
+                            {/* Campo de descripción con span responsivo */}
+                            <FormField
+                              control={form.control}
+                              name="descripcion"
+                              render={({ field }) => (
+                                <FormItem className="xs:col-span-1 sm:col-span-1 md:col-span-2 lg:col-span-2 xl:col-span-3 2xl:col-span-4">
+                                  <FormLabel>Descripción</FormLabel>
+                                  <FormControl>
+                                    <Textarea
+                                      placeholder="Descripción detallada del material..."
+                                      className="min-h-[120px] resize-y"
+                                      {...field}
+                                      value={field.value || ''}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                        </FieldGroup>
+                      </FieldSet>
+                    </TabsContent>
+                  </div>
 
-        <ButtonGroup>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={loading || success}
-          >
-            {loading
-              ? 'Guardando...'
-              : (esEdicion ? '💾 Actualizar' : '➕ Crear')
-            }
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={handleCancel}
-            disabled={loading}
-          >
-            ❌ Cancelar
-          </Button>
-        </ButtonGroup>
-      </Form>
-    </Container>
+                  {/* Botones de acción - Optimizado para Mobile */}
+                  <div className="flex flex-col xs:flex-row gap-3 xs:gap-4 pt-8 border-t bg-muted/20 -mx-10 px-10 py-6 rounded-b-xl">
+                    <Button
+                      type="submit"
+                      disabled={form.formState.isSubmitting || success}
+                      className="w-full xs:w-auto min-w-[140px] h-12 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-200 order-2 xs:order-1"
+                      size="lg"
+                    >
+                      {form.formState.isSubmitting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                          Guardando...
+                        </>
+                      ) : (
+                        <>
+                          {esEdicion ? '💾 Actualizar' : '➕ Crear'}
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCancel}
+                      disabled={form.formState.isSubmitting}
+                      className="w-full xs:w-auto min-w-[140px] h-12 text-base font-medium order-1 xs:order-2"
+                      size="lg"
+                    >
+                      ❌ Cancelar
+                    </Button>
+                  </div>
+                </Tabs>
+                </form>
+              </Form>
+            </Scroller>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   )
 }
 

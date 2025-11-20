@@ -65,11 +65,21 @@ export interface MateriaPrimaUpdate {
 // Tipos para filtros y búsquedas
 export interface MateriaPrimaFilters {
   nombre?: string
-  codigoBarras?: string
+  codigo_barras?: string  // Fixed: changed from codigoBarras to match service
   categoria?: string
   proveedorId?: string
   bajoStock?: boolean
   sinStock?: boolean
+  rangoStock?: { min?: number; max?: number }  // Add stock range filtering
+}
+
+// Add new interface for advanced search criteria
+export interface MateriaPrimaSearchCriteria {
+  nombre?: string
+  categoria?: string
+  proveedorId?: string
+  bajoStock?: boolean
+  rangoStock?: { min?: number; max?: number }
 }
 
 export interface MateriaPrimaSearchOptions {
@@ -176,7 +186,17 @@ export interface MateriaPrimaIPCEvents {
   'materiaPrima:actualizar': (id: string, data: MateriaPrimaUpdate, usuarioId?: string) => Promise<MateriaPrimaDetail>
   'materiaPrima:eliminar': (id: string, usuarioId?: string) => Promise<boolean>
   'materiaPrima:actualizarStock': (id: string, cantidad: number, motivo: string, usuarioId?: string) => Promise<boolean>
+  'materiaPrima:actualizarEstatus': (data: MateriaPrimaEstatusUpdate) => Promise<MateriaPrimaDetail>
   'materiaPrima:exportar': (options: MateriaPrimaExportOptions) => Promise<Buffer>
+}
+
+// Tipos para gestión de estatus
+export type MateriaPrimaEstatus = 'ACTIVO' | 'INACTIVO'
+
+export interface MateriaPrimaEstatusUpdate {
+  id: string
+  estatus: MateriaPrimaEstatus
+  usuarioId?: string
 }
 
 // Tipos de respuesta estandarizados

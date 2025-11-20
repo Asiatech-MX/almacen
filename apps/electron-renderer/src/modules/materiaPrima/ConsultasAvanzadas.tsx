@@ -1,406 +1,55 @@
 import React, { useState, useEffect } from 'react'
-import styled from 'styled-components'
+
 import useMateriaPrima, { useBusquedaAvanzada, useStockMateriaPrima } from '../../hooks/useMateriaPrima'
 import useDebounce from '../../hooks/useDebounce'
+
 import type { MateriaPrima, LowStockItem } from '../../../../shared/types/materiaPrima'
 
-const Container = styled.div`
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px;
-`
-
-const Header = styled.div`
-  margin-bottom: 30px;
-`
-
-const Title = styled.h2`
-  color: #2c3e50;
-  font-size: 1.8rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-`
-
-const Subtitle = styled.p`
-  color: #7f8c8d;
-  font-size: 1rem;
-  margin-bottom: 20px;
-`
-
-const TabsContainer = styled.div`
-  display: flex;
-  gap: 10px;
-  margin-bottom: 30px;
-  border-bottom: 2px solid #ecf0f1;
-`
-
-const Tab = styled.button<{ active: boolean }>`
-  padding: 12px 24px;
-  border: none;
-  background: none;
-  color: ${props => props.active ? '#3498db' : '#7f8c8d'};
-  font-weight: 600;
-  cursor: pointer;
-  border-bottom: 3px solid ${props => props.active ? '#3498db' : 'transparent'};
-  transition: all 0.2s ease;
-  margin-bottom: -2px;
-
-  &:hover {
-    color: #3498db;
-  }
-`
-
-const SearchSection = styled.div`
-  background: white;
-  padding: 30px;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  margin-bottom: 30px;
-`
-
-const SearchGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
-`
-
-const SearchGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`
-
-const Label = styled.label`
-  font-weight: 600;
-  color: #34495e;
-  font-size: 0.95rem;
-`
-
-const Input = styled.input`
-  padding: 12px 16px;
-  border: 2px solid #ecf0f1;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: all 0.2s ease;
-
-  &:focus {
-    outline: none;
-    border-color: #3498db;
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-  }
-`
-
-const Select = styled.select`
-  padding: 12px 16px;
-  border: 2px solid #ecf0f1;
-  border-radius: 8px;
-  font-size: 1rem;
-  background-color: white;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:focus {
-    outline: none;
-    border-color: #3498db;
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-  }
-`
-
-const RangeInputs = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-`
-
-const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'success' }>`
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  ${props => props.variant === 'primary' && `
-    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-    color: white;
-
-    &:hover:not(:disabled) {
-      background: linear-gradient(135deg, #2980b9 0%, #21618c 100%);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
-    }
-  `}
-
-  ${props => props.variant === 'success' && `
-    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
-    color: white;
-
-    &:hover:not(:disabled) {
-      background: linear-gradient(135deg, #229954 0%, #1e8449 100%);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
-    }
-  `}
-
-  ${props => props.variant === 'secondary' && `
-    background: #95a5a6;
-    color: white;
-
-    &:hover:not(:disabled) {
-      background: #7f8c8d;
-    }
-  `}
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none !important;
-  }
-`
-
-const ButtonGroup = styled.div`
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  padding-top: 20px;
-  border-top: 1px solid #ecf0f1;
-`
-
-const ResultsSection = styled.div`
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-`
-
-const ResultsHeader = styled.div`
-  padding: 20px;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border-bottom: 1px solid #dee2e6;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-`
-
-const ResultsTitle = styled.h3`
-  margin: 0;
-  color: #2c3e50;
-  font-size: 1.3rem;
-  font-weight: 600;
-`
-
-const ResultsCount = styled.span`
-  background: #3498db;
-  color: white;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
-`
-
-const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-`
-
-const TableHeader = styled.thead`
-  background: #f8f9fa;
-`
-
-const TableRow = styled.tr`
-  &:hover {
-    background-color: #f8f9fa;
-  }
-`
-
-const TableCell = styled.td`
-  padding: 16px;
-  border-bottom: 1px solid #ecf0f1;
-  vertical-align: middle;
-
-  &:first-child {
-    font-weight: 600;
-    color: #2c3e50;
-  }
-`
-
-const TableHeaderCell = styled.th`
-  padding: 16px;
-  text-align: left;
-  font-weight: 600;
-  color: #495057;
-  border-bottom: 2px solid #dee2e6;
-  white-space: nowrap;
-`
-
-const StockStatus = styled.span<{ status: 'normal' | 'low' | 'out' }>`
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-
-  ${props => props.status === 'normal' && `
-    background-color: #d4edda;
-    color: #155724;
-  `}
-
-  ${props => props.status === 'low' && `
-    background-color: #fff3cd;
-    color: #856404;
-  `}
-
-  ${props => props.status === 'out' && `
-    background-color: #f8d7da;
-    color: #721c24;
-  `}
-`
-
-const StatsCards = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
-`
-
-const StatCard = styled.div<{ color?: string }>`
-  background: white;
-  padding: 24px;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border-left: 4px solid ${props => props.color || '#3498db'};
-
-  h4 {
-    margin: 0 0 10px 0;
-    color: #7f8c8d;
-    font-size: 0.9rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .value {
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: ${props => props.color || '#3498db'};
-    margin-bottom: 5px;
-  }
-
-  .description {
-    color: #95a5a6;
-    font-size: 0.9rem;
-  }
-`
-
-const AlertCard = styled.div<{ type: 'warning' | 'info' | 'success' }>`
-  background: ${props => {
-    switch (props.type) {
-      case 'warning': return '#fff3cd'
-      case 'info': return '#d1ecf1'
-      case 'success': return '#d4edda'
-      default: return '#f8f9fa'
-    }
-  }};
-  border: 1px solid ${props => {
-    switch (props.type) {
-      case 'warning': return '#ffeaa7'
-      case 'info': return '#bee5eb'
-      case 'success': return '#c3e6cb'
-      default: return '#e9ecef'
-    }
-  }};
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  .icon {
-    font-size: 1.5rem;
-  }
-
-  .content {
-    flex: 1;
-  }
-
-  .title {
-    font-weight: 600;
-    margin-bottom: 4px;
-    color: ${props => {
-      switch (props.type) {
-        case 'warning': return '#856404'
-        case 'info': return '#0c5460'
-        case 'success': return '#155724'
-        default: return '#495057'
-      }
-    }};
-  }
-
-  .description {
-    color: ${props => {
-      switch (props.type) {
-        case 'warning': return '#856404'
-        case 'info': return '#0c5460'
-        case 'success': return '#155724'
-        default: return '#6c757d'
-      }
-    }};
-    font-size: 0.9rem;
-  }
-`
-
-const LoadingMessage = styled.div`
-  text-align: center;
-  padding: 40px;
-  color: #7f8c8d;
-  font-size: 1.1rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-
-  &::after {
-    content: '';
-    width: 40px;
-    height: 40px;
-    border: 4px solid #ecf0f1;
-    border-top: 4px solid #3498db;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`
-
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 60px 20px;
-  color: #7f8c8d;
-
-  h3 {
-    margin-bottom: 10px;
-    color: #95a5a6;
-  }
-
-  p {
-    margin-bottom: 20px;
-  }
-`
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { SegmentedInput, SegmentedInputItem } from "@/components/ui/segmented-input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Scroller } from "@/components/ui/scroller"
 
 type TabType = 'search' | 'lowStock' | 'statistics'
+
+// Optimized utility functions for stock status evaluation
+const getStockStatus = (material: MateriaPrima | LowStockItem): 'normal' | 'low' | 'out' => {
+  const stock = material.stock_actual || 0
+  const minStock = material.stock_minimo || 0
+
+  if (stock === 0) return 'out'
+  if (stock <= minStock) return 'low'
+  return 'normal'
+}
+
+const getStockBadgeVariant = (material: MateriaPrima | LowStockItem): "default" | "secondary" | "destructive" | "outline" => {
+  const status = getStockStatus(material)
+  switch (status) {
+    case 'normal': return 'default'
+    case 'low': return 'secondary'
+    case 'out': return 'destructive'
+    default: return 'outline'
+  }
+}
+
+const getStockStatusText = (material: MateriaPrima | LowStockItem): string => {
+  const status = getStockStatus(material)
+  switch (status) {
+    case 'normal': return '✅ Normal'
+    case 'low': return '⚠️ Bajo'
+    case 'out': return '❌ Agotado'
+    default: return 'Desconocido'
+  }
+}
 
 export const ConsultasAvanzadas: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('search')
@@ -433,7 +82,8 @@ export const ConsultasAvanzadas: React.FC = () => {
   const {
     materiales,
     loading: materialesLoading,
-    estadisticas
+    estadisticas,
+    cargarMateriales
   } = useMateriaPrima({ autoLoad: true })
 
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([])
@@ -441,20 +91,35 @@ export const ConsultasAvanzadas: React.FC = () => {
   // Obtener categorías únicas
   const categorias = Array.from(new Set(materiales.map(m => m.categoria).filter(Boolean)))
 
+  // Determinar si hay filtros activos
+  const tieneFiltros = debouncedNombre ||
+                      (searchFilters.categoria && searchFilters.categoria !== "") ||
+                      searchFilters.proveedorId ||
+                      searchFilters.bajoStock ||
+                      (searchFilters.rangoStock.min !== undefined || searchFilters.rangoStock.max !== undefined)
+
   // Ejecutar búsqueda cuando los filtros cambian
   useEffect(() => {
-    if (activeTab === 'search' && (debouncedNombre || searchFilters.categoria || searchFilters.proveedorId || searchFilters.bajoStock)) {
-      buscarPorCriterios({
-        nombre: debouncedNombre,
-        categoria: searchFilters.categoria || undefined,
-        proveedorId: searchFilters.proveedorId || undefined,
-        bajoStock: searchFilters.bajoStock,
-        rangoStock: searchFilters.rangoStock.min !== undefined || searchFilters.rangoStock.max !== undefined
-          ? searchFilters.rangoStock
-          : undefined
-      })
+    if (activeTab === 'search') {
+      // Si no hay filtros específicos, cargar todos los materiales
+      if (!tieneFiltros) {
+        cargarMateriales()
+      } else {
+        buscarPorCriterios({
+          nombre: debouncedNombre,
+          categoria: searchFilters.categoria || undefined,
+          proveedorId: searchFilters.proveedorId || undefined,
+          bajoStock: searchFilters.bajoStock,
+          rangoStock: searchFilters.rangoStock.min !== undefined || searchFilters.rangoStock.max !== undefined
+            ? searchFilters.rangoStock
+            : undefined
+        })
+      }
     }
-  }, [debouncedNombre, searchFilters.categoria, searchFilters.proveedorId, searchFilters.bajoStock, searchFilters.rangoStock, activeTab])
+  }, [debouncedNombre, searchFilters.categoria, searchFilters.proveedorId, searchFilters.bajoStock, searchFilters.rangoStock, activeTab, tieneFiltros, cargarMateriales, buscarPorCriterios])
+
+  // Determinar qué datos mostrar
+  const datosAMostrar = tieneFiltros ? searchResults : materiales
 
   // Cargar stock bajo cuando se activa la pestaña
   useEffect(() => {
@@ -514,7 +179,7 @@ export const ConsultasAvanzadas: React.FC = () => {
 
   const exportResults = async () => {
     try {
-      const data = activeTab === 'search' ? searchResults : materiales
+      const data = activeTab === 'search' ? datosAMostrar : materiales
       const csv = [
         ['Código', 'Nombre', 'Marca', 'Presentación', 'Stock Actual', 'Stock Mínimo', 'Categoría', 'Proveedor'],
         ...data.map(item => [
@@ -541,141 +206,151 @@ export const ConsultasAvanzadas: React.FC = () => {
     }
   }
 
-  const getStockStatus = (material: MateriaPrima | LowStockItem): 'normal' | 'low' | 'out' => {
-    const stock = (material as any).stock_actual || 0
-    const minStock = (material as any).stock_minimo || 0
-
-    if (stock === 0) return 'out'
-    if (stock <= minStock) return 'low'
-    return 'normal'
-  }
-
+  
   const renderTabContent = () => {
     switch (activeTab) {
       case 'search':
         return (
           <>
-            <SearchSection>
-              <h3>🔍 Búsqueda Avanzada</h3>
-              <SearchGrid>
-                <SearchGroup>
-                  <Label>Nombre del Material</Label>
-                  <Input
-                    type="text"
-                    value={searchFilters.nombre}
-                    onChange={handleFilterChange('nombre')}
-                    placeholder="Buscar por nombre..."
-                  />
-                </SearchGroup>
-
-                <SearchGroup>
-                  <Label>Categoría</Label>
-                  <Select
-                    value={searchFilters.categoria}
-                    onChange={handleFilterChange('categoria')}
-                  >
-                    <option value="">Todas las categorías</option>
-                    {categorias.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </Select>
-                </SearchGroup>
-
-                <SearchGroup>
-                  <Label>ID Proveedor</Label>
-                  <Input
-                    type="text"
-                    value={searchFilters.proveedorId}
-                    onChange={handleFilterChange('proveedorId')}
-                    placeholder="ID del proveedor..."
-                  />
-                </SearchGroup>
-
-                <SearchGroup>
-                  <Label>Rango de Stock</Label>
-                  <RangeInputs>
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle>🔍 Búsqueda Avanzada</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="nombre">Nombre del Material</Label>
                     <Input
-                      type="number"
-                      placeholder="Mínimo"
-                      value={searchFilters.rangoStock.min || ''}
-                      onChange={handleRangeChange('min')}
+                      id="nombre"
+                      type="text"
+                      value={searchFilters.nombre}
+                      onChange={handleFilterChange('nombre')}
+                      placeholder="Buscar por nombre..."
+                      className="w-full"
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Categoría</Label>
+                    <Select value={searchFilters.categoria || "all"} onValueChange={(value) => setSearchFilters(prev => ({...prev, categoria: value === "all" ? "" : value}))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar categoría" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las categorías</SelectItem>
+                        {categorias.map(cat => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="proveedorId">ID Proveedor</Label>
                     <Input
-                      type="number"
-                      placeholder="Máximo"
-                      value={searchFilters.rangoStock.max || ''}
-                      onChange={handleRangeChange('max')}
+                      id="proveedorId"
+                      type="text"
+                      value={searchFilters.proveedorId}
+                      onChange={handleFilterChange('proveedorId')}
+                      placeholder="ID del proveedor..."
+                      className="w-full"
                     />
-                  </RangeInputs>
-                </SearchGroup>
+                  </div>
 
-                <SearchGroup>
-                  <Label>
-                    <input
-                      type="checkbox"
-                      checked={searchFilters.bajoStock}
-                      onChange={handleFilterChange('bajoStock')}
-                      style={{ marginRight: '8px' }}
-                    />
-                    Mostrar solo stock bajo
-                  </Label>
-                </SearchGroup>
-              </SearchGrid>
+                  <div className="space-y-2">
+                    <Label>Rango de Stock</Label>
+                    <SegmentedInput>
+                      <SegmentedInputItem
+                        type="number"
+                        placeholder="Mínimo"
+                        value={searchFilters.rangoStock.min || ''}
+                        onChange={(e) => handleRangeChange('min')(e)}
+                      />
+                      <SegmentedInputItem
+                        type="number"
+                        placeholder="Máximo"
+                        value={searchFilters.rangoStock.max || ''}
+                        onChange={(e) => handleRangeChange('max')(e)}
+                      />
+                    </SegmentedInput>
+                  </div>
 
-              <ButtonGroup>
-                <Button variant="secondary" onClick={clearFilters}>
-                  🔄 Limpiar Filtros
-                </Button>
-                <Button variant="success" onClick={exportResults} disabled={searchResults.length === 0}>
-                  📊 Exportar Resultados
-                </Button>
-              </ButtonGroup>
-            </SearchSection>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="bajoStock"
+                        checked={searchFilters.bajoStock}
+                        onCheckedChange={(checked) => setSearchFilters(prev => ({...prev, bajoStock: checked as boolean}))}
+                      />
+                      <Label htmlFor="bajoStock">Mostrar solo stock bajo</Label>
+                    </div>
+                  </div>
+                </div>
 
-            {searchResults.length > 0 && (
-              <ResultsSection>
-                <ResultsHeader>
-                  <ResultsTitle>Resultados de Búsqueda</ResultsTitle>
-                  <ResultsCount>{searchResults.length} materiales</ResultsCount>
-                </ResultsHeader>
-                <Table>
-                  <TableHeader>
-                    <tr>
-                      <TableHeaderCell>Código</TableHeaderCell>
-                      <TableHeaderCell>Nombre</TableHeaderCell>
-                      <TableHeaderCell>Marca</TableHeaderCell>
-                      <TableHeaderCell>Categoría</TableHeaderCell>
-                      <TableHeaderCell>Stock</TableHeaderCell>
-                      <TableHeaderCell>Estado</TableHeaderCell>
-                    </tr>
-                  </TableHeader>
-                  <tbody>
-                    {searchResults.map((material) => (
-                      <TableRow key={material.id}>
-                        <TableCell>{material.codigo_barras}</TableCell>
-                        <TableCell>{material.nombre}</TableCell>
-                        <TableCell>{material.marca || '-'}</TableCell>
-                        <TableCell>{material.categoria || '-'}</TableCell>
-                        <TableCell>{material.stock_actual}</TableCell>
-                        <TableCell>
-                          <StockStatus status={getStockStatus(material)}>
-                            {getStockStatus(material) === 'normal' && '✅ Normal'}
-                            {getStockStatus(material) === 'low' && '⚠️ Bajo'}
-                            {getStockStatus(material) === 'out' && '❌ Agotado'}
-                          </StockStatus>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </tbody>
-                </Table>
-              </ResultsSection>
+                <div className="flex justify-end gap-3 pt-5 border-t border-gray-200">
+                  <Button variant="outline" onClick={clearFilters}>
+                    🔄 Limpiar Filtros
+                  </Button>
+                  <Button variant="default" onClick={exportResults} disabled={datosAMostrar.length === 0}>
+                    📊 Exportar Resultados
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {datosAMostrar.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle>{tieneFiltros ? 'Resultados de Búsqueda' : 'Todos los Materiales'}</CardTitle>
+                    <Badge variant="secondary">{datosAMostrar.length} materiales</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Scroller orientation="horizontal" size={16} offset={8}>
+                    <div className="min-w-max">
+                      <Table>
+                        <TableHeader className="sticky top-0 bg-background z-10">
+                          <TableRow>
+                            <TableHead className="w-32">Código</TableHead>
+                            <TableHead className="w-48">Nombre</TableHead>
+                            <TableHead className="w-32">Marca</TableHead>
+                            <TableHead className="w-36">Categoría</TableHead>
+                            <TableHead className="w-24 text-center">Stock</TableHead>
+                            <TableHead className="w-28 text-center">Estado</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {datosAMostrar.map((material) => (
+                            <TableRow key={material.id}>
+                              <TableCell className="font-medium w-32">{material.codigo_barras}</TableCell>
+                              <TableCell className="w-48">{material.nombre}</TableCell>
+                              <TableCell className="w-32">{material.marca || '-'}</TableCell>
+                              <TableCell className="w-36">{material.categoria || '-'}</TableCell>
+                              <TableCell className="w-24 text-center">{material.stock_actual}</TableCell>
+                              <TableCell className="w-28 text-center">
+                                <Badge variant={getStockBadgeVariant(material)}>
+                                  {getStockStatusText(material)}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </Scroller>
+                </CardContent>
+              </Card>
             )}
 
-            {searchResults.length === 0 && !searchLoading && (debouncedNombre || searchFilters.categoria) && (
-              <EmptyState>
-                <h3>🔍 No se encontraron resultados</h3>
-                <p>Intenta ajustar los filtros de búsqueda</p>
-              </EmptyState>
+            {datosAMostrar.length === 0 && !searchLoading && !materialesLoading && tieneFiltros && (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <div className="text-4xl mb-4">🔍</div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron resultados</h3>
+                  <p className="text-gray-500 text-center">Intenta ajustar los filtros de búsqueda</p>
+                </CardContent>
+              </Card>
             )}
           </>
         )
@@ -683,87 +358,105 @@ export const ConsultasAvanzadas: React.FC = () => {
       case 'lowStock':
         return (
           <>
-            <AlertCard type="warning">
-              <div className="icon">⚠️</div>
-              <div className="content">
-                <div className="title">Materiales con Stock Bajo</div>
-                <div className="description">
-                  Estos materiales necesitan ser reabastecidos pronto para evitar interrupciones en el inventario.
-                </div>
-              </div>
-            </AlertCard>
+            <Alert className="mb-5">
+              <AlertTitle>⚠️ Materiales con Stock Bajo</AlertTitle>
+              <AlertDescription>
+                Estos materiales necesitan ser reabastecidos pronto para evitar interrupciones en el inventario.
+              </AlertDescription>
+            </Alert>
 
             {lowStockItems.length > 0 && (
-              <ResultsSection>
-                <ResultsHeader>
-                  <ResultsTitle>Materiales con Stock Bajo</ResultsTitle>
-                  <ResultsCount>{lowStockItems.length} materiales</ResultsCount>
-                </ResultsHeader>
-                <Table>
-                  <TableHeader>
-                    <tr>
-                      <TableHeaderCell>Código</TableHeaderCell>
-                      <TableHeaderCell>Nombre</TableHeaderCell>
-                      <TableHeaderCell>Marca</TableHeaderCell>
-                      <TableHeaderCell>Presentación</TableHeaderCell>
-                      <TableHeaderCell>Stock Actual</TableHeaderCell>
-                      <TableHeaderCell>Stock Mínimo</TableHeaderCell>
-                      <TableHeaderCell>Categoría</TableHeaderCell>
-                    </tr>
-                  </TableHeader>
-                  <tbody>
-                    {lowStockItems.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>{item.codigo_barras}</TableCell>
-                        <TableCell>{item.nombre}</TableCell>
-                        <TableCell>{item.marca || '-'}</TableCell>
-                        <TableCell>{item.presentacion}</TableCell>
-                        <TableCell>{item.stock_actual}</TableCell>
-                        <TableCell>{item.stock_minimo}</TableCell>
-                        <TableCell>{item.categoria || '-'}</TableCell>
-                      </TableRow>
-                    ))}
-                  </tbody>
-                </Table>
-              </ResultsSection>
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle>Materiales con Stock Bajo</CardTitle>
+                    <Badge variant="secondary">{lowStockItems.length} materiales</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Scroller orientation="horizontal" size={16} offset={8}>
+                    <div className="min-w-max">
+                      <Table>
+                        <TableHeader className="sticky top-0 bg-background z-10">
+                          <TableRow>
+                            <TableHead className="w-32">Código</TableHead>
+                            <TableHead className="w-48">Nombre</TableHead>
+                            <TableHead className="w-32">Marca</TableHead>
+                            <TableHead className="w-36">Presentación</TableHead>
+                            <TableHead className="w-28 text-center">Stock Actual</TableHead>
+                            <TableHead className="w-28 text-center">Stock Mínimo</TableHead>
+                            <TableHead className="w-36">Categoría</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {lowStockItems.map((item) => (
+                            <TableRow key={item.id}>
+                              <TableCell className="font-medium w-32">{item.codigo_barras}</TableCell>
+                              <TableCell className="w-48">{item.nombre}</TableCell>
+                              <TableCell className="w-32">{item.marca || '-'}</TableCell>
+                              <TableCell className="w-36">{item.presentacion}</TableCell>
+                              <TableCell className="w-28 text-center">{item.stock_actual}</TableCell>
+                              <TableCell className="w-28 text-center">{item.stock_minimo}</TableCell>
+                              <TableCell className="w-36">{item.categoria || '-'}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </Scroller>
+                </CardContent>
+              </Card>
             )}
 
             {lowStockItems.length === 0 && !stockLoading && (
-              <EmptyState>
-                <h3>✅ ¡Buen trabajo!</h3>
-                <p>No hay materiales con stock bajo en este momento.</p>
-              </EmptyState>
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <div className="text-4xl mb-4">✅</div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">¡Buen trabajo!</h3>
+                  <p className="text-gray-500 text-center">No hay materiales con stock bajo en este momento.</p>
+                </CardContent>
+              </Card>
             )}
           </>
         )
 
       case 'statistics':
         return (
-          <StatsCards>
-            <StatCard color="#3498db">
-              <h4>Total Materiales</h4>
-              <div className="value">{estadisticas.total}</div>
-              <div className="description">Materiales registrados</div>
-            </StatCard>
+          <Scroller viewportAware size={16} offset={8}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8 pb-4">
+              <Card className="border-l-4 border-l-blue-500 transition-all duration-200 ease-in-out hover:shadow-lg hover:scale-105">
+                <CardContent className="p-6">
+                  <h4 className="text-sm font-medium text-gray-600 mb-2">Total Materiales</h4>
+                  <div className="text-3xl font-bold text-blue-600 transition-transform duration-200 ease-in-out hover:scale-110">{estadisticas.total}</div>
+                  <p className="text-sm text-gray-500">Materiales registrados</p>
+                </CardContent>
+              </Card>
 
-            <StatCard color="#f39c12">
-              <h4>Stock Bajo</h4>
-              <div className="value">{estadisticas.bajoStock}</div>
-              <div className="description">Necesitan reabastecer</div>
-            </StatCard>
+              <Card className="border-l-4 border-l-amber-500 transition-all duration-200 ease-in-out hover:shadow-lg hover:scale-105">
+                <CardContent className="p-6">
+                  <h4 className="text-sm font-medium text-gray-600 mb-2">Stock Bajo</h4>
+                  <div className="text-3xl font-bold text-amber-600 transition-transform duration-200 ease-in-out hover:scale-110">{estadisticas.bajoStock}</div>
+                  <p className="text-sm text-gray-500">Necesitan reabastecer</p>
+                </CardContent>
+              </Card>
 
-            <StatCard color="#e74c3c">
-              <h4>Sin Stock</h4>
-              <div className="value">{estadisticas.sinStock}</div>
-              <div className="description">Agotados</div>
-            </StatCard>
+              <Card className="border-l-4 border-l-red-500 transition-all duration-200 ease-in-out hover:shadow-lg hover:scale-105">
+                <CardContent className="p-6">
+                  <h4 className="text-sm font-medium text-gray-600 mb-2">Sin Stock</h4>
+                  <div className="text-3xl font-bold text-red-600 transition-transform duration-200 ease-in-out hover:scale-110">{estadisticas.sinStock}</div>
+                  <p className="text-sm text-gray-500">Agotados</p>
+                </CardContent>
+              </Card>
 
-            <StatCard color="#27ae60">
-              <h4>Valor Total</h4>
-              <div className="value">${estadisticas.valorTotal.toFixed(2)}</div>
-              <div className="description">Valor del inventario</div>
-            </StatCard>
-          </StatsCards>
+              <Card className="border-l-4 border-l-green-500 transition-all duration-200 ease-in-out hover:shadow-lg hover:scale-105">
+                <CardContent className="p-6">
+                  <h4 className="text-sm font-medium text-gray-600 mb-2">Valor Total</h4>
+                  <div className="text-3xl font-bold text-green-600 transition-transform duration-200 ease-in-out hover:scale-110">${estadisticas.valorTotal.toFixed(2)}</div>
+                  <p className="text-sm text-gray-500">Valor del inventario</p>
+                </CardContent>
+              </Card>
+            </div>
+          </Scroller>
         )
 
       default:
@@ -772,53 +465,57 @@ export const ConsultasAvanzadas: React.FC = () => {
   }
 
   return (
-    <Container>
-      <Header>
-        <Title>📊 Consultas Avanzadas</Title>
-        <Subtitle>
+    <div className="max-w-7xl mx-auto p-5">
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mb-2">
+          📊 Consultas Avanzadas
+        </h2>
+        <p className="text-gray-600">
           Busca y analiza tu inventario de materia prima con herramientas avanzadas
-        </Subtitle>
-      </Header>
+        </p>
+      </div>
 
-      <TabsContainer>
-        <Tab
-          active={activeTab === 'search'}
-          onClick={() => setActiveTab('search')}
-        >
-          🔍 Búsqueda
-        </Tab>
-        <Tab
-          active={activeTab === 'lowStock'}
-          onClick={() => setActiveTab('lowStock')}
-        >
-          ⚠️ Stock Bajo
-        </Tab>
-        <Tab
-          active={activeTab === 'statistics'}
-          onClick={() => setActiveTab('statistics')}
-        >
-          📈 Estadísticas
-        </Tab>
-      </TabsContainer>
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabType)}>
+        <TabsList>
+          <TabsTrigger value="search">🔍 Búsqueda</TabsTrigger>
+          <TabsTrigger value="lowStock">⚠️ Stock Bajo</TabsTrigger>
+          <TabsTrigger value="statistics">📈 Estadísticas</TabsTrigger>
+        </TabsList>
 
-      {(searchLoading || stockLoading || materialesLoading) ? (
-        <LoadingMessage>Cargando...</LoadingMessage>
-      ) : (
-        renderTabContent()
+        <TabsContent value="search">
+          {renderTabContent()}
+        </TabsContent>
+
+        <TabsContent value="lowStock">
+          {renderTabContent()}
+        </TabsContent>
+
+        <TabsContent value="statistics">
+          {renderTabContent()}
+        </TabsContent>
+      </Tabs>
+
+      {(searchLoading || stockLoading || materialesLoading) && (
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+          <div className="space-y-2">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        </div>
       )}
 
       {(searchError || stockError) && (
-        <AlertCard type="warning">
-          <div className="icon">⚠️</div>
-          <div className="content">
-            <div className="title">Error</div>
-            <div className="description">
-              {searchError || stockError || 'Ocurrió un error al cargar los datos'}
-            </div>
-          </div>
-        </AlertCard>
+        <Alert className="mb-5" variant="destructive">
+          <AlertTitle>⚠️ Error</AlertTitle>
+          <AlertDescription>
+            {searchError || stockError || 'Ocurrió un error al cargar los datos'}
+          </AlertDescription>
+        </Alert>
       )}
-    </Container>
+    </div>
   )
 }
 

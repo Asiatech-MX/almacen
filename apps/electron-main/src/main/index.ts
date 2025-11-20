@@ -3,6 +3,7 @@ import { app, BrowserWindow, ipcMain, dialog, session } from 'electron'
 import { join } from 'path'
 import { setupMateriaPrimaHandlers } from './ipc/materiaPrima'
 import { setupFileSystemHandlers } from './ipc/fs'
+import { registerProveedorHandlers } from './ipc/proveedor'
 import { validateDatabaseConnection } from '@backend/db/pool'
 
 // Cargar variables de entorno desde .env
@@ -119,6 +120,7 @@ const setupIPC = (): void => {
 
   setupMateriaPrimaHandlers()
   setupFileSystemHandlers()
+  registerProveedorHandlers()
 
   // Ping para testing
   ipcMain.handle('ping', async () => {

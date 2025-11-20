@@ -31,11 +31,11 @@ const Alert = React.forwardRef<
     role?: 'alert' | 'status' | 'log'
     'aria-live'?: 'polite' | 'assertive' | 'off'
   }
->(({ className, variant, role = 'alert', 'aria-live' = 'polite', ...props }, ref) => (
+>(({ className, variant, role = 'alert', 'aria-live': ariaLive = 'polite', ...props }, ref) => (
   <div
     ref={ref}
     role={role}
-    aria-live={aria-live}
+    aria-live={ariaLive}
     className={cn(alertVariants({ variant }), className)}
     {...props}
   />

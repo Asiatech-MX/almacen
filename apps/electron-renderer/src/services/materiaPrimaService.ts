@@ -3,11 +3,23 @@ import type {
   MateriaPrimaDetail,
   NewMateriaPrima,
   MateriaPrimaUpdate,
-  MateriaPrimaFilters
-} from '@/types/materiaPrima'
+  MateriaPrimaFilters,
+  MateriaPrimaSearchCriteria,
+  LowStockItem,
+  StockCheck,
+  MateriaPrimaEstatus,
+  MateriaPrimaEstatusUpdate
+} from '../../../../shared/types/materiaPrima'
 
 // Importamos la interfaz existente
-import type { ElectronAPI } from '@/types/electron'
+import type { ElectronAPI } from '../types/electron'
+
+// Importamos sistema de errores mejorado
+import {
+  MateriaPrimaError,
+  esMateriaPrimaError,
+  procesarError
+} from '../types/materiaPrimaErrors'
 
 // Helper para determinar si estamos en Electron
 const isElectron = (): boolean => {
@@ -23,31 +35,90 @@ export class MateriaPrimaService {
     }
   }
 
+  /**
+   * Verifica el stock antes de eliminar un material
+   */
+  private async verificarStockAntesDeEliminar(id: string): Promise<{ stock: number; nombre?: string }> {
+    if (!this.api) {
+      // Modo desarrollo: mock verification
+      console.log('Modo desarrollo: verificando stock antes de eliminar', id)
+      return { stock: 25, nombre: 'Material de prueba' } // Simular material con stock
+    }
+
+    try {
+      const materiales = await this.api.listar()
+      const material = materiales.find(item => item.id === id)
+
+      if (!material) {
+        throw new Error(`Material con ID ${id} no encontrado`)
+      }
+
+      return {
+        stock: material.stock_actual,
+        nombre: material.nombre
+      }
+    } catch (error) {
+      console.error('Error al verificar stock antes de eliminar:', error)
+      // Re-lanzar el error para que sea procesado por el método eliminar
+      throw error
+    }
+  }
+
+  /**
+   * Clasifica y procesa errores específicos del servicio
+   */
+  private procesarErrorServicio(error: unknown, contexto?: { idMaterial?: string; nombreMaterial?: string }): MateriaPrimaError {
+    if (esMateriaPrimaError(error)) {
+      // Si ya es un MateriaPrimaError, solo actualizar la capa si es necesario
+      if (error.layer !== 'service') {
+        return {
+          ...error,
+          layer: 'service',
+          timestamp: new Date(),
+          correlationId: error.correlationId // Mantener el mismo correlation ID
+        }
+      }
+      return error
+    }
+
+    // Convertir Error genérico a MateriaPrimaError
+    if (error instanceof Error) {
+      const contextoProcesamiento = contexto ? {
+        layer: 'service' as const,
+        idMaterial: contexto.idMaterial,
+        nombreMaterial: contexto.nombreMaterial
+      } : { layer: 'service' as const }
+
+      return procesarError(error, contextoProcesamiento.layer)
+    }
+
+    // Error desconocido
+    return {
+      type: 'ERROR_GENERICO',
+      message: 'Error desconocido en el servicio',
+      userMessage: 'Ha ocurrido un error inesperado',
+      suggestedAction: 'Intente nuevamente o contacte soporte técnico',
+      severity: 'error',
+      timestamp: new Date(),
+      layer: 'service',
+      correlationId: `serv_err_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    }
+  }
+
   // Lista todos los materiales
   async listar(filters?: MateriaPrimaFilters): Promise<MateriaPrima[]> {
     if (!this.api) {
-      // Modo desarrollo: datos mock
-      console.log('Modo desarrollo: usando datos mock para listar')
-      return this.getMockData()
+      // Modo desarrollo: datos mock con filtering
+      console.log('Modo desarrollo: usando datos mock para listar con filtros', filters)
+      return this.applyFiltersToMockData(filters)
     }
 
     try {
       const materiales = await this.api.listar()
 
-      // Aplicar filtros si se proporcionan
+      // Apply comprehensive filtering
       if (filters) {
-        return materiales.filter(material => {
-          if (filters.nombre && !material.nombre.toLowerCase().includes(filters.nombre.toLowerCase())) {
-            return false
-          }
-          if (filters.codigo_barras && !material.codigo_barras?.includes(filters.codigo_barras)) {
-            return false
-          }
-          if (filters.categoria && material.categoria !== filters.categoria) {
-            return false
-          }
-          return true
-        })
+        return this.filterMateriales(materiales, filters)
       }
 
       return materiales
@@ -117,6 +188,36 @@ export class MateriaPrimaService {
     }
   }
 
+  // Obtiene materiales con stock bajo
+  async stockBajo(): Promise<LowStockItem[]> {
+    if (!this.api) {
+      // Modo desarrollo: datos mock de stock bajo
+      console.log('Modo desarrollo: obteniendo stock bajo')
+      const materiales = this.getMockData()
+      return materiales
+        .filter(material => material.stock_actual <= material.stock_minimo)
+        .map(material => ({
+          id: material.id,
+          codigo_barras: material.codigo_barras || '',
+          nombre: material.nombre,
+          marca: material.marca || null,
+          presentacion: material.presentacion || 'N/A',
+          stock_actual: material.stock_actual,
+          stock_minimo: material.stock_minimo,
+          categoria: material.categoria || null,
+          stock_ratio: material.stock_minimo > 0 ? material.stock_actual / material.stock_minimo : null
+        }))
+    }
+
+    try {
+      const items = await this.api.stockBajo()
+      return items
+    } catch (error) {
+      console.error('Error al obtener stock bajo:', error)
+      throw new Error('Error al obtener materiales con stock bajo')
+    }
+  }
+
   // Busca materiales por término
   async buscar(searchTerm: string, limit: number = 50): Promise<MateriaPrima[]> {
     if (!this.api) {
@@ -142,6 +243,35 @@ export class MateriaPrimaService {
     } catch (error) {
       console.error('Error en servicio buscar materia prima:', error)
       throw new Error('Error al buscar materiales')
+    }
+  }
+
+  // Search by multiple criteria (new method)
+  async buscarPorCriterios(criterios: MateriaPrimaSearchCriteria): Promise<MateriaPrima[]> {
+    if (!this.api) {
+      // Modo desarrollo: búsqueda por criterios mock
+      console.log('Modo desarrollo: búsqueda por criterios', criterios)
+      return this.filterMateriales(this.getMockData(), {
+        nombre: criterios.nombre,
+        categoria: criterios.categoria,
+        proveedorId: criterios.proveedorId,
+        bajoStock: criterios.bajoStock,
+        rangoStock: criterios.rangoStock
+      })
+    }
+
+    try {
+      const materiales = await this.api.listar()
+      return this.filterMateriales(materiales, {
+        nombre: criterios.nombre,
+        categoria: criterios.categoria,
+        proveedorId: criterios.proveedorId,
+        bajoStock: criterios.bajoStock,
+        rangoStock: criterios.rangoStock
+      })
+    } catch (error) {
+      console.error('Error en búsqueda por criterios:', error)
+      throw new Error('Error al buscar materiales por criterios')
     }
   }
 
@@ -207,18 +337,254 @@ export class MateriaPrimaService {
   // Elimina un material
   async eliminar(id: string, usuarioId?: string): Promise<boolean> {
     if (!this.api) {
-      // Modo desarrollo: eliminar mock
-      console.log('Modo desarrollo: eliminando material', id)
+      // Modo desarrollo: simular verificación y eliminación
+      console.log('Modo desarrollo: intentando eliminar material', id)
+
+      try {
+        // Verificar stock antes de eliminar
+        const stockResult = await this.verificarStockAntesDeEliminar(id)
+
+        if (stockResult.stock > 0) {
+          // Crear error específico de stock disponible
+          const error = this.procesarErrorServicio(
+            new Error(`No se puede eliminar el material con ${stockResult.stock} unidades en stock`),
+            {
+              idMaterial: id,
+              nombreMaterial: stockResult.nombre
+            }
+          )
+          throw error
+        }
+
+        // Simular eliminación exitosa
+        return true
+      } catch (error) {
+        // Procesar y lanzar error específico
+        const errorProcesado = this.procesarErrorServicio(error, {
+          idMaterial: id,
+          nombreMaterial: 'Material de prueba'
+        })
+        throw errorProcesado
+      }
+    }
+
+    try {
+      // Verificar stock antes de eliminar en producción
+      const stockResult = await this.verificarStockAntesDeEliminar(id)
+
+      if (stockResult.stock > 0) {
+        // Crear error específico preservando contexto
+        const stockError = this.procesarErrorServicio(
+          new Error(`No se puede eliminar el material con ${stockResult.stock} unidades en stock`),
+          {
+            idMaterial: id,
+            nombreMaterial: stockResult.nombre
+          }
+        )
+        throw stockError
+      }
+
+      // Realizar eliminación
+      await this.api.eliminar(id)
+      return true
+
+    } catch (error) {
+      console.error('Error al eliminar materia prima:', error)
+
+      // Transformar error existente o crear uno nuevo
+      if (esMateriaPrimaError(error)) {
+        // Si ya es un MateriaPrimaError, asegurarse que esté en la capa correcta
+        if (error.layer !== 'service') {
+          const errorActualizado = {
+            ...error,
+            layer: 'service' as const,
+            timestamp: new Date()
+          }
+          throw errorActualizado
+        }
+        throw error
+      }
+
+      // Clasificar y procesar error genérico
+      const errorProcesado = this.procesarErrorServicio(error, {
+        idMaterial: id,
+        nombreMaterial: 'Material desconocido'
+      })
+
+      throw errorProcesado
+    }
+  }
+
+  // Verifica el stock disponible
+  async verificarStock(id: string, cantidad: number): Promise<StockCheck> {
+    if (!this.api) {
+      // Modo desarrollo: verificar stock mock
+      console.log('Modo desarrollo: verificando stock', { id, cantidad })
+      return { disponible: true, stock_actual: 100 } as StockCheck
+    }
+
+    try {
+      const result = await this.api.verificarStock(id, cantidad)
+      return result
+    } catch (error) {
+      console.error('Error al verificar stock:', error)
+      throw new Error('Error al verificar stock del material')
+    }
+  }
+
+  // Actualiza el stock de un material
+  async actualizarStock(id: string, cantidad: number, motivo: string, usuarioId?: string): Promise<boolean> {
+    if (!this.api) {
+      // Modo desarrollo: actualizar stock mock
+      console.log('Modo desarrollo: actualizando stock', { id, cantidad, motivo })
       return true
     }
 
     try {
-      await this.api.eliminar(id)
+      await this.api.actualizarStock(id, cantidad, motivo, usuarioId)
       return true
     } catch (error) {
-      console.error('Error al eliminar materia prima:', error)
-      throw new Error('Error al eliminar el material')
+      console.error('Error al actualizar stock:', error)
+      throw new Error('Error al actualizar el stock del material')
     }
+  }
+
+  // Actualiza el estatus de un material (ACTIVO, INACTIVO)
+  async actualizarEstatus(data: MateriaPrimaEstatusUpdate): Promise<MateriaPrimaDetail> {
+    const { id, estatus, usuarioId } = data
+
+    if (!this.api) {
+      // Modo desarrollo: simulación de actualización de estatus
+      console.log('Modo desarrollo: actualizando estatus', { id, estatus, usuarioId })
+
+      const materiales = this.getMockData()
+      const index = materiales.findIndex(item => item.id === id)
+
+      if (index === -1) {
+        throw new Error('Material no encontrado')
+      }
+
+      // Validar transiciones permitidas
+      const materialActual = materiales[index]
+      const estatusActual = materialActual.estatus as MateriaPrimaEstatus
+
+      if (!this.validarTransicionEstatus(estatusActual, estatus, materialActual.stock_actual)) {
+        throw new Error(`Transición no permitida: ${estatusActual} → ${estatus}`)
+      }
+
+      // Simular actualización
+      const actualizado = {
+        ...materialActual,
+        estatus,
+        actualizado_en: new Date().toISOString()
+      }
+
+      return actualizado as MateriaPrimaDetail
+    }
+
+    try {
+      // Validar transición de estatus antes de enviar al backend
+      const materialActual = await this.obtener(id)
+      if (!this.validarTransicionEstatus(
+        materialActual.estatus as MateriaPrimaEstatus,
+        estatus,
+        materialActual.stock_actual
+      )) {
+        throw new Error(`Transición no permitida: ${materialActual.estatus} → ${estatus}`)
+      }
+
+      const result = await this.api.actualizarEstatus(data)
+      return result
+    } catch (error) {
+      console.error('Error al actualizar estatus:', error)
+      const errorProcesado = this.procesarErrorServicio(error, {
+        idMaterial: id,
+        nombreMaterial: 'Material desconocido'
+      })
+      throw errorProcesado
+    }
+  }
+
+  // Valida si la transición entre estatus está permitida
+  private validarTransicionEstatus(
+    estatusActual: MateriaPrimaEstatus,
+    nuevoEstatus: MateriaPrimaEstatus,
+    stockActual: number
+  ): boolean {
+    // Si no hay cambio, es válido
+    if (estatusActual === nuevoEstatus) {
+      return true
+    }
+
+    // Reglas de transición
+    switch (estatusActual) {
+      case 'ACTIVO':
+        // ACTIVO puede pasar a INACTIVO
+        return nuevoEstatus === 'INACTIVO'
+
+      case 'INACTIVO':
+        // INACTIVO puede pasar a ACTIVO
+        return nuevoEstatus === 'ACTIVO'
+
+      default:
+        return false
+    }
+  }
+
+  // Add new method for comprehensive filtering
+  private filterMateriales(materiales: MateriaPrima[], filters: MateriaPrimaFilters): MateriaPrima[] {
+    return materiales.filter(material => {
+      // Name filter
+      if (filters.nombre && !material.nombre.toLowerCase().includes(filters.nombre.toLowerCase())) {
+        return false
+      }
+
+      // Barcode filter
+      if (filters.codigo_barras && !material.codigo_barras?.includes(filters.codigo_barras)) {
+        return false
+      }
+
+      // Category filter
+      if (filters.categoria && material.categoria !== filters.categoria) {
+        return false
+      }
+
+      // Provider filter
+      if (filters.proveedorId && material.proveedor_id !== filters.proveedorId) {
+        return false
+      }
+
+      // Low stock filter
+      if (filters.bajoStock) {
+        const isLowStock = material.stock_actual <= material.stock_minimo
+        if (!isLowStock) return false
+      }
+
+      // No stock filter
+      if (filters.sinStock && material.stock_actual !== 0) {
+        return false
+      }
+
+      // Stock range filter
+      if (filters.rangoStock) {
+        if (filters.rangoStock.min !== undefined && material.stock_actual < filters.rangoStock.min) {
+          return false
+        }
+        if (filters.rangoStock.max !== undefined && material.stock_actual > filters.rangoStock.max) {
+          return false
+        }
+      }
+
+      return true
+    })
+  }
+
+  // Add new method for mock data filtering
+  private applyFiltersToMockData(filters?: MateriaPrimaFilters): MateriaPrima[] {
+    const mockData = this.getMockData()
+    if (!filters) return mockData
+
+    return this.filterMateriales(mockData, filters)
   }
 
   // Datos mock para desarrollo
@@ -230,6 +596,7 @@ export class MateriaPrimaService {
         marca: 'Holcim',
         modelo: 'Tipo Portland',
         categoria: 'Construcción',
+        presentacion: 'Saco 50kg',
         stock_actual: 150,
         stock_minimo: 50,
         codigo_barras: '1234567890123',
@@ -247,6 +614,7 @@ export class MateriaPrimaService {
         marca: 'Ladrillera',
         modelo: 'Standard',
         categoria: 'Construcción',
+        presentacion: 'Pieza',
         stock_actual: 500,
         stock_minimo: 200,
         codigo_barras: '2345678901234',
@@ -264,6 +632,7 @@ export class MateriaPrimaService {
         marca: 'Sika',
         modelo: 'Latex Interior',
         categoria: 'Pinturas',
+        presentacion: 'Galón 3.78L',
         stock_actual: 25,
         stock_minimo: 10,
         codigo_barras: '3456789012345',
@@ -274,6 +643,137 @@ export class MateriaPrimaService {
         imagen_url: '',
         creado_en: '2024-01-01T00:00:00Z',
         actualizado_en: '2024-01-01T00:00:00Z'
+      },
+      // Add more test data for better filtering validation
+      {
+        id: '4',
+        nombre: 'Alambre de Acero',
+        marca: 'AceroStrong',
+        modelo: 'Calibre 12',
+        categoria: 'Herramientas',
+        presentacion: 'Rollo 100m',
+        stock_actual: 5,
+        stock_minimo: 20,
+        codigo_barras: '4567890123456',
+        costo_unitario: 15.30,
+        fecha_caducidad: null,
+        descripcion: 'Alambre de acero para construcción',
+        proveedor_id: 'prov-001',
+        imagen_url: '',
+        creado_en: '2024-01-01T00:00:00Z',
+        actualizado_en: '2024-01-01T00:00:00Z'
+      },
+      {
+        id: '5',
+        nombre: 'Clavos para Madera',
+        marca: 'FixFast',
+        modelo: '3 pulgadas',
+        categoria: 'Herramientas',
+        presentacion: 'Caja 1kg',
+        stock_actual: 0,
+        stock_minimo: 50,
+        codigo_barras: '5678901234567',
+        costo_unitario: 12.80,
+        fecha_caducidad: null,
+        descripcion: 'Clavos galvanizados para madera',
+        proveedor_id: 'prov-002',
+        imagen_url: '',
+        creado_en: '2024-01-01T00:00:00Z',
+        actualizado_en: '2024-01-01T00:00:00Z'
+      },
+      {
+        id: '6',
+        nombre: 'Pintura Azul Marino',
+        marca: 'Sika',
+        modelo: 'Latex Exterior',
+        categoria: 'Pinturas',
+        presentacion: 'Galón 3.78L',
+        stock_actual: 8,
+        stock_minimo: 15,
+        codigo_barras: '6789012345678',
+        costo_unitario: 48.50,
+        fecha_caducidad: '2025-10-20',
+        descripcion: 'Pintura látex exterior color azul marino',
+        proveedor_id: 'prov-003',
+        imagen_url: '',
+        creado_en: '2024-01-01T00:00:00Z',
+        actualizado_en: '2024-01-01T00:00:00Z'
+      },
+      {
+        id: '7',
+        nombre: 'Tubo PVC',
+        marca: 'Pipesol',
+        modelo: 'Schedule 40',
+        categoria: 'Construcción',
+        presentacion: 'Barril 3m',
+        stock_actual: 75,
+        stock_minimo: 30,
+        codigo_barras: '7890123456789',
+        costo_unitario: 25.90,
+        fecha_caducidad: null,
+        descripcion: 'Tubo de PVC para instalaciones sanitarias',
+        proveedor_id: 'prov-001',
+        imagen_url: '',
+        creado_en: '2024-01-01T00:00:00Z',
+        actualizado_en: '2024-01-01T00:00:00Z'
+      },
+      // Items con estatus explícito para probar filtros
+      {
+        id: '8',
+        nombre: 'Martillo Carpintero',
+        marca: 'Stanley',
+        modelo: 'Professional',
+        categoria: 'Herramientas',
+        presentacion: 'Pieza',
+        stock_actual: 50,
+        stock_minimo: 10,
+        codigo_barras: '8901234567890',
+        costo_unitario: 85.00,
+        fecha_caducidad: null,
+        descripcion: 'Martillo profesional para carpintería',
+        proveedor_id: 'prov-004',
+        imagen_url: '',
+        creado_en: '2024-01-01T00:00:00Z',
+        actualizado_en: '2024-01-01T00:00:00Z',
+        estatus: 'INACTIVO'
+      },
+      {
+        id: '9',
+        nombre: 'Clavos de Acero',
+        marca: 'FixFast',
+        modelo: '3 pulgadas',
+        categoria: 'Herramientas',
+        presentacion: 'Caja 1kg',
+        stock_actual: 200,
+        stock_minimo: 50,
+        codigo_barras: '9012345678901',
+        costo_unitario: 12.50,
+        fecha_caducidad: null,
+        descripcion: 'Clavos de acero para construcción',
+        proveedor_id: 'prov-004',
+        imagen_url: '',
+        creado_en: '2024-01-01T00:00:00Z',
+        actualizado_en: '2024-01-01T00:00:00Z',
+        estatus: 'INACTIVO'
+      },
+      {
+        id: '10',
+        nombre: 'Disco Corte',
+        marca: 'Bosch',
+        modelo: 'Industrial',
+        categoria: 'Herramientas',
+        presentacion: 'Pieza',
+        stock_actual: 25,
+        stock_minimo: 15,
+        codigo_barras: '0123456789012',
+        costo_unitario: 45.75,
+        fecha_caducidad: null,
+        descripcion: 'Disco de corte para metal',
+        proveedor_id: 'prov-004',
+        imagen_url: '',
+        creado_en: '2024-01-01T00:00:00Z',
+        actualizado_en: '2024-01-01T00:00:00Z',
+        estatus: 'ACTIVO'
       }
     ]
   }

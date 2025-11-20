@@ -1,3 +1,6 @@
+// Importamos los tipos necesarios
+import type { LowStockItem } from '@/types/materiaPrima'
+
 export interface MateriaPrima {
   id: string
   nombre: string
@@ -15,6 +18,7 @@ export interface ElectronAPI {
     crear: (data: Omit<MateriaPrima, 'id'>) => Promise<MateriaPrima>
     actualizar: (id: string, data: Partial<MateriaPrima>) => Promise<MateriaPrima>
     eliminar: (id: string) => Promise<boolean>
+    stockBajo: () => Promise<LowStockItem[]>
   }
 
   sistema: {
