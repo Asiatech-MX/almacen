@@ -5,6 +5,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebarContent } from './AppSidebar'
 import { Separator } from '@/components/ui/separator'
+import { Scroller } from '@/components/ui/scroller'
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -179,12 +180,19 @@ export const LayoutPrincipal: React.FC = () => {
       <SidebarInset className="flex min-h-screen flex-1 flex-col bg-background">
         <ResponsiveHeader />
 
-        <main className="flex-1 overflow-auto">
-          <div className="px-3 pb-6 md:px-6 md:pb-8">
-            {/* Breadcrumb dinámico */}
-            <DynamicBreadcrumb />
-            <Outlet />
-          </div>
+        <main className="flex-1 min-h-0">
+          <Scroller
+            viewportAware
+            size={20}
+            offset={10}
+            className="h-full"
+          >
+            <div className="px-3 pb-6 md:px-6 md:pb-8">
+              {/* Breadcrumb dinámico */}
+              <DynamicBreadcrumb />
+              <Outlet />
+            </div>
+          </Scroller>
         </main>
       </SidebarInset>
     </SidebarProvider>
