@@ -18,9 +18,11 @@ import type {
 } from '../../shared/types/materiaPrima'
 
 // Helper para coercer nombres de tabla dinámicos a tipos que Kysely acepta
-function tableExpr(tableName: string) {
-  // retorna ej. "materia_prima as mp" tipado como any para llamadas de Kysely
-  return (tableName) as unknown as any
+import type { TableExpressionOrList } from 'kysely'
+
+function tableExpr(tableName: string): TableExpressionOrList<Database, never> {
+  // retorna ej. "materia_prima as mp" tipado correctamente para Kysely
+  return tableName as unknown as TableExpressionOrList<Database, never>
 }
 
 /**
@@ -277,8 +279,8 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
         'mp.creado_en',
         'mp.actualizado_en'
       ])
-      .where('mp.codigo_barras', '=', codigoBarras)
-      .where('mp.activo', '=', true)
+      .where(sql`mp.codigo_barras`, '=', codigoBarras)
+      .where(sql`mp.activo`, '=', true)
       .executeTakeFirst() as MateriaPrimaDetail | null
   }
 
@@ -293,8 +295,8 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
       const anterior = await trx
         .selectFrom(tableExpr(`${tableName} as mp`))
         .selectAll()
-        .where('mp.id', '=', id)
-        .where('mp.activo', '=', true)
+        .where(sql`mp.id`, '=', id)
+        .where(sql`mp.activo`, '=', true)
         .executeTakeFirst()
 
       if (!anterior) {
@@ -331,8 +333,8 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
           ...data,
           actualizado_en: new Date()
         })
-        .where('id', '=', id)
-        .where('activo', '=', true)
+        .where(sql`mp.id`, '=', id)
+        .where(sql`mp.activo`, '=', true)
         .execute()
 
       // Obtener información completa actualizada
@@ -364,8 +366,8 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
       const material = await trx
         .selectFrom(tableExpr(tableName))
         .selectAll()
-        .where('id', '=', id)
-        .where('activo', '=', true)
+        .where(sql`mp.id`, '=', id)
+        .where(sql`mp.activo`, '=', true)
         .executeTakeFirst()
 
       if (!material) {
@@ -466,8 +468,8 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
         'mp.creado_en',
         'mp.actualizado_en'
       ])
-      .where('mp.id', '=', id)
-      .where('mp.activo', '=', true)
+      .where(sql`mp.id`, '=', id)
+      .where(sql`mp.activo`, '=', true)
       .executeTakeFirst() as MateriaPrimaDetail | null
   }
 
