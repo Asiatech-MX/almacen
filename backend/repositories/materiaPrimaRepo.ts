@@ -1,4 +1,5 @@
-import Kysely, { sql } from 'kysely'
+import type { Kysely } from 'kysely'
+import { sql } from 'kysely'
 import { z } from 'zod'
 import type { Database } from '../types/database'
 import { getDatabase } from '../db/pool'

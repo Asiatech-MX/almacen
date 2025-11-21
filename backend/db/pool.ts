@@ -60,8 +60,8 @@ export async function testConnection(): Promise<boolean> {
 
     console.log('✅ Conexión a PostgreSQL establecida correctamente')
     return true
-  } catch (error) {
-    console.error('❌ Error al conectar a PostgreSQL:', error)
+  } catch (error: unknown) {
+    console.error('❌ Error al conectar a PostgreSQL:', error instanceof Error ? error.message : String(error))
     return false
   }
 }
@@ -72,8 +72,8 @@ export async function validateDatabaseConnection(): Promise<boolean> {
     const db = getDatabase()
     await db.selectFrom('usuario').limit(1).execute()
     return true
-  } catch (error) {
-    console.error('❌ Database connection failed:', error)
+  } catch (error: unknown) {
+    console.error('❌ Database connection failed:', error instanceof Error ? error.message : String(error))
     return false
   }
 }
@@ -84,8 +84,8 @@ export async function closePool(): Promise<void> {
     const db = getDatabase()
     await db.destroy()
     console.log('✅ Pool de conexiones cerrado correctamente')
-  } catch (error) {
-    console.error('❌ Error al cerrar el pool de conexiones:', error)
+  } catch (error: unknown) {
+    console.error('❌ Error al cerrar el pool de conexiones:', error instanceof Error ? error.message : String(error))
   }
 }
 

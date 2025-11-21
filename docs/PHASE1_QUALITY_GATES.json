@@ -1,0 +1,28 @@
+{
+  "timestamp": "2025-11-20T22:39:59.534Z",
+  "overallStatus": "FAILED",
+  "gatesPassed": 3,
+  "totalGates": 4,
+  "metrics": {
+    "testCoverage": {
+      "percentage": 82,
+      "threshold": 80,
+      "passed": true
+    },
+    "contractTests": {
+      "total": 16,
+      "passed": true,
+      "failed": 0
+    },
+    "performance": {
+      "baselineEstablished": true,
+      "regressionThreshold": 5,
+      "passed": true
+    },
+    "typeConsistency": {
+      "inconsistenciesFound": 7,
+      "criticalIssues": 2,
+      "passed": false
+    }
+  }
+}

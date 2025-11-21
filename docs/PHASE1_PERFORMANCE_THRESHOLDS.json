@@ -1,0 +1,13 @@
+{
+  "generated": "2025-11-20T22:40:00.111Z",
+  "thresholds": {
+    "findAllMateriaPrima": 1000,
+    "findByIdMateriaPrima": 100,
+    "searchMateriaPrima": 500,
+    "findAllProveedores": 500,
+    "findByIdProveedores": 50,
+    "searchProveedores": 200
+  },
+  "description": "Maximum acceptable query execution times for migration validation",
+  "budget": "<5% degradation from these baseline values"
+}

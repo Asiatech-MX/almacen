@@ -1,0 +1,306 @@
+uid=4_0 RootWebArea "Sistema de Almacén" url="http://localhost:5173/#/materia-prima/nueva"
+  uid=4_1 ignored
+    uid=4_2 generic
+      uid=4_3 generic
+        uid=4_4 ignored
+          uid=4_5 ignored
+            uid=4_6 generic
+            uid=4_7 generic
+              uid=4_8 ignored
+                uid=4_9 ignored
+                  uid=4_10 list
+                    uid=4_11 listitem level="1"
+                      uid=4_12 button "Sistema Almacén Control de Inventario"
+                        uid=4_13 ignored
+                        uid=4_14 ignored
+                          uid=4_15 ignored
+                            uid=4_16 StaticText "Sistema Almacén"
+                              uid=4_17 InlineTextBox "Sistema Almacén"
+                          uid=4_18 ignored
+                            uid=4_19 StaticText "Control de Inventario"
+                              uid=4_20 InlineTextBox "Control de Inventario"
+                uid=4_21 ignored
+                  uid=4_22 generic
+                    uid=4_23 ignored
+                      uid=4_24 StaticText "Navegación Principal"
+                        uid=4_25 InlineTextBox "Navegación Principal"
+                    uid=4_26 ignored
+                      uid=4_27 list
+                        uid=4_28 listitem level="1"
+                          uid=4_29 link "Dashboard" focusable focused url="http://localhost:5173/#/dashboard"
+                            uid=4_30 ignored
+                              uid=4_31 StaticText "Dashboard"
+                                uid=4_32 InlineTextBox "Dashboard"
+                        uid=4_33 ignored
+                          uid=4_34 listitem level="1"
+                            uid=4_35 button "Materia Prima" expandable expanded
+                              uid=4_36 ignored
+                                uid=4_37 StaticText "Materia Prima"
+                                  uid=4_38 InlineTextBox "Materia Prima"
+                            uid=4_39 generic
+                              uid=4_40 list
+                                uid=4_41 listitem level="2"
+                                  uid=4_42 link "Gestión" url="http://localhost:5173/#/materia-prima/gestion"
+                                    uid=4_43 ignored
+                                      uid=4_44 StaticText "Gestión"
+                                        uid=4_45 InlineTextBox "Gestión"
+                                uid=4_46 listitem level="2"
+                                  uid=4_47 link "Consultas" url="http://localhost:5173/#/materia-prima/consultas"
+                                    uid=4_48 ignored
+                                      uid=4_49 StaticText "Consultas"
+                                        uid=4_50 InlineTextBox "Consultas"
+                                uid=4_51 listitem level="2"
+                                  uid=4_52 link "Altas" url="http://localhost:5173/#/materia-prima/nueva"
+                                    uid=4_53 ignored
+                                      uid=4_54 StaticText "Altas"
+                                        uid=4_55 InlineTextBox "Altas"
+                        uid=4_56 listitem level="1"
+                          uid=4_57 link "Proveedores" url="http://localhost:5173/#/proveedores"
+                            uid=4_58 ignored
+                              uid=4_59 StaticText "Proveedores"
+                                uid=4_60 InlineTextBox "Proveedores"
+                        uid=4_61 listitem level="1"
+                          uid=4_62 link "Movimientos" url="http://localhost:5173/#/movimientos"
+                            uid=4_63 ignored
+                              uid=4_64 StaticText "Movimientos"
+                                uid=4_65 InlineTextBox "Movimientos"
+                        uid=4_66 listitem level="1"
+                          uid=4_67 link "Aprobaciones 3" url="http://localhost:5173/#/aprobaciones"
+                            uid=4_68 ignored
+                              uid=4_69 StaticText "Aprobaciones"
+                                uid=4_70 InlineTextBox "Aprobaciones"
+                            uid=4_71 ignored
+                              uid=4_72 StaticText "3"
+                                uid=4_73 InlineTextBox "3"
+                        uid=4_74 listitem level="1"
+                          uid=4_75 link "Solicitudes" url="http://localhost:5173/#/solicitudes"
+                            uid=4_76 ignored
+                              uid=4_77 StaticText "Solicitudes"
+                                uid=4_78 InlineTextBox "Solicitudes"
+                uid=4_79 ignored
+                  uid=4_80 list
+                    uid=4_81 listitem level="1"
+                      uid=4_82 button "U Usuario admin@almacen.com" haspopup="menu"
+                        uid=4_83 ignored
+                          uid=4_84 ignored
+                            uid=4_85 StaticText "U"
+                              uid=4_86 InlineTextBox "U"
+                        uid=4_87 ignored
+                          uid=4_88 ignored
+                            uid=4_89 StaticText "Usuario"
+                              uid=4_90 InlineTextBox "Usuario"
+                          uid=4_91 ignored
+                            uid=4_92 StaticText "admin@almacen.com"
+                              uid=4_93 InlineTextBox "admin@almacen.com"
+                uid=4_94 button "Toggle Sidebar" description="Toggle Sidebar"
+          uid=4_95 main
+            uid=4_96 sectionheader
+              uid=4_97 ignored
+                uid=4_98 ignored
+                  uid=4_99 ignored
+                    uid=4_100 button "Toggle Sidebar"
+                      uid=4_101 ignored
+                        uid=4_102 StaticText "Toggle Sidebar"
+                          uid=4_103 InlineTextBox "Toggle Sidebar"
+                  uid=4_104 ignored
+                    uid=4_105 heading "Gestion de Almacen" level="1"
+                      uid=4_106 StaticText "Gestion de Almacen"
+                        uid=4_107 InlineTextBox "Gestion de Almacen"
+                    uid=4_108 paragraph
+                      uid=4_109 StaticText "Sistema integral de control de inventario"
+                        uid=4_110 InlineTextBox "Sistema integral de control de inventario"
+                uid=4_111 ignored
+                  uid=4_112 button "Toggle theme"
+                    uid=4_113 ignored
+                      uid=4_114 StaticText "Toggle theme"
+                        uid=4_115 InlineTextBox "Toggle theme"
+                  uid=4_116 button haspopup="menu"
+            uid=4_117 main
+              uid=4_118 ignored
+                uid=4_119 ignored
+                  uid=4_120 navigation "breadcrumb"
+                    uid=4_121 list
+                      uid=4_122 listitem level="1"
+                        uid=4_123 link "Inicio" url="http://localhost:5173/#/dashboard"
+                          uid=4_124 StaticText "Inicio"
+                            uid=4_125 InlineTextBox "Inicio"
+                      uid=4_126 listitem level="1"
+                        uid=4_127 link "Materia Prima" url="http://localhost:5173/#/materia-prima"
+                          uid=4_128 StaticText "Materia Prima"
+                            uid=4_129 InlineTextBox "Materia Prima"
+                      uid=4_130 listitem level="1"
+                        uid=4_131 link "➕ Altas" disableable disabled
+                          uid=4_132 StaticText "➕ Altas"
+                            uid=4_133 InlineTextBox "➕ Altas"
+                  uid=4_134 ignored
+                    uid=4_135 ignored
+                      uid=4_136 ignored
+                        uid=4_137 ignored
+                          uid=4_138 ignored
+                            uid=4_139 ignored
+                              uid=4_140 heading "📝 Formulario de Material ➕ Creando" level="3"
+                                uid=4_141 ignored
+                                  uid=4_142 StaticText "📝"
+                                    uid=4_143 InlineTextBox "📝"
+                                uid=4_144 ignored
+                                  uid=4_145 StaticText "Formulario de Material"
+                                    uid=4_146 InlineTextBox "Formulario de Material"
+                                uid=4_147 ignored
+                                  uid=4_148 generic
+                                    uid=4_149 StaticText "➕ Creando"
+                                      uid=4_150 InlineTextBox "➕ Creando"
+                              uid=4_151 paragraph
+                                uid=4_152 StaticText "Complete la información para "
+                                  uid=4_153 InlineTextBox "Complete la información para "
+                                uid=4_154 StaticText "registrar"
+                                  uid=4_155 InlineTextBox "registrar"
+                                uid=4_156 StaticText " un nuevo material en el sistema."
+                                  uid=4_157 InlineTextBox " un nuevo material en el sistema."
+                        uid=4_158 ignored
+                          uid=4_159 generic
+                            uid=4_160 generic
+                              uid=4_161 ignored
+                                uid=4_162 tablist orientation="horizontal"
+                                  uid=4_163 tab "📋 Información Básica" selectable selected
+                                    uid=4_164 ignored
+                                      uid=4_165 StaticText "📋"
+                                        uid=4_166 InlineTextBox "📋"
+                                    uid=4_167 ignored
+                                      uid=4_168 ignored
+                                    uid=4_169 ignored
+                                      uid=4_170 ignored
+                                    uid=4_171 ignored
+                                      uid=4_172 StaticText "Información Básica"
+                                        uid=4_173 InlineTextBox "Información Básica"
+                                  uid=4_174 tab "📦 Gestión de Stock"
+                                    uid=4_175 ignored
+                                      uid=4_176 StaticText "📦"
+                                        uid=4_177 InlineTextBox "📦"
+                                    uid=4_178 ignored
+                                      uid=4_179 StaticText "Gestión de Stock"
+                                        uid=4_180 InlineTextBox "Gestión de Stock"
+                                    uid=4_181 ignored
+                                      uid=4_182 ignored
+                                  uid=4_183 tab "ℹ️ Información Adicional"
+                                    uid=4_184 ignored
+                                      uid=4_185 StaticText "ℹ️"
+                                        uid=4_186 InlineTextBox "ℹ️"
+                                    uid=4_187 ignored
+                                      uid=4_188 ignored
+                                    uid=4_189 ignored
+                                      uid=4_190 ignored
+                                    uid=4_191 ignored
+                                      uid=4_192 StaticText "Información Adicional"
+                                        uid=4_193 InlineTextBox "Información Adicional"
+                                uid=4_194 ignored
+                                  uid=4_195 tabpanel "📋 Información Básica"
+                                    uid=4_196 group "📋 Información Básica"
+                                      uid=4_197 Legend
+                                        uid=4_198 ignored
+                                          uid=4_199 StaticText "📋"
+                                            uid=4_200 InlineTextBox "📋"
+                                        uid=4_201 StaticText "Información Básica"
+                                          uid=4_202 InlineTextBox "Información Básica"
+                                      uid=4_203 paragraph
+                                        uid=4_204 StaticText "Datos principales del material para identificación en el sistema. Los campos marcados con "
+                                          uid=4_205 InlineTextBox "Datos principales del material para identificación en el sistema. Los campos marcados con "
+                                        uid=4_206 StaticText "*"
+                                          uid=4_207 InlineTextBox "*"
+                                        uid=4_208 StaticText " son obligatorios."
+                                          uid=4_209 InlineTextBox " son obligatorios."
+                                      uid=4_210 ignored
+                                        uid=4_211 ignored
+                                          uid=4_212 LabelText
+                                            uid=4_213 StaticText "Código de Barras"
+                                              uid=4_214 InlineTextBox "Código de Barras"
+                                            uid=4_215 ignored
+                                              uid=4_216 StaticText "*"
+                                                uid=4_217 InlineTextBox "*"
+                                          uid=4_218 textbox "Código de Barras *"
+                                            uid=4_219 ignored
+                                            uid=4_220 generic
+                                        uid=4_221 ignored
+                                          uid=4_222 LabelText
+                                            uid=4_223 StaticText "Nombre del Material"
+                                              uid=4_224 InlineTextBox "Nombre del Material"
+                                          uid=4_225 textbox "Nombre del Material"
+                                            uid=4_226 ignored
+                                            uid=4_227 generic
+                                        uid=4_228 ignored
+                                          uid=4_229 LabelText
+                                            uid=4_230 StaticText "Marca"
+                                              uid=4_231 InlineTextBox "Marca"
+                                          uid=4_232 textbox "Marca"
+                                            uid=4_233 ignored
+                                            uid=4_234 generic
+                                        uid=4_235 ignored
+                                          uid=4_236 LabelText
+                                            uid=4_237 StaticText "Modelo"
+                                              uid=4_238 InlineTextBox "Modelo"
+                                          uid=4_239 textbox "Modelo"
+                                            uid=4_240 ignored
+                                            uid=4_241 generic
+                                        uid=4_242 ignored
+                                          uid=4_243 LabelText
+                                            uid=4_244 StaticText "Presentación"
+                                              uid=4_245 InlineTextBox "Presentación"
+                                          uid=4_246 combobox "Presentación" haspopup="listbox" value="Unidad"
+                                            uid=4_247 generic
+                                              uid=4_248 StaticText "Unidad"
+                                                uid=4_249 InlineTextBox "Unidad"
+                                          uid=4_250 ignored
+                                            uid=4_251 ignored
+                                            uid=4_252 ignored
+                                            uid=4_253 ignored
+                                            uid=4_254 ignored
+                                            uid=4_255 ignored
+                                            uid=4_256 ignored
+                                            uid=4_257 ignored
+                                            uid=4_258 ignored
+                                            uid=4_259 ignored
+                                            uid=4_260 ignored
+                                            uid=4_261 ignored
+                                            uid=4_262 ignored
+                                            uid=4_263 ignored
+                                            uid=4_264 ignored
+                                            uid=4_265 ignored
+                                        uid=4_266 ignored
+                                          uid=4_267 LabelText
+                                            uid=4_268 StaticText "Categoría"
+                                              uid=4_269 InlineTextBox "Categoría"
+                                          uid=4_270 combobox "Categoría" haspopup="listbox" value="Seleccionar categoría"
+                                            uid=4_271 ignored
+                                              uid=4_272 StaticText "Seleccionar categoría"
+                                                uid=4_273 InlineTextBox "Seleccionar categoría"
+                                          uid=4_274 ignored
+                                            uid=4_275 ignored
+                                            uid=4_276 ignored
+                                            uid=4_277 ignored
+                                            uid=4_278 ignored
+                                            uid=4_279 ignored
+                                            uid=4_280 ignored
+                                            uid=4_281 ignored
+                                            uid=4_282 ignored
+                                            uid=4_283 ignored
+                                            uid=4_284 ignored
+                                            uid=4_285 ignored
+                                            uid=4_286 ignored
+                                            uid=4_287 ignored
+                                uid=4_288 ignored
+                                  uid=4_289 button "➕ Crear"
+                                    uid=4_290 StaticText "➕ Crear"
+                                      uid=4_291 InlineTextBox "➕ Crear"
+                                  uid=4_292 button "❌ Cancelar"
+                                    uid=4_293 StaticText "❌ Cancelar"
+                                      uid=4_294 InlineTextBox "❌ Cancelar"
+        uid=4_295 region "Notifications (F8)"
+          uid=4_296 list
+        uid=4_297 ignored
+          uid=4_298 generic
+            uid=4_299 generic
+              uid=4_300 button "Open Tanstack query devtools"
+                uid=4_301 image
+                  uid=4_302 ignored
+                  uid=4_303 ignored
+                  uid=4_304 ignored
+                  uid=4_305 ignored

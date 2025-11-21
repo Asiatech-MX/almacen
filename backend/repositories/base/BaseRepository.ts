@@ -1,5 +1,7 @@
-import Kysely, { Transaction, sql } from 'kysely'
+import type { Kysely, Transaction } from 'kysely'
+import { sql } from 'kysely'
 import type { Database } from '../../types/database'
+import type { SelectQueryBuilder } from 'kysely'
 import { getDatabase } from '../../db/pool'
 
 /**
@@ -112,8 +114,8 @@ export abstract class BaseRepository<T extends keyof Database> {
   /**
    * Paginación genérica
    */
-  protected async paginate<R>(
-    selectQuery: Kysely<Database>.SelectQueryBuilder<T, R, never[]>,
+  protected async paginate<R extends keyof Database>(
+    selectQuery: SelectQueryBuilder<Database, Database[R], never[]>,
     page: number,
     limit: number
   ) {

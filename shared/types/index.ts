@@ -1,6 +1,15 @@
-// Re-exportar todos los tipos compartidos
-export * from './materiaPrima'
-export * from './proveedores'
+// Re-exportar tipos compartidos con alias explícitos para evitar duplicados
+export type {
+  Proveedor as MateriaPrimaProveedor,
+  ProveedorSearch as MateriaPrimaProveedorSearch,
+  MateriaPrima,
+  MateriaPrimaSearch
+} from './materiaPrima'
+
+export type {
+  Proveedor as ProveedorType,
+  ProveedorSearch as ProveedorSearchType
+} from './proveedores'
 
 // Tipos comunes globales
 export interface User {

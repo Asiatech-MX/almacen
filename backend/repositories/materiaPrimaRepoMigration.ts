@@ -1,4 +1,5 @@
-import Kysely, { sql } from 'kysely'
+import type { Kysely } from 'kysely'
+import { sql } from 'kysely'
 import type { Database } from '../types/database'
 import { getDatabase } from '../db/pool'
 import { BaseRepository } from './base/BaseRepository'
@@ -15,6 +16,14 @@ import type {
   AuditoriaFilters,
   AuditTrail
 } from '../../shared/types/materiaPrima'
+
+// Helper para coercer nombres de tabla dinámicos a tipos que Kysely acepta
+import type { TableExpressionOrList } from 'kysely'
+
+function tableExpr(tableName: string): TableExpressionOrList<Database, never> {
+  // retorna ej. "materia_prima as mp" tipado correctamente para Kysely
+  return tableName as unknown as TableExpressionOrList<Database, never>
+}
 
 /**
  * Repository para gestión de materia prima con Feature Flags
@@ -177,7 +186,7 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
     console.log(`📋 Listando materiales desde tabla: ${tableName}`)
 
     let query = db
-      .selectFrom(`${tableName} as mp`)
+      .selectFrom(tableExpr(`${tableName} as mp`))
       .leftJoin('proveedor as p', 'mp.proveedor_id', 'p.id')
       .select([
         'mp.id',
@@ -197,7 +206,7 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
         sql<string>`p.nombre`.as('proveedor_nombre'),
         'mp.creado_en',
         'mp.actualizado_en',
-        sql<string>`'${tableName}'`.as('source_table')
+        (sql<string>`'${tableName}'`.as('source_table') as unknown as any)
       ])
       .where('mp.activo', '=', true)
 
@@ -248,7 +257,7 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
     const db = this.getDatabase()
 
     return await db
-      .selectFrom(`${tableName} as mp`)
+      .selectFrom(tableExpr(`${tableName} as mp`))
       .leftJoin('proveedor as p', 'mp.proveedor_id', 'p.id')
       .select([
         'mp.id',
@@ -270,8 +279,8 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
         'mp.creado_en',
         'mp.actualizado_en'
       ])
-      .where('mp.codigo_barras', '=', codigoBarras)
-      .where('mp.activo', '=', true)
+      .where(sql`mp.codigo_barras`, '=', codigoBarras)
+      .where(sql`mp.activo`, '=', true)
       .executeTakeFirst() as MateriaPrimaDetail | null
   }
 
@@ -284,10 +293,10 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
     return await this.transaction(async (trx) => {
       // Obtener datos anteriores
       const anterior = await trx
-        .selectFrom(`${tableName} as mp`)
+        .selectFrom(tableExpr(`${tableName} as mp`))
         .selectAll()
-        .where('mp.id', '=', id)
-        .where('mp.activo', '=', true)
+        .where(sql`mp.id`, '=', id)
+        .where(sql`mp.activo`, '=', true)
         .executeTakeFirst()
 
       if (!anterior) {
@@ -319,13 +328,13 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
 
       // Actualizar registro
       await trx
-        .updateTable(tableName)
+        .updateTable(tableExpr(tableName))
         .set({
           ...data,
           actualizado_en: new Date()
         })
-        .where('id', '=', id)
-        .where('activo', '=', true)
+        .where(sql`mp.id`, '=', id)
+        .where(sql`mp.activo`, '=', true)
         .execute()
 
       // Obtener información completa actualizada
@@ -355,10 +364,10 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
 
     await this.transaction(async (trx) => {
       const material = await trx
-        .selectFrom(tableName)
+        .selectFrom(tableExpr(tableName))
         .selectAll()
-        .where('id', '=', id)
-        .where('activo', '=', true)
+        .where(sql`mp.id`, '=', id)
+        .where(sql`mp.activo`, '=', true)
         .executeTakeFirst()
 
       if (!material) {
@@ -372,7 +381,7 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
 
       // Realizar soft delete
       await trx
-        .updateTable(tableName)
+        .updateTable(tableExpr(tableName))
         .set({
           activo: false,
           eliminado_en: new Date(),
@@ -437,7 +446,7 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
     tableName: string
   ): Promise<MateriaPrimaDetail | null> {
     return await db
-      .selectFrom(`${tableName} as mp`)
+      .selectFrom(tableExpr(`${tableName} as mp`))
       .leftJoin('proveedor as p', 'mp.proveedor_id', 'p.id')
       .select([
         'mp.id',
@@ -459,8 +468,8 @@ export class MateriaPrimaRepositoryWithMigration extends BaseRepository<'materia
         'mp.creado_en',
         'mp.actualizado_en'
       ])
-      .where('mp.id', '=', id)
-      .where('mp.activo', '=', true)
+      .where(sql`mp.id`, '=', id)
+      .where(sql`mp.activo`, '=', true)
       .executeTakeFirst() as MateriaPrimaDetail | null
   }
 

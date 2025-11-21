@@ -1,4 +1,4 @@
--- @name FindAllProveedores
+/* @name FindAllProveedores */
 -- Obtiene todos los proveedores activos
 SELECT
   id,
@@ -6,26 +6,26 @@ SELECT
   rfc,
   telefono,
   email,
-  direccion,
-  creado_en,
-  actualizado_en
-FROM proveedores
-WHERE activo = true
+  domicilio as direccion,
+  fecha_registro as creado_en,
+  fecha_registro as actualizado_en
+FROM proveedor
+WHERE estatus = 'ACTIVO'
 ORDER BY nombre;
 
--- @name FindProveedorById
+/* @name FindProveedorById */
 -- Obtiene un proveedor por ID
 SELECT *
-FROM proveedores
-WHERE id = :id AND activo = true;
+FROM proveedor
+WHERE id = :id AND estatus = 'ACTIVO';
 
--- @name SearchProveedores
+/* @name SearchProveedores */
 -- Busca proveedores por texto
 SELECT
   id, nombre, rfc, telefono, email
-FROM proveedores
+FROM proveedor
 WHERE
-  activo = true
+  estatus = 'ACTIVO'
   AND (
     nombre ILIKE '%' || :searchTerm || '%' OR
     rfc ILIKE '%' || :searchTerm || '%' OR
@@ -34,8 +34,8 @@ WHERE
 ORDER BY nombre
 LIMIT :limit;
 
--- @name FindProveedorByRFC
+/* @name FindProveedorByRFC */
 -- Busca proveedor por RFC
 SELECT *
-FROM proveedores
-WHERE rfc = :rfc AND activo = true;
+FROM proveedor
+WHERE rfc = :rfc AND estatus = 'ACTIVO';
