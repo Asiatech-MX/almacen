@@ -1,19 +1,19 @@
 /**
  * Kysely Database Type Helpers
  *
- * Provides common ColumnType aliases for consistent typing across adapters
+ * Provides common type aliases for consistent typing across adapters
  * Based on Kysely official documentation patterns
+ * Note: Using primitive types instead of ColumnType for public APIs
  */
 
-import type { ColumnType } from 'kysely'
-
 // DB column alias types for consistent adapter typing
-export type DBString = ColumnType<string, string | undefined, string>
-export type DBBoolean = ColumnType<boolean, boolean | undefined, boolean>
-export type DBNumber = ColumnType<number, string | number | undefined, string | number>
-export type DBDate = ColumnType<Date, string | Date | undefined, string | Date>
-export type DBTimestamp = DBDate // PostgreSQL timestamp aliases
-export type DBUUID = ColumnType<string, string | undefined, string>
+// Using primitive types as recommended by Kysely documentation
+export type DBString = string | null
+export type DBBoolean = boolean | null
+export type DBNumber = number | null
+export type DBDate = Date | null
+export type DBTimestamp = Date | null // PostgreSQL timestamp
+export type DBUUID = string | null
 
 // Helper for creating safe error messages from unknown errors
 export function getErrorMessage(error: unknown): string {
