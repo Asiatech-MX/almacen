@@ -1,4 +1,5 @@
-import Kysely, { Transaction, sql } from 'kysely'
+import type { Kysely, Transaction } from 'kysely'
+import { sql } from 'kysely'
 import type { Database } from '../../types/database'
 import type { SelectQueryBuilder } from 'kysely'
 import { getDatabase } from '../../db/pool'
