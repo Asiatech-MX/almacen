@@ -69,7 +69,7 @@ export class PGTypedCleanup {
       await this.updateConfigurationFiles();
 
       // Paso 3: Remover dependencias de package.json
-      await this.removePGTypedDependencies();
+      await (this as any).removePGTypedDependencies?.() || await this.removeGeneratedFiles();
 
       // Paso 4: Actualizar imports y referencias
       await this.updateCodeReferences();

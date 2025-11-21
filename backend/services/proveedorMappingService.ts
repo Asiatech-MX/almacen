@@ -88,7 +88,7 @@ export class ProveedorMappingService {
     const result = await this.db
       .selectFrom('proveedor')
       .select('uuid_proveedor')
-      .where('id', '=', proveedorId)
+      .where('id', '=', proveedorId as any)
       .executeTakeFirst()
 
     return result?.uuid_proveedor || null
