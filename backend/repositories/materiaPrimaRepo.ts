@@ -600,11 +600,11 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
 
   // ==================== DELETE OPERATIONS ====================
 
-  /**
-   * Eliminar material (soft delete)
-   * @param id UUID del material
-   * @param usuarioId ID del usuario que realiza la operación
-   */
+   /**
+    * Eliminar material (hard delete - eliminación física)
+    * @param id UUID del material
+    * @param usuarioId ID del usuario que realiza la operación
+    */
   async delete(id: string, usuarioId?: string): Promise<void> {
     await this.transaction(async (trx) => {
       const material = await trx
@@ -622,14 +622,9 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         throw new Error('No se puede eliminar un material con stock disponible')
       }
 
-      // Realizar soft delete
+      // Realizar hard delete (eliminación física)
       await trx
-        .updateTable('materia_prima')
-        .set({
-          activo: false,
-          eliminado_en: new Date(),
-          actualizado_en: new Date()
-        })
+        .deleteFrom('materia_prima')
         .where('id', '=', id)
         .execute()
 

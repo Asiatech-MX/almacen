@@ -37,7 +37,7 @@ export function createTestDatabase(): TestDatabase {
 // Test data factories
 export const testDataFactories = {
   materiaPrima: (overrides: Partial<DB['materiaPrima']> = {}): DB['materiaPrima'] => ({
-    id: `test-${Date.now()}`,
+    id: `test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     nombre: 'Material de Prueba',
     codigoBarras: `${Date.now()}`.padStart(13, '0'),
     presentacion: 'UNIDAD',
@@ -101,7 +101,7 @@ export class DatabaseSeeder {
         codigoBarras: overrides.codigoBarras || `${Date.now()}${i}`.padStart(13, '0'),
       });
 
-      await this.db.insertInto('materiaPrima').values(item).execute();
+      await this.db.insertInto('materia_prima').values(item).execute();
       items.push(item);
     }
 
@@ -137,7 +137,7 @@ export class DatabaseSeeder {
 
   async cleanup(): Promise<void> {
     // Clean up in proper order to respect foreign key constraints
-    await this.db.deleteFrom('materiaPrima').execute();
+    await this.db.deleteFrom('materia_prima').execute();
     await this.db.deleteFrom('proveedor').execute();
     await this.db.deleteFrom('institucion').execute();
   }
