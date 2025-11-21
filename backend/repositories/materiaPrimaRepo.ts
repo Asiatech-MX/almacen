@@ -611,7 +611,6 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         .selectFrom('materia_prima')
         .selectAll()
         .where('id', '=', id)
-        .where('activo', '=', true)
         .executeTakeFirst()
 
       if (!material) {
