@@ -651,6 +651,11 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         throw new Error('Material no encontrado')
       }
 
+      // Verificar que el material esté INACTIVO (defensive programming)
+      if (material.activo !== false) {
+        throw new Error('Solo se pueden eliminar materiales con estatus "Inhabilitado". El material debe estar marcado como inhabilitado antes de poder eliminarlo.')
+      }
+
       // Verificar que no tenga stock pendiente
       if (material.stock_actual > 0) {
         throw new Error('No se puede eliminar un material con stock disponible')

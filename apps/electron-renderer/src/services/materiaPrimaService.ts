@@ -46,7 +46,8 @@ export class MateriaPrimaService {
     }
 
     try {
-      const materiales = await this.api.listar()
+      // Include INACTIVE materials for stock verification (critical for deletion workflow)
+      const materiales = await this.api.listar(undefined, { includeInactive: true })
       const material = materiales.find(item => item.id === id)
 
       if (!material) {
@@ -221,7 +222,8 @@ export class MateriaPrimaService {
     }
 
     try {
-      const materiales = await this.api.listar()
+      // Include INACTIVE materials for search by barcode
+      const materiales = await this.api.listar(undefined, { includeInactive: true })
       const material = materiales.find(item => item.codigo_barras === codigoBarras)
 
       if (!material) {
@@ -279,7 +281,8 @@ export class MateriaPrimaService {
     }
 
     try {
-      const materiales = await this.api.listar()
+      // Include INACTIVE materials for general search
+      const materiales = await this.api.listar(undefined, { includeInactive: true })
       const term = searchTerm.toLowerCase()
 
       return materiales.filter(item =>
@@ -308,7 +311,8 @@ export class MateriaPrimaService {
     }
 
     try {
-      const materiales = await this.api.listar()
+      // Include INACTIVE materials for criteria-based search
+      const materiales = await this.api.listar(undefined, { includeInactive: true })
       return this.filterMateriales(materiales, {
         nombre: criterios.nombre,
         categoria: criterios.categoria,

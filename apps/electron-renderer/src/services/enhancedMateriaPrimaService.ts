@@ -41,9 +41,9 @@ export class EnhancedMateriaPrimaService {
     setInterval(() => this.cleanExpiredCache(), 60 * 1000)
   }
 
-  // Lista todos los materiales con caché y optimistic updates
-  async listar(filters?: MateriaPrimaFilters): Promise<MateriaPrima[]> {
-    const cacheKey = `materia_prima_listar_${JSON.stringify(filters || {})}`
+  // Lista todos los materiales con caché y optimistic updates (excluye INACTIVO por defecto)
+  async listar(filters?: MateriaPrimaFilters, options?: { includeInactive?: boolean }): Promise<MateriaPrima[]> {
+    const cacheKey = `materia_prima_listar_${JSON.stringify(filters || {})}_${options?.includeInactive ? 'all' : 'activos'}`
 
     // Intentar obtener del cache
     const cachedData = this.getFromCache<MateriaPrima[]>(cacheKey)
@@ -53,7 +53,7 @@ export class EnhancedMateriaPrimaService {
     }
 
     try {
-      const materiales = await materiaPrimaService.listar(filters)
+      const materiales = await materiaPrimaService.listar(filters, options)
 
       // Guardar en cache
       this.setCache(cacheKey, materiales)
@@ -73,8 +73,42 @@ export class EnhancedMateriaPrimaService {
     }
   }
 
+  // Lista solo materiales ACTIVOS (para consultas normales)
+  async listarSoloActivos(filters?: MateriaPrimaFilters): Promise<MateriaPrima[]> {
+    return this.listar(filters, { includeInactive: false })
+  }
+
+  // Lista solo materiales INACTIVOS (para módulo de gestión)
+  async listarInactivos(filters?: MateriaPrimaFilters): Promise<MateriaPrima[]> {
+    const cacheKey = `materia_prima_inactivos_${JSON.stringify(filters || {})}`
+
+    // Intentar obtener del cache
+    const cachedData = this.getFromCache<MateriaPrima[]>(cacheKey)
+    if (cachedData && !this.hasPendingUpdates()) {
+      console.log('Datos inactivos obtenidos desde cache')
+      return this.applyOptimisticUpdates(cachedData)
+    }
+
+    try {
+      const materiales = await materiaPrimaService.listarInactivos(filters)
+      this.setCache(cacheKey, materiales)
+      return this.applyOptimisticUpdates(materiales)
+    } catch (error) {
+      console.error('Error al listar materiales inactivos:', error)
+
+      // Fallback a cache si existe
+      const fallbackData = this.getFromCache<MateriaPrima[]>(cacheKey)
+      if (fallbackData) {
+        console.log('Usando cache inactivos como fallback')
+        return this.applyOptimisticUpdates(fallbackData)
+      }
+
+      throw new Error('Error al obtener materiales inactivos')
+    }
+  }
+
   // Obtiene un material por ID con caché
-  async obtener(id: string): Promise<MateriaPrimaDetail> {
+  async obtener(id: string, options?: { includeInactive?: boolean }): Promise<MateriaPrimaDetail> {
     const cacheKey = `materia_prima_obtener_${id}`
 
     // Intentar obtener del cache
@@ -92,7 +126,7 @@ export class EnhancedMateriaPrimaService {
     }
 
     try {
-      const material = await materiaPrimaService.obtener(id)
+      const material = await materiaPrimaService.obtener(id, options)
       this.setCache(cacheKey, material)
       return material
     } catch (error) {
@@ -246,6 +280,9 @@ export class EnhancedMateriaPrimaService {
     // Invalidar caches
     this.invalidateCache('materia_prima_listar_')
     this.invalidateCache(`materia_prima_obtener_${id}`)
+    // Add cache invalidation patterns for inactive materials
+    this.invalidateCache('materia_prima_inactivos_') // For inactive materials list
+    this.invalidateCache('materia_prima_buscar_')   // For search results containing inactive materials
 
     try {
       const result = await materiaPrimaService.eliminar(id, usuarioId)
@@ -323,7 +360,7 @@ export class EnhancedMateriaPrimaService {
     }
   }
 
-  // Obtener estadísticas
+  // Obtener estadísticas (excluye materiales INACTIVO)
   async getEstadisticas(): Promise<{
     total_materiales: number
     valor_total_inventario: number
@@ -339,7 +376,8 @@ export class EnhancedMateriaPrimaService {
     }>
   }> {
     try {
-      const materiales = await this.listar()
+      // 🔥 CAMBIO CLAVE: Usar solo materiales ACTIVOS para estadísticas
+      const materiales = await this.listarSoloActivos()
 
       const total_materiales = materiales.length
       const valor_total_inventario = materiales.reduce((sum, m) =>
@@ -368,6 +406,12 @@ export class EnhancedMateriaPrimaService {
           fecha: new Date(Date.now() - 3600000).toISOString()
         }
       ]
+
+      console.log('📊 Estadísticas calculadas con materiales ACTIVOS:', {
+        total_materiales,
+        materiales_excluidos: 'INACTIVO',
+        valor_total_inventario
+      })
 
       return {
         total_materiales,
@@ -482,6 +526,43 @@ export class EnhancedMateriaPrimaService {
   // Limpiar cache manualmente
   clearCache(): void {
     this.cache.clear()
+  }
+
+  // Invalidar caché contaminado con datos incorrectos (llamar después de cambios en filtros)
+  invalidateContaminatedCache(): void {
+    console.log('🗑️ Invalidando caché contaminado con materiales INACTIVO...')
+
+    // Invalidar todas las claves que podrían contener datos incorrectos
+    const patternsToInvalidate = [
+      'materia_prima_listar_', // Listados generales
+      'materia_prima_buscar_', // Búsquedas
+      'materia_prima_stock_bajo', // Stock bajo
+      'materia_prima_obtener_', // Detalles
+      'materia_prima_filter_' // Filtros antiguos
+    ]
+
+    patternsToInvalidate.forEach(pattern => {
+      this.invalidateCache(pattern)
+    })
+
+    console.log('✅ Caché invalidado exitosamente')
+  }
+
+  // Método de migración forzada para asegurar consistencia
+  async migrateToActiveOnlyMode(): Promise<void> {
+    console.log('🔄 Migrando a modo SOLO ACTIVOS...')
+
+    // 1. Invalidar caché existente
+    this.invalidateContaminatedCache()
+
+    // 2. Forzar recarga de datos activos
+    try {
+      await this.listarSoloActivos()
+      console.log('✅ Migración a modo SOLO ACTIVOS completada')
+    } catch (error) {
+      console.error('❌ Error en migración:', error)
+      throw error
+    }
   }
 
   // Obtener estado del cache y actualizaciones optimistas

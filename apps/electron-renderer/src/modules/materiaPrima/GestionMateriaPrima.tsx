@@ -280,7 +280,7 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = () => {
     setLoadingDetalle(true)
 
     try {
-      const detalle = await materiaPrimaService.obtener(material.id)
+      const detalle = await materiaPrimaService.obtener(material.id, { includeInactive: true })
       setMaterialDetalle(detalle)
     } catch (error) {
       console.error('Error al cargar detalles:', error)

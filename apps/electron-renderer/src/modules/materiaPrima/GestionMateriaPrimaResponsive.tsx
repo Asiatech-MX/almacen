@@ -18,7 +18,7 @@ import { DataTableColumnHeader } from '../../components/data-table/data-table-co
 import { DataTableToolbar } from '../../components/data-table/data-table-toolbar'
 import { useDataTable } from '../../hooks/use-data-table'
 import { ColumnDef } from '@tanstack/react-table'
-import { MoreHorizontal, Eye, Edit, Package, Trash2, Search, Filter, Plus, Power, PowerOff } from 'lucide-react'
+import { MoreHorizontal, Eye, Edit, Package, Trash2, Search, Filter, Plus, Power, PowerOff, X } from 'lucide-react'
 
 // Importaciones de shadcn/ui para todos los componentes
 import { Button } from '../../components/ui/button'
@@ -156,9 +156,9 @@ const createColumns = (
       const stockActual = row.getValue('stock_actual') as number
       const stockMinimo = row.original.stock_minimo || 0
       return (
-        <div className="text-center">
-          <div className="font-medium">{stockActual}</div>
-          <div className="text-sm text-muted-foreground">/ {stockMinimo}</div>
+        <div className="flex items-center justify-center">
+          <span className="font-medium">{stockActual}</span>
+          <span className="text-sm text-muted-foreground"> / {stockMinimo}</span>
         </div>
       )
     },
@@ -184,7 +184,7 @@ const createColumns = (
         label = '🔒 Inhabilitado'
       } else if (stockActual === 0) {
         statusVariant = 'destructive'
-        label = '❌ Agotado'
+        label = 'Agotado'
       } else if (stockActual <= stockMinimo) {
         statusVariant = 'secondary'
         label = '⚠️ Bajo'
@@ -195,6 +195,7 @@ const createColumns = (
 
       return (
         <Badge variant={statusVariant} className="whitespace-nowrap">
+          {stockActual === 0 && <X className="h-3 w-3 text-white mr-1" />}
           {label}
         </Badge>
       )
@@ -224,14 +225,20 @@ const createColumns = (
               <Eye className="mr-2 h-4 w-4" />
               Ver detalles
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEdit(material)}>
-              <Edit className="mr-2 h-4 w-4" />
-              Editar
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onStockUpdate(material)}>
-              <Package className="mr-2 h-4 w-4" />
-              Ajustar stock
-            </DropdownMenuItem>
+            {/* 🔥 RESTRICCIÓN: Solo permitir editar materiales ACTIVO */}
+            {isActive && (
+              <DropdownMenuItem onClick={() => onEdit(material)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Editar
+              </DropdownMenuItem>
+            )}
+            {/* 🔥 RESTRICCIÓN: Solo permitir ajustar stock de materiales ACTIVO */}
+            {isActive && (
+              <DropdownMenuItem onClick={() => onStockUpdate(material)}>
+                <Package className="mr-2 h-4 w-4" />
+                Ajustar stock
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
 
             {/* Acciones de estado - deshabilitar/habilitar */}
@@ -371,11 +378,14 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
   }, [materiales, debouncedSearchTerm, categoriaFilter, stockFilter, statusFilter])
 
   useEffect(() => {
+    // ✅ CORRECCIÓN: Incluir INACTIVO cuando se filtra por estado
+    const includeInactive = statusFilter === 'INACTIVO' || statusFilter === 'all'
+
     cargarMateriales({
       ...(categoriaFilter && { categoria: categoriaFilter }),
       ...(stockFilter === 'low' && { bajoStock: true })
-    })
-  }, [categoriaFilter, stockFilter])
+    }, { includeInactive })
+  }, [categoriaFilter, stockFilter, statusFilter]) // ✅ AÑADIR: statusFilter dependency
 
   const handleEdit = (material: MateriaPrima) => {
     if (material?.id) {
@@ -486,7 +496,7 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
     setLoadingDetalle(true)
 
     try {
-      const detalle = await materiaPrimaService.obtener(material.id)
+      const detalle = await materiaPrimaService.obtener(material.id, { includeInactive: true })
       setMaterialDetalle(detalle)
     } catch (error) {
       console.error('Error al cargar detalles:', error)

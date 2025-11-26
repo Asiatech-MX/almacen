@@ -33,10 +33,10 @@ export const useMateriaPrimaList = (filters?: MateriaPrimaFilters) => {
 }
 
 // Hook para obtener un material por ID
-export const useMateriaPrima = (id: string) => {
+export const useMateriaPrima = (id: string, options?: { includeInactive?: boolean }) => {
   return useQuery({
     queryKey: materiaPrimaKeys.detail(id),
-    queryFn: () => enhancedMateriaPrimaService.obtener(id),
+    queryFn: () => enhancedMateriaPrimaService.obtener(id, options),
     enabled: !!id, // Solo ejecutar si hay ID
     staleTime: 5 * 60 * 1000, // 5 minutos
     gcTime: 10 * 60 * 1000, // 10 minutos
