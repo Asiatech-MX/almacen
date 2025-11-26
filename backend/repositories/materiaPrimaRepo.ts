@@ -241,9 +241,15 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
   /**
    * Obtener todos los materiales con filtros opcionales
    * @param filters Filtros de búsqueda
+   * @param options Opciones adicionales de consulta
    * @returns Lista de materiales
    */
-  async findAll(filters?: MateriaPrimaFilters): Promise<MateriaPrima[]> {
+  async findAll(
+    filters?: MateriaPrimaFilters,
+    options?: { includeInactive?: boolean }
+  ): Promise<MateriaPrima[]> {
+    const includeInactive = options?.includeInactive ?? false
+
     let query = this.getDatabase()
       .selectFrom('materia_prima as mp')
       .select([
@@ -269,6 +275,11 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'mp.creado_en',
         'mp.actualizado_en'
       ])
+
+    // 🔥 NUEVO: Filtrar ACTIVO por defecto, excluir INACTIVO unless explicitly requested
+    if (!includeInactive) {
+      query = query.where('mp.activo', '=', true)
+    }
 
     // Aplicar filtros dinámicamente
     if (filters) {
@@ -301,12 +312,35 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
   }
 
   /**
+   * Obtener solo materiales ACTIVOs (para consultas normales)
+   * @param filters Filtros de búsqueda opcionales
+   * @returns Lista de materiales ACTIVOs
+   */
+  async findActivos(filters?: MateriaPrimaFilters): Promise<MateriaPrima[]> {
+    return this.findAll(filters, { includeInactive: false })
+  }
+
+  /**
+   * Obtener solo materiales INACTIVOs (para módulo de gestión)
+   * @param filters Filtros de búsqueda opcionales
+   * @returns Lista de materiales INACTIVOs
+   */
+  async findInactivos(filters?: MateriaPrimaFilters): Promise<MateriaPrima[]> {
+    const todos = await this.findAll(filters, { includeInactive: true })
+    return todos.filter(m => m.estatus === 'INACTIVO')
+  }
+
+  /**
    * Obtener material por ID con información completa
    * @param id UUID del material
+   * @param options Opciones para controlar el comportamiento de la consulta
    * @returns Material detallado o null si no existe
    */
-  async findById(id: string): Promise<MateriaPrimaDetail | null> {
-    return await this.getDetalleConProveedor(this.getDatabase(), id)
+  async findById(
+    id: string,
+    options?: { includeInactive?: boolean }
+  ): Promise<MateriaPrimaDetail | null> {
+    return await this.getDetalleConProveedor(this.getDatabase(), id, options)
   }
 
   /**
@@ -826,13 +860,17 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
    * Obtener detalle completo con información de proveedor
    * @param db Instancia de Kysely (puede ser transacción)
    * @param id UUID del material
+   * @param options Opciones para controlar el comportamiento de la consulta
    * @returns Detalle completo del material
    */
   private async getDetalleConProveedor(
     db: Kysely<Database> | Transaction<Database>,
-    id: string
+    id: string,
+    options?: { includeInactive?: boolean }
   ): Promise<MateriaPrimaDetail | null> {
-    return await db
+    const includeInactive = options?.includeInactive ?? false
+
+    let query = db
       .selectFrom('materia_prima as mp')
       // .leftJoin('proveedor as p', 'p.id', 'mp.proveedor_id') // Disabled: type mismatch (integer vs uuid)
       .select([
@@ -860,9 +898,15 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'mp.creado_en',
         'mp.actualizado_en'
       ])
-      .where('mp.id', '=', id)
-      .where('mp.activo', '=', true)
-      .executeTakeFirst() as MateriaPrimaDetail | null
+
+    query = query.where('mp.id', '=', id)
+
+    // Apply active filter unless inactive materials should be included
+    if (!includeInactive) {
+      query = query.where('mp.activo', '=', true)
+    }
+
+    return await query.executeTakeFirst() as MateriaPrimaDetail | null
   }
 
   /**

@@ -21,11 +21,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ==================== GESTIÓN DE MATERIA PRIMA ====================
   materiaPrima: {
     // ✅ Operaciones de lectura
-    listar: (filters?: MateriaPrimaFilters): Promise<MateriaPrima[]> =>
-      ipcRenderer.invoke('materiaPrima:listar', filters),
+    listar: (filters?: MateriaPrimaFilters, options?: { includeInactive?: boolean }): Promise<MateriaPrima[]> =>
+      ipcRenderer.invoke('materiaPrima:listar', filters, options),
 
-    obtener: (id: string): Promise<MateriaPrimaDetail> =>
-      ipcRenderer.invoke('materiaPrima:obtener', id),
+    listarActivos: (filters?: MateriaPrimaFilters): Promise<MateriaPrima[]> =>
+      ipcRenderer.invoke('materiaPrima:listarActivos', filters),
+
+    listarInactivos: (filters?: MateriaPrimaFilters): Promise<MateriaPrima[]> =>
+      ipcRenderer.invoke('materiaPrima:listarInactivos', filters),
+
+    obtener: (id: string, options?: { includeInactive?: boolean }): Promise<MateriaPrimaDetail> =>
+      ipcRenderer.invoke('materiaPrima:obtener', { id, includeInactive: options?.includeInactive ?? false }),
 
     buscarPorCodigo: (codigoBarras: string): Promise<MateriaPrimaDetail> =>
       ipcRenderer.invoke('materiaPrima:buscarPorCodigo', codigoBarras),
@@ -99,8 +105,10 @@ declare global {
       // ==================== MATERIA PRIMA ====================
       materiaPrima: {
         // Operaciones de lectura
-        listar: (filters?: MateriaPrimaFilters) => Promise<MateriaPrima[]>
-        obtener: (id: string) => Promise<MateriaPrimaDetail>
+        listar: (filters?: MateriaPrimaFilters, options?: { includeInactive?: boolean }) => Promise<MateriaPrima[]>
+        listarActivos: (filters?: MateriaPrimaFilters) => Promise<MateriaPrima[]>
+        listarInactivos: (filters?: MateriaPrimaFilters) => Promise<MateriaPrima[]>
+        obtener: (id: string, options?: { includeInactive?: boolean }) => Promise<MateriaPrimaDetail>
         buscarPorCodigo: (codigoBarras: string) => Promise<MateriaPrimaDetail>
         buscar: (searchTerm: string, limit?: number) => Promise<MateriaPrimaSearch[]>
         stockBajo: () => Promise<LowStockItem[]>

@@ -105,31 +105,84 @@ export class MateriaPrimaService {
     }
   }
 
-  // Lista todos los materiales
-  async listar(filters?: MateriaPrimaFilters): Promise<MateriaPrima[]> {
+  // Lista todos los materiales (excluye INACTIVO por defecto)
+  async listar(filters?: MateriaPrimaFilters, options?: { includeInactive?: boolean }): Promise<MateriaPrima[]> {
     if (!this.api) {
       // Modo desarrollo: datos mock con filtering
-      console.log('Modo desarrollo: usando datos mock para listar con filtros', filters)
-      return this.applyFiltersToMockData(filters)
+      console.log('🔧 Modo desarrollo: usando datos mock para listar con filtros', filters, options)
+      let mockData = this.getMockData()
+
+      // Si no se incluyen inactivos, filtrarlos
+      if (!options?.includeInactive) {
+        console.log('🔒 Excluyendo materiales INACTIVO - modo desarrollo')
+        mockData = mockData.filter(m => m.estatus !== 'INACTIVO')
+      } else {
+        console.log('🔓 Incluyendo materiales INACTIVO - modo desarrollo')
+      }
+
+      return this.applyFiltersToMockData(filters, mockData)
     }
 
     try {
-      const materiales = await this.api.listar()
+      // Usar handler específico para activos por defecto
+      if (!options?.includeInactive) {
+        console.log('🔒 Excluyendo materiales INACTIVO - modo producción (listarActivos)')
+        const materiales = await this.api.listarActivos(filters)
 
-      // Apply comprehensive filtering
-      if (filters) {
-        return this.filterMateriales(materiales, filters)
+        // Apply additional filtering if needed
+        if (filters) {
+          return this.filterMateriales(materiales, filters)
+        }
+
+        return materiales
+      } else {
+        console.log('🔓 Incluyendo materiales INACTIVO - modo producción (listar general)')
+        // Incluir todos los materiales (activos e inactivos)
+        const materiales = await this.api.listar(filters, options)
+
+        // Apply comprehensive filtering
+        if (filters) {
+          return this.filterMateriales(materiales, filters)
+        }
+
+        return materiales
       }
-
-      return materiales
     } catch (error) {
       console.error('Error en servicio listar materia prima:', error)
       throw new Error('Error al obtener los materiales')
     }
   }
 
+  // Lista solo materiales ACTIVOS (para consultas normales)
+  async listarSoloActivos(filters?: MateriaPrimaFilters): Promise<MateriaPrima[]> {
+    return this.listar(filters, { includeInactive: false })
+  }
+
+  // Lista solo materiales INACTIVOS (para módulo de gestión)
+  async listarInactivos(filters?: MateriaPrimaFilters): Promise<MateriaPrima[]> {
+    if (!this.api) {
+      // Modo desarrollo: filtrar mock data
+      console.log('Modo desarrollo: listando materiales inactivos', filters)
+      const mockInactivos = this.getMockData().filter(m => m.estatus === 'INACTIVO')
+      return this.applyFiltersToMockData(filters, mockInactivos)
+    }
+
+    try {
+      const materiales = await this.api.listarInactivos(filters)
+      return materiales
+    } catch (error) {
+      console.error('Error al listar materiales inactivos:', error)
+      throw new Error('Error al obtener materiales inactivos')
+    }
+  }
+
+  // Lista todos los materiales (activos e inactivos) con opción explícita
+  async listarTodos(filters?: MateriaPrimaFilters): Promise<MateriaPrima[]> {
+    return this.listar(filters, { includeInactive: true })
+  }
+
   // Obtiene un material por ID
-  async obtener(id: string): Promise<MateriaPrimaDetail> {
+  async obtener(id: string, options?: { includeInactive?: boolean }): Promise<MateriaPrimaDetail> {
     if (!this.api) {
       // Modo desarrollo: buscar por ID
       console.log('Modo desarrollo: buscando material por ID', id)
@@ -144,14 +197,8 @@ export class MateriaPrimaService {
     }
 
     try {
-      const materiales = await this.api.listar()
-      const material = materiales.find(item => item.id === id)
-
-      if (!material) {
-        throw new Error('Material no encontrado')
-      }
-
-      return material as MateriaPrimaDetail
+      const result = await this.api.obtener(id, options)
+      return result
     } catch (error) {
       console.error('Error en servicio obtener materia prima:', error)
       throw new Error('Error al obtener el material')
@@ -484,7 +531,8 @@ export class MateriaPrimaService {
 
     try {
       // Validar transición de estatus antes de enviar al backend
-      const materialActual = await this.obtener(id)
+      // Include inactive materials to enable reactivating them
+      const materialActual = await this.obtener(id, { includeInactive: true })
       if (!this.validarTransicionEstatus(
         materialActual.estatus as MateriaPrimaEstatus,
         estatus,
@@ -580,16 +628,17 @@ export class MateriaPrimaService {
   }
 
   // Add new method for mock data filtering
-  private applyFiltersToMockData(filters?: MateriaPrimaFilters): MateriaPrima[] {
-    const mockData = this.getMockData()
-    if (!filters) return mockData
+  private applyFiltersToMockData(filters?: MateriaPrimaFilters, mockData?: MateriaPrima[]): MateriaPrima[] {
+    const data = mockData || this.getMockData()
+    if (!filters) return data
 
-    return this.filterMateriales(mockData, filters)
+    return this.filterMateriales(data, filters)
   }
 
-  // Datos mock para desarrollo
+  // Datos mock para desarrollo (limpios y con estatus explícito)
   private getMockData(): MateriaPrima[] {
     return [
+      // === MATERIALES ACTIVOS (7 items) ===
       {
         id: '1',
         nombre: 'Cemento Gris',
@@ -606,7 +655,8 @@ export class MateriaPrimaService {
         proveedor_id: 'prov-001',
         imagen_url: '',
         creado_en: '2024-01-01T00:00:00Z',
-        actualizado_en: '2024-01-01T00:00:00Z'
+        actualizado_en: '2024-01-01T00:00:00Z',
+        estatus: 'ACTIVO'
       },
       {
         id: '2',
@@ -624,7 +674,8 @@ export class MateriaPrimaService {
         proveedor_id: 'prov-002',
         imagen_url: '',
         creado_en: '2024-01-01T00:00:00Z',
-        actualizado_en: '2024-01-01T00:00:00Z'
+        actualizado_en: '2024-01-01T00:00:00Z',
+        estatus: 'ACTIVO'
       },
       {
         id: '3',
@@ -642,9 +693,9 @@ export class MateriaPrimaService {
         proveedor_id: 'prov-003',
         imagen_url: '',
         creado_en: '2024-01-01T00:00:00Z',
-        actualizado_en: '2024-01-01T00:00:00Z'
+        actualizado_en: '2024-01-01T00:00:00Z',
+        estatus: 'ACTIVO'
       },
-      // Add more test data for better filtering validation
       {
         id: '4',
         nombre: 'Alambre de Acero',
@@ -652,7 +703,7 @@ export class MateriaPrimaService {
         modelo: 'Calibre 12',
         categoria: 'Herramientas',
         presentacion: 'Rollo 100m',
-        stock_actual: 5,
+        stock_actual: 5, // ⚠️ Stock bajo
         stock_minimo: 20,
         codigo_barras: '4567890123456',
         costo_unitario: 15.30,
@@ -661,7 +712,8 @@ export class MateriaPrimaService {
         proveedor_id: 'prov-001',
         imagen_url: '',
         creado_en: '2024-01-01T00:00:00Z',
-        actualizado_en: '2024-01-01T00:00:00Z'
+        actualizado_en: '2024-01-01T00:00:00Z',
+        estatus: 'ACTIVO'
       },
       {
         id: '5',
@@ -670,7 +722,7 @@ export class MateriaPrimaService {
         modelo: '3 pulgadas',
         categoria: 'Herramientas',
         presentacion: 'Caja 1kg',
-        stock_actual: 0,
+        stock_actual: 0, // ⚠️ Agotado
         stock_minimo: 50,
         codigo_barras: '5678901234567',
         costo_unitario: 12.80,
@@ -679,7 +731,8 @@ export class MateriaPrimaService {
         proveedor_id: 'prov-002',
         imagen_url: '',
         creado_en: '2024-01-01T00:00:00Z',
-        actualizado_en: '2024-01-01T00:00:00Z'
+        actualizado_en: '2024-01-01T00:00:00Z',
+        estatus: 'ACTIVO'
       },
       {
         id: '6',
@@ -688,7 +741,7 @@ export class MateriaPrimaService {
         modelo: 'Latex Exterior',
         categoria: 'Pinturas',
         presentacion: 'Galón 3.78L',
-        stock_actual: 8,
+        stock_actual: 8, // ⚠️ Stock bajo
         stock_minimo: 15,
         codigo_barras: '6789012345678',
         costo_unitario: 48.50,
@@ -697,7 +750,8 @@ export class MateriaPrimaService {
         proveedor_id: 'prov-003',
         imagen_url: '',
         creado_en: '2024-01-01T00:00:00Z',
-        actualizado_en: '2024-01-01T00:00:00Z'
+        actualizado_en: '2024-01-01T00:00:00Z',
+        estatus: 'ACTIVO'
       },
       {
         id: '7',
@@ -715,9 +769,11 @@ export class MateriaPrimaService {
         proveedor_id: 'prov-001',
         imagen_url: '',
         creado_en: '2024-01-01T00:00:00Z',
-        actualizado_en: '2024-01-01T00:00:00Z'
+        actualizado_en: '2024-01-01T00:00:00Z',
+        estatus: 'ACTIVO'
       },
-      // Items con estatus explícito para probar filtros
+
+      // === MATERIALES INACTIVOS (3 items) ===
       {
         id: '8',
         nombre: 'Martillo Carpintero',
@@ -730,7 +786,7 @@ export class MateriaPrimaService {
         codigo_barras: '8901234567890',
         costo_unitario: 85.00,
         fecha_caducidad: null,
-        descripcion: 'Martillo profesional para carpintería',
+        descripcion: 'Martillo profesional para carpintería (PRODUCTO DESCONTINUADO)',
         proveedor_id: 'prov-004',
         imagen_url: '',
         creado_en: '2024-01-01T00:00:00Z',
@@ -749,7 +805,7 @@ export class MateriaPrimaService {
         codigo_barras: '9012345678901',
         costo_unitario: 12.50,
         fecha_caducidad: null,
-        descripcion: 'Clavos de acero para construcción',
+        descripcion: 'Clavos de acero para construcción (SIN PROVEEDOR)',
         proveedor_id: 'prov-004',
         imagen_url: '',
         creado_en: '2024-01-01T00:00:00Z',
@@ -768,12 +824,12 @@ export class MateriaPrimaService {
         codigo_barras: '0123456789012',
         costo_unitario: 45.75,
         fecha_caducidad: null,
-        descripcion: 'Disco de corte para metal',
+        descripcion: 'Disco de corte para metal (EN REVISIÓN)',
         proveedor_id: 'prov-004',
         imagen_url: '',
         creado_en: '2024-01-01T00:00:00Z',
         actualizado_en: '2024-01-01T00:00:00Z',
-        estatus: 'ACTIVO'
+        estatus: 'INACTIVO'
       }
     ]
   }

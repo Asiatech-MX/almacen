@@ -38,11 +38,11 @@ export function setupMateriaPrimaHandlers(): void {
   // ==================== READ OPERATIONS ====================
 
   // ✅ Listar todos los materiales con filtros opcionales
-  ipcMain.handle('materiaPrima:listar', async (_, filters?: MateriaPrimaFilters) => {
+  ipcMain.handle('materiaPrima:listar', async (_, filters?: MateriaPrimaFilters, options?: { includeInactive?: boolean }) => {
     try {
       console.log('📡 materiaPrima:listar handled')
-      const result = await getMateriaPrimaRepository().findAll(filters)
-      console.log(`📋 Listados ${result.length} materiales`)
+      const result = await getMateriaPrimaRepository().findAll(filters, options)
+      console.log(`📋 Listados ${result.length} materiales (${options?.includeInactive ? 'incluyendo INACTIVO' : 'solo ACTIVO'})`)
       return result
     } catch (error) {
       console.error('❌ Error listando materia prima:', error)
@@ -50,8 +50,34 @@ export function setupMateriaPrimaHandlers(): void {
     }
   })
 
+  // ✅ Listar solo materiales ACTIVOs (para consultas normales)
+  ipcMain.handle('materiaPrima:listarActivos', async (_, filters?: MateriaPrimaFilters) => {
+    try {
+      console.log('📡 materiaPrima:listarActivos handled')
+      const result = await getMateriaPrimaRepository().findActivos(filters)
+      console.log(`📋 Listados ${result.length} materiales ACTIVOs`)
+      return result
+    } catch (error) {
+      console.error('❌ Error listando materia prima ACTIVA:', error)
+      throw new Error(`Error al cargar la lista de materiales activos: ${(error as Error).message}`)
+    }
+  })
+
+  // ✅ Listar solo materiales INACTIVOs (para módulo de gestión)
+  ipcMain.handle('materiaPrima:listarInactivos', async (_, filters?: MateriaPrimaFilters) => {
+    try {
+      console.log('📡 materiaPrima:listarInactivos handled')
+      const result = await getMateriaPrimaRepository().findInactivos(filters)
+      console.log(`📋 Listados ${result.length} materiales INACTIVOs`)
+      return result
+    } catch (error) {
+      console.error('❌ Error listando materia prima INACTIVA:', error)
+      throw new Error(`Error al cargar la lista de materiales inactivos: ${(error as Error).message}`)
+    }
+  })
+
   // ✅ Obtener material por ID con información completa
-  ipcMain.handle('materiaPrima:obtener', async (_, id: string) => {
+  ipcMain.handle('materiaPrima:obtener', async (_, { id, includeInactive = false }: { id: string, includeInactive?: boolean }) => {
     try {
       console.log('📡 materiaPrima:obtener handled')
       // Validación básica del ID
@@ -59,7 +85,7 @@ export function setupMateriaPrimaHandlers(): void {
         throw new Error('ID inválido')
       }
 
-      const result = await getMateriaPrimaRepository().findById(id)
+      const result = await getMateriaPrimaRepository().findById(id, { includeInactive })
       if (!result) {
         throw new Error('Material no encontrado')
       }
