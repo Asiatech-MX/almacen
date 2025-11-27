@@ -172,7 +172,9 @@ export interface MateriaPrimaSettings {
 // Eventos de IPC
 export interface MateriaPrimaIPCEvents {
   // Queries
-  'materiaPrima:listar': (filters?: MateriaPrimaFilters) => Promise<MateriaPrima[]>
+  'materiaPrima:listar': (filters?: MateriaPrimaFilters, options?: { includeInactive?: boolean }) => Promise<MateriaPrima[]>
+  'materiaPrima:listarActivos': (filters?: MateriaPrimaFilters) => Promise<MateriaPrima[]>
+  'materiaPrima:listarInactivos': (filters?: MateriaPrimaFilters) => Promise<MateriaPrima[]>
   'materiaPrima:obtener': (id: string) => Promise<MateriaPrimaDetail>
   'materiaPrima:buscarPorCodigo': (codigoBarras: string) => Promise<MateriaPrimaDetail>
   'materiaPrima:buscar': (searchTerm: string, limit?: number) => Promise<MateriaPrimaSearch[]>

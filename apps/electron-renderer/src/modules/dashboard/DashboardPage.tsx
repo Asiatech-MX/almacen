@@ -53,10 +53,15 @@ const DashboardPage: React.FC = () => {
   }
 
   // Calcular estadísticas usando datos de React Query
-  const totalMaterials = materials.length
-  const lowStockItems = materials.filter(m => m.stock_actual <= m.stock_minimo).length
-  const totalStock = materials.reduce((sum, m) => sum + m.stock_actual, 0)
-  const outOfStockItems = materials.filter(m => m.stock_actual === 0).length
+  // 🔥 IMPORTANTE: Filtrar solo materiales ACTIVO para estadísticas del dashboard
+  const activeMaterials = materials.filter(m => m.estatus !== 'INACTIVO')
+
+  const totalMaterials = activeMaterials.length
+  const lowStockItems = activeMaterials.filter(m =>
+    m.stock_actual !== undefined && m.stock_actual <= (m.stock_minimo || 0)
+  ).length
+  const totalStock = activeMaterials.reduce((sum, m) => sum + (m.stock_actual || 0), 0)
+  const outOfStockItems = activeMaterials.filter(m => m.stock_actual === 0).length
 
   if (isLoading || isLoadingEstadisticas) {
     return (

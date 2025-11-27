@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Scroller } from "@/components/ui/scroller"
+import { X } from 'lucide-react'
 
 type TabType = 'search' | 'lowStock' | 'statistics'
 
@@ -41,12 +42,17 @@ const getStockBadgeVariant = (material: MateriaPrima | LowStockItem): "default" 
   }
 }
 
-const getStockStatusText = (material: MateriaPrima | LowStockItem): string => {
+const getStockStatusText = (material: MateriaPrima | LowStockItem): React.ReactNode => {
   const status = getStockStatus(material)
   switch (status) {
     case 'normal': return '✅ Normal'
     case 'low': return '⚠️ Bajo'
-    case 'out': return '❌ Agotado'
+    case 'out': return (
+      <span className="flex items-center gap-1">
+        <X className="h-3 w-3 text-white" />
+        Agotado
+      </span>
+    )
     default: return 'Desconocido'
   }
 }
@@ -60,6 +66,7 @@ export const ConsultasAvanzadas: React.FC = () => {
     categoria: '',
     proveedorId: '',
     bajoStock: false,
+    estatus: 'ACTIVO', // 🔥 NUEVO: Por defecto excluir INACTIVO
     rangoStock: { min: undefined, max: undefined } as { min?: number; max?: number }
   })
 
@@ -96,6 +103,7 @@ export const ConsultasAvanzadas: React.FC = () => {
                       (searchFilters.categoria && searchFilters.categoria !== "") ||
                       searchFilters.proveedorId ||
                       searchFilters.bajoStock ||
+                      searchFilters.estatus !== 'ACTIVO' || // 🔥 NUEVO: Considerar cambio de estatus
                       (searchFilters.rangoStock.min !== undefined || searchFilters.rangoStock.max !== undefined)
 
   // Ejecutar búsqueda cuando los filtros cambian
@@ -110,13 +118,14 @@ export const ConsultasAvanzadas: React.FC = () => {
           categoria: searchFilters.categoria || undefined,
           proveedorId: searchFilters.proveedorId || undefined,
           bajoStock: searchFilters.bajoStock,
+          estatus: searchFilters.estatus !== 'ACTIVO' ? searchFilters.estatus : undefined, // 🔥 NUEVO: Incluir estatus en búsqueda
           rangoStock: searchFilters.rangoStock.min !== undefined || searchFilters.rangoStock.max !== undefined
             ? searchFilters.rangoStock
             : undefined
         })
       }
     }
-  }, [debouncedNombre, searchFilters.categoria, searchFilters.proveedorId, searchFilters.bajoStock, searchFilters.rangoStock, activeTab, tieneFiltros, cargarMateriales, buscarPorCriterios])
+  }, [debouncedNombre, searchFilters.categoria, searchFilters.proveedorId, searchFilters.bajoStock, searchFilters.estatus, searchFilters.rangoStock, activeTab, tieneFiltros, cargarMateriales, buscarPorCriterios])
 
   // Determinar qué datos mostrar
   const datosAMostrar = tieneFiltros ? searchResults : materiales
@@ -284,6 +293,28 @@ export const ConsultasAvanzadas: React.FC = () => {
                       />
                       <Label htmlFor="bajoStock">Mostrar solo stock bajo</Label>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Estado del Material</Label>
+                    <Select
+                      value={searchFilters.estatus || "ACTIVO"}
+                      onValueChange={(value) => setSearchFilters(prev => ({...prev, estatus: value === "all" ? "all" : value}))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ACTIVO">✅ Activos (Por defecto)</SelectItem>
+                        <SelectItem value="INACTIVO">🔒 Inactivos</SelectItem>
+                        <SelectItem value="all">📋 Todos los estados</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {searchFilters.estatus === 'ACTIVO' && 'Mostrando solo materiales activos'}
+                      {searchFilters.estatus === 'INACTIVO' && 'Mostrando solo materiales inactivos'}
+                      {searchFilters.estatus === 'all' && 'Mostrando todos los materiales'}
+                    </p>
                   </div>
                 </div>
 

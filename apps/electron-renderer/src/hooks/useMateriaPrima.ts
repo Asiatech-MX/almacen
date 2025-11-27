@@ -41,11 +41,11 @@ export function useMateriaPrima(options: UseMateriaPrimaOptions = {}) {
   const [selectedMaterial, setSelectedMaterial] = useState<MateriaPrimaDetail | null>(null)
 
   // Cargar lista de materiales
-  const cargarMateriales = useCallback(async (customFilters?: MateriaPrimaFilters) => {
+  const cargarMateriales = useCallback(async (customFilters?: MateriaPrimaFilters, options?: { includeInactive?: boolean }) => {
     try {
       setLoading(true)
       setError(null)
-      const data = await materiaPrimaService.listar(customFilters || filters)
+      const data = await materiaPrimaService.listar(customFilters || filters, options)
       setMateriales(data)
     } catch (err) {
       if (esMateriaPrimaError(err)) {
@@ -59,7 +59,7 @@ export function useMateriaPrima(options: UseMateriaPrimaOptions = {}) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [filters])
 
   // Obtener material por ID
   const obtenerMaterial = useCallback(async (id: string) => {
@@ -321,15 +321,19 @@ export function useMateriaPrima(options: UseMateriaPrimaOptions = {}) {
     if (autoLoad) {
       cargarMateriales()
     }
-  }, [autoLoad])
+  }, [autoLoad, cargarMateriales])
 
   // Calcular estadísticas locales para mejor UX
+  // 🔥 IMPORTANTE: Filtrar solo materiales ACTIVO para cálculos de estadísticas
   const estadisticas = useMemo(() => {
-    const total = materiales.length
-    const valorTotal = materiales.reduce((sum, item) => {
-      return sum + (item.stock_actual || 0)
+    // Filtrar solo materiales ACTIVO para cálculos - Excluye INACTIVO
+    const materialesActivos = materiales.filter(m => m.estatus !== 'INACTIVO')
+
+    const total = materialesActivos.length
+    const valorTotal = materialesActivos.reduce((sum, item) => {
+      return sum + ((item.stock_actual || 0) * (item.costo_unitario || 0))
     }, 0)
-    const bajoStock = materiales.filter(item =>
+    const bajoStock = materialesActivos.filter(item =>
       item.stock_actual !== undefined && item.stock_actual <= (item.stock_minimo || 0)
     ).length
 
@@ -337,7 +341,7 @@ export function useMateriaPrima(options: UseMateriaPrimaOptions = {}) {
       total,
       valorTotal,
       bajoStock,
-      sinStock: materiales.filter(item =>
+      sinStock: materialesActivos.filter(item =>
         item.stock_actual !== undefined && item.stock_actual === 0
       ).length
     }
