@@ -1,5 +1,5 @@
 {
-  "generated": "2025-11-21T05:41:07.707Z",
+  "generated": "2025-11-26T05:04:27.567Z",
   "thresholds": {
     "findAllMateriaPrima": 1000,
     "findByIdMateriaPrima": 100,
