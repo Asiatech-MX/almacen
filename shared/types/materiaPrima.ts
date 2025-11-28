@@ -29,21 +29,26 @@ export type CategoriaStats = GetCategoriaStatsResult
 export type Proveedor = FindAllProveedoresResult
 export type ProveedorSearch = SearchProveedoresResult
 
-// Para operaciones de escritura (Kysely types)
+// Para operaciones de escritura (Kysely types) - Actualizado para sistema de referencias
 export interface NewMateriaPrima {
   codigo_barras: string
   nombre: string
   marca?: string | null
   modelo?: string | null
-  presentacion: string
+  // Compatibilidad backward durante migración
+  presentacion?: string | null
+  categoria?: string | null
+  // Nuevos campos con IDs de referencia
+  presentacion_id?: string | null
+  categoria_id?: string | null
   stock_actual?: number
   stock_minimo?: number
   costo_unitario?: number | null
   fecha_caducidad?: Date | null
   imagen_url?: string | null
   descripcion?: string | null
-  categoria?: string | null
   proveedor_id?: string | null
+  id_institucion?: number
 }
 
 export interface MateriaPrimaUpdate {
@@ -51,42 +56,151 @@ export interface MateriaPrimaUpdate {
   nombre?: string
   marca?: string | null
   modelo?: string | null
-  presentacion?: string
+  // Compatibilidad backward durante migración
+  presentacion?: string | null
+  categoria?: string | null
+  // Nuevos campos con IDs de referencia
+  presentacion_id?: string | null
+  categoria_id?: string | null
   stock_actual?: number
   stock_minimo?: number
   costo_unitario?: number | null
   fecha_caducidad?: Date | null
   imagen_url?: string | null
   descripcion?: string | null
-  categoria?: string | null
   proveedor_id?: string | null
+  id_institucion?: number
 }
 
-// Tipos para filtros y búsquedas
+// Tipos para migración de referencias
+export interface MateriaPrimaConReferencias {
+  id: string
+  codigo_barras: string
+  nombre: string
+  marca?: string | null
+  modelo?: string | null
+  stock_actual: number
+  stock_minimo: number
+  costo_unitario?: number | null
+  fecha_caducidad?: Date | null
+  imagen_url?: string | null
+  descripcion?: string | null
+  proveedor_id?: string | null
+  id_institucion: number
+  activo: boolean
+  creado_en: string
+  actualizado_en: string
+  // Compatibilidad backward
+  presentacion?: string | null
+  categoria?: string | null
+  // Nuevos campos con IDs de referencia
+  presentacion_id?: string | null
+  categoria_id?: string | null
+  // Datos enriquecidos (opcional)
+  presentacion_data?: {
+    id: string
+    nombre: string
+    abreviatura?: string | null
+  } | null
+  categoria_data?: {
+    id: string
+    nombre: string
+    ruta_completa: string
+    nivel: number
+  } | null
+}
+
+// Tipos para operaciones de migración
+export interface MateriaPrimaMigracionData {
+  id: string
+  presentacion_texto?: string | null
+  categoria_texto?: string | null
+  presentacion_id?: string | null
+  categoria_id?: string | null
+  migracion_status: 'pending' | 'completed' | 'failed'
+  migracion_error?: string | null
+}
+
+export interface MateriaPrimaMigracionBatch {
+  items: MateriaPrimaMigracionData[]
+  total: number
+  procesados: number
+  fallidos: number
+  fecha_inicio: Date
+  fecha_fin?: Date
+}
+
+// Tipos para validación de compatibilidad
+export interface MateriaPrimaCompatibilidadValidation {
+  hasPresentacionText: boolean
+  hasCategoriaText: boolean
+  hasPresentacionId: boolean
+  hasCategoriaId: boolean
+  needsMigration: boolean
+  canUseTextFallback: boolean
+  warnings: string[]
+}
+
+// Tipos para formulario con soporte de migración
+export interface MateriaPrimaFormData extends NewMateriaPrima {
+  id?: string // Para modo edición
+  // Campos adicionales para UI
+  presentacion_search?: string // Búsqueda para select de presentación
+  categoria_search?: string // Búsqueda para select de categoría
+  // Estado de validación
+  validation_errors?: Record<string, string>
+  migration_warnings?: string[]
+}
+
+// Tipos para filtros y búsquedas - Actualizado para sistema de referencias
 export interface MateriaPrimaFilters {
   nombre?: string
   codigo_barras?: string  // Fixed: changed from codigoBarras to match service
+  // Compatibilidad backward
   categoria?: string
+  categoria_id?: string
+  // Nuevos filtros
+  presentacion?: string
+  presentacion_id?: string
+  categoria_ruta?: string // Filtrar por ruta completa
+  categoria_nivel?: number // Filtrar por nivel de jerarquía
   proveedorId?: string
   bajoStock?: boolean
   sinStock?: boolean
   rangoStock?: { min?: number; max?: number }  // Add stock range filtering
+  id_institucion?: number
 }
 
-// Add new interface for advanced search criteria
+// Add new interface for advanced search criteria - Actualizado
 export interface MateriaPrimaSearchCriteria {
   nombre?: string
+  // Compatibilidad backward
   categoria?: string
+  categoria_id?: string
+  // Nuevos criterios
+  presentacion?: string
+  presentacion_id?: string
+  categoria_ruta?: string
+  categoria_nivel?: number
   proveedorId?: string
   bajoStock?: boolean
   rangoStock?: { min?: number; max?: number }
+  id_institucion?: number
 }
 
 export interface MateriaPrimaSearchOptions {
   term: string
   limit?: number
+  // Compatibilidad backward
   categoria?: string
+  categoria_id?: string
+  // Nuevas opciones
+  presentacion?: string
+  presentacion_id?: string
+  categoria_ruta?: string
   proveedorId?: string
+  id_institucion?: number
+  includeReferencias?: boolean // Incluir datos enriquecidos
 }
 
 // Tipos para operaciones de stock
@@ -124,16 +238,34 @@ export interface MateriaPrimaExportOptions {
   includeProveedores?: boolean
 }
 
-// Tipos para validaciones
+// Tipos para validaciones - Actualizado para sistema de referencias
 export interface MateriaPrimaValidationErrors {
   codigo_barras?: string
   nombre?: string
+  // Compatibilidad backward
   presentacion?: string
+  categoria?: string
+  // Nuevas validaciones
+  presentacion_id?: string
+  categoria_id?: string
+  presentacion_compatibility?: string
+  categoria_compatibility?: string
   stock_actual?: string
   stock_minimo?: string
   costo_unitario?: string
   fecha_caducidad?: string
   proveedor_id?: string
+  id_institucion?: string
+  migracion?: string
+}
+
+// Tipos para advertencias de migración
+export interface MateriaPrimaMigrationWarnings {
+  presentacion_text_fallback?: string
+  categoria_text_fallback?: string
+  missing_reference_id?: string
+  duplicate_references?: string[]
+  incompatible_data?: string
 }
 
 // Tipos para formulario
@@ -169,27 +301,33 @@ export interface MateriaPrimaSettings {
   autoCalculateValue: boolean
 }
 
-// Eventos de IPC
+// Eventos de IPC - Actualizado para sistema de referencias
 export interface MateriaPrimaIPCEvents {
   // Queries
-  'materiaPrima:listar': (filters?: MateriaPrimaFilters, options?: { includeInactive?: boolean }) => Promise<MateriaPrima[]>
+  'materiaPrima:listar': (filters?: MateriaPrimaFilters, options?: { includeInactive?: boolean; includeReferencias?: boolean }) => Promise<MateriaPrima[] | MateriaPrimaConReferencias[]>
   'materiaPrima:listarActivos': (filters?: MateriaPrimaFilters) => Promise<MateriaPrima[]>
   'materiaPrima:listarInactivos': (filters?: MateriaPrimaFilters) => Promise<MateriaPrima[]>
-  'materiaPrima:obtener': (id: string) => Promise<MateriaPrimaDetail>
-  'materiaPrima:buscarPorCodigo': (codigoBarras: string) => Promise<MateriaPrimaDetail>
-  'materiaPrima:buscar': (searchTerm: string, limit?: number) => Promise<MateriaPrimaSearch[]>
-  'materiaPrima:stockBajo': () => Promise<LowStockItem[]>
+  'materiaPrima:obtener': (id: string, options?: { includeReferencias?: boolean }) => Promise<MateriaPrimaDetail | MateriaPrimaConReferencias>
+  'materiaPrima:buscarPorCodigo': (codigoBarras: string, options?: { includeReferencias?: boolean }) => Promise<MateriaPrimaDetail | MateriaPrimaConReferencias>
+  'materiaPrima:buscar': (searchTerm: string, limit?: number, options?: { includeReferencias?: boolean }) => Promise<MateriaPrimaSearch[]>
+  'materiaPrima:stockBajo': (idInstitucion?: number) => Promise<LowStockItem[]>
   'materiaPrima:verificarStock': (id: string, cantidad: number) => Promise<StockCheck>
-  'materiaPrima:estadisticas': () => Promise<MateriaPrimaStats>
+  'materiaPrima:estadisticas': (idInstitucion?: number) => Promise<MateriaPrimaStats>
   'materiaPrima:auditoria': (materiaPrimaId: string, limit?: number) => Promise<AuditTrail[]>
 
-  // Commands
-  'materiaPrima:crear': (data: NewMateriaPrima, usuarioId?: string) => Promise<MateriaPrimaDetail>
-  'materiaPrima:actualizar': (id: string, data: MateriaPrimaUpdate, usuarioId?: string) => Promise<MateriaPrimaDetail>
+  // Commands - Actualizados para soportar IDs de referencia
+  'materiaPrima:crear': (data: NewMateriaPrima, usuarioId?: string) => Promise<MateriaPrimaDetail | MateriaPrimaConReferencias>
+  'materiaPrima:actualizar': (id: string, data: MateriaPrimaUpdate, usuarioId?: string) => Promise<MateriaPrimaDetail | MateriaPrimaConReferencias>
   'materiaPrima:eliminar': (id: string, usuarioId?: string) => Promise<boolean>
   'materiaPrima:actualizarStock': (id: string, cantidad: number, motivo: string, usuarioId?: string) => Promise<boolean>
   'materiaPrima:actualizarEstatus': (data: MateriaPrimaEstatusUpdate) => Promise<MateriaPrimaDetail>
   'materiaPrima:exportar': (options: MateriaPrimaExportOptions) => Promise<Buffer>
+
+  // Nuevos eventos para migración y gestión de referencias
+  'materiaPrima:validarCompatibilidad': (id: string) => Promise<MateriaPrimaCompatibilidadValidation>
+  'materiaPrima:migrarReferencias': (batchSize?: number) => Promise<MateriaPrimaMigracionBatch>
+  'materiaPrima:verificarMigracion': () => Promise<{ total: number; migrados: number; pendientes: number }>
+  'materiaPrima:mapearTextoAReferencia': (tipo: 'presentacion' | 'categoria', texto: string, idInstitucion: number) => Promise<{ id?: string; encontrado: boolean }>
 }
 
 // Tipos para gestión de estatus
@@ -216,4 +354,89 @@ export interface PaginatedResponse<T> extends APIResponse<T[]> {
     total: number
     totalPages: number
   }
+}
+
+// Utilidades para compatibilidad y migración
+export interface MateriaPrimaCompatibilityUtils {
+  // Métodos para validar compatibilidad
+  validarPresentacion: (data: MateriaPrimaConReferencias) => MateriaPrimaCompatibilidadValidation
+  validarCategoria: (data: MateriaPrimaConReferencias) => MateriaPrimaCompatibilidadValidation
+  validarCompatibilidadCompleta: (data: MateriaPrimaConReferencias) => MateriaPrimaCompatibilidadValidation
+
+  // Métodos para normalizar datos
+  normalizarParaCreacion: (data: NewMateriaPrima) => NewMateriaPrima
+  normalizarParaActualizacion: (data: MateriaPrimaUpdate, currentData?: MateriaPrimaConReferencias) => MateriaPrimaUpdate
+
+  // Métodos para fallback
+  obtenerPresentacionFallback: (data: MateriaPrimaConReferencias) => string | null
+  obtenerCategoriaFallback: (data: MateriaPrimaConReferencias) => string | null
+
+  // Métodos para migración
+  preparaParaMigracion: (data: any) => MateriaPrimaMigracionData
+  verificarMigracionCompleta: (data: MateriaPrimaConReferencias) => boolean
+}
+
+// Tipos para estadísticas actualizadas con referencias
+export interface MateriaPrimaStatsConReferencias extends MateriaPrimaStats {
+  estadisticasPorPresentacion: Array<{
+    presentacion_id: string
+    presentacion_nombre: string
+    cantidad: number
+    valor_total: number
+    porcentaje: number
+  }>
+  estadisticasPorCategoria: Array<{
+    categoria_id: string
+    categoria_nombre: string
+    categoria_ruta: string
+    cantidad: number
+    valor_total: number
+    porcentaje: number
+    subcategorias?: Array<{
+      id: string
+      nombre: string
+      cantidad: number
+      valor_total: number
+    }>
+  }>
+  migracionStatus: {
+    total_materia_prima: number
+    con_presentacion_id: number
+    con_categoria_id: number
+    pendientes_migracion: number
+    migracion_completa: boolean
+  }
+}
+
+// Tipos para configuración de sistema de referencias
+export interface ReferenceSystemConfig {
+  modoMigracion: 'gradual' | 'inmediato' | 'manual'
+  mostrarAdvertenciasCompatibilidad: boolean
+  permitirCreacionTextoFallback: boolean
+  autoMapearTextosReconocidos: boolean
+  validacionEstrictaIds: boolean
+  habilitarJerarquiaCategorias: boolean
+  maximosNivelesJerarquia: number
+  cachingReferencias: boolean
+  cacheExpirationMinutes: number
+}
+
+// Configuración por defecto
+export const DefaultReferenceSystemConfig: ReferenceSystemConfig = {
+  modoMigracion: 'gradual',
+  mostrarAdvertenciasCompatibilidad: true,
+  permitirCreacionTextoFallback: true,
+  autoMapearTextosReconocidos: true,
+  validacionEstrictaIds: false,
+  habilitarJerarquiaCategorias: true,
+  maximosNivelesJerarquia: 4,
+  cachingReferencias: true,
+  cacheExpirationMinutes: 30
+}
+
+// Exportaciones extendidas para mantener compatibilidad
+export type MateriaPrimaConCompatibilidad = MateriaPrimaConReferencias & {
+  compatibilidad: MateriaPrimaCompatibilidadValidation
+  migrationWarnings: MateriaPrimaMigrationWarnings
+  referenceSystemConfig: ReferenceSystemConfig
 }

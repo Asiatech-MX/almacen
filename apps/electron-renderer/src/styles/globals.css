@@ -251,3 +251,343 @@
 
 
 
+/* React-select v4 + Tailwind CSS v4 Integration Styles */
+@layer components {
+  /* Base container */
+  .react-select-container {
+    position: relative;
+  }
+
+  /* Main control input */
+  .react-select__control {
+    @apply border border-input bg-background text-foreground rounded-md shadow-sm;
+    @apply hover:border-primary/50 transition-colors duration-200;
+    min-height: 2.5rem;
+
+    &.react-select__control--is-focused {
+      @apply border-primary ring-2 ring-primary/20;
+    }
+
+    &.react-select__control--menu-is-open {
+      @apply border-primary;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    &.react-select__control--is-disabled {
+      @apply bg-muted text-muted-foreground cursor-not-allowed;
+    }
+  }
+
+  /* Value container */
+  .react-select__value-container {
+    @apply px-3 py-1;
+  }
+
+  /* Placeholder */
+  .react-select__placeholder {
+    @apply text-muted-foreground px-3;
+  }
+
+  /* Selected value */
+  .react-select__single-value {
+    @apply text-foreground px-3;
+  }
+
+  /* Input field */
+  .react-select__input-container {
+    @apply px-3;
+  }
+
+  /* Dropdown menu */
+  .react-select__menu {
+    @apply bg-background border border-input rounded-md rounded-tl-none rounded-tr-none shadow-lg;
+    @apply mt-1 z-50;
+    margin-top: -1px;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  /* Menu list */
+  .react-select__menu-list {
+    @apply py-1;
+    max-height: 240px;
+    overflow-y: auto;
+
+    /* Custom scrollbar */
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      @apply bg-muted/20;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      @apply bg-muted-foreground/30 rounded-full;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      @apply bg-muted-foreground/50;
+    }
+  }
+
+  /* Options */
+  .react-select__option {
+    @apply px-3 py-2 cursor-pointer transition-colors duration-150;
+    @apply hover:bg-accent hover:text-accent-foreground;
+    color: hsl(var(--foreground));
+
+    &.react-select__option--is-selected {
+      @apply bg-primary text-primary-foreground;
+    }
+
+    &.react-select__option--is-focused {
+      @apply bg-accent text-accent-foreground;
+    }
+
+    &.react-select__option--is-disabled {
+      @apply text-muted-foreground cursor-not-allowed opacity-50;
+    }
+  }
+
+  /* Grouped options */
+  .react-select__group {
+    @apply text-sm;
+  }
+
+  .react-select__group-heading {
+    @apply px-3 py-2 text-muted-foreground bg-muted/50;
+    @apply uppercase tracking-wide text-xs font-semibold;
+    margin: 0;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+
+  /* Creatable option */
+  .react-select__option--is-creatable {
+    @apply border-l-4 border-primary bg-primary/5;
+
+    &:hover {
+      @apply bg-primary/10;
+    }
+  }
+
+  /* Loading state */
+  .react-select__loading-indicator {
+    @apply text-primary;
+  }
+
+  /* Error state */
+  .react-select-container.error .react-select__control {
+    @apply border-destructive;
+
+    &.react-select__control--is-focused {
+      @apply ring-destructive/20;
+    }
+  }
+
+  /* Clear indicator */
+  .react-select__clear-indicator {
+    @apply text-muted-foreground;
+
+    &:hover {
+      @apply text-destructive;
+    }
+  }
+
+  /* Dropdown indicator */
+  .react-select__dropdown-indicator {
+    @apply text-muted-foreground transition-colors;
+
+    &:hover {
+      @apply text-foreground;
+    }
+  }
+
+  /* Multi-select values */
+  .react-select__multi-value {
+    @apply bg-muted border border-input rounded-md text-sm;
+    margin: 2px;
+  }
+
+  .react-select__multi-value__label {
+    @apply px-2 py-1;
+  }
+
+  .react-select__multi-value__remove {
+    @apply text-muted-foreground hover:text-destructive hover:bg-destructive/10;
+
+    &:hover {
+      border-radius: 0 0.25rem 0.25rem 0;
+    }
+  }
+
+  /* Keyboard navigation focus */
+  .react-select__option:active {
+    @apply bg-accent text-accent-foreground;
+  }
+}
+
+/* Hierarchy indicators for categories */
+@layer components {
+  .hierarchy-indent-1 {
+    @apply pl-4;
+  }
+
+  .hierarchy-indent-2 {
+    @apply pl-8;
+  }
+
+  .hierarchy-indent-3 {
+    @apply pl-12;
+  }
+
+  .hierarchy-indent-4 {
+    @apply pl-16;
+  }
+
+  .hierarchy-line {
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: -12px;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      @apply bg-border;
+    }
+  }
+}
+
+/* Drag and drop visual feedback */
+@layer utilities {
+  .dragging {
+    @apply opacity-50 cursor-grabbing scale-95;
+    transition: all 0.2s ease;
+  }
+
+  .drop-target {
+    @apply border-2 border-dashed border-primary bg-primary/5 scale-105;
+    transition: all 0.2s ease;
+  }
+
+  .drop-target-valid {
+    @apply border-green-500 bg-green-50 dark:bg-green-950/20;
+  }
+
+  .drop-target-invalid {
+    @apply border-red-500 bg-red-50 dark:bg-red-950/20;
+  }
+
+  .drop-indicator {
+    @apply h-1 bg-primary rounded-full opacity-0 transition-opacity duration-200;
+  }
+
+  .drop-indicator--active {
+    @apply opacity-100;
+  }
+}
+
+/* Loading skeletons */
+@layer components {
+  .skeleton-select {
+    @apply bg-muted animate-pulse rounded-md;
+    height: 2.5rem;
+  }
+
+  .skeleton-text {
+    @apply bg-muted animate-pulse rounded;
+    height: 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .skeleton-avatar {
+    @apply bg-muted animate-pulse rounded-full;
+    width: 2rem;
+    height: 2rem;
+  }
+}
+
+/* Enhanced accessibility */
+@layer utilities {
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+  }
+
+  .focus-ring-inset {
+    @apply focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary;
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .react-select__control {
+      @apply border-2;
+    }
+
+    .react-select__option--is-selected {
+      @apply bg-foreground text-background;
+    }
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .react-select__menu,
+    .react-select__option,
+    .react-select__control,
+    .dragging,
+    .drop-target {
+      transition: none;
+    }
+
+    .skeleton-select,
+    .skeleton-text,
+    .skeleton-avatar {
+      animation: none;
+    }
+  }
+}
+
+/* Tooltip and help styles */
+@layer components {
+  .help-tooltip {
+    @apply absolute z-50 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-100 dark:text-gray-900 rounded;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    pointer-events: none;
+  }
+
+  .help-tooltip--visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .help-icon {
+    @apply inline-flex items-center justify-center w-4 h-4 text-muted-foreground hover:text-foreground transition-colors cursor-help;
+  }
+
+  .contextual-help {
+    @apply absolute right-2 top-1/2 -translate-y-1/2;
+  }
+}
+
+/* Responsive optimizations */
+@layer utilities {
+  @media (max-width: 640px) {
+    .react-select__menu {
+      max-width: calc(100vw - 2rem);
+    }
+
+    .react-select__menu-list {
+      max-height: 180px;
+    }
+
+    .hierarchy-indent-1 { @apply pl-2; }
+    .hierarchy-indent-2 { @apply pl-4; }
+    .hierarchy-indent-3 { @apply pl-6; }
+    .hierarchy-indent-4 { @apply pl-8; }
+  }
+}
