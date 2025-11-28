@@ -20,6 +20,9 @@ import { FileUpload } from '@/components/ui/file-upload'
 
 import useMateriaPrima, { UseMateriaPrimaOptions } from '../../hooks/useMateriaPrima'
 import materiaPrimaService from '../../services/materiaPrimaService'
+import { useReferenceData } from '../../hooks/useReferenceData'
+import { DynamicSelect } from '@/components/ui/DynamicSelect'
+import { InlineEditModal } from '@/components/ui/InlineEditModal'
 import type {
   MateriaPrimaDetail,
   NewMateriaPrima,
@@ -83,7 +86,7 @@ const validateEAN13 = (barcode: string): boolean => {
   return checksum === parseInt(digits[12]);
 };
 
-// Schema Zod para validación
+// Schema Zod para validación con backward compatibility y sistema de referencias
 const materiaPrimaSchema = z.object({
   codigo_barras: z.string()
     .min(13, 'El código de barras debe tener exactamente 13 dígitos')
@@ -93,16 +96,48 @@ const materiaPrimaSchema = z.object({
   nombre: z.string().min(1, 'El nombre es requerido'),
   marca: z.string().optional(),
   modelo: z.string().optional(),
-  presentacion: z.string().min(1, 'La presentación es requerida'),
+  // Compatibilidad backward durante migración
+  presentacion: z.string().min(1, 'La presentación es requerida').optional(),
+  categoria: z.string().optional(),
+  // Nuevos campos con IDs de referencia
+  presentacion_id: z.union([z.string(), z.number()])
+    .nullable()
+    .optional(),
+  categoria_id: z.union([z.string(), z.number()])
+    .nullable()
+    .optional(),
   stock_actual: z.number().min(0, 'El stock actual no puede ser negativo'),
   stock_minimo: z.number().min(0, 'El stock mínimo no puede ser negativo'),
   costo_unitario: z.number().nullable().optional(),
   fecha_caducidad: z.string().nullable().optional(),
   imagen_url: z.string().nullable().optional(),
   descripcion: z.string().optional(),
-  categoria: z.string().optional(),
   proveedor_id: z.string().nullable().optional()
-})
+}).superRefine((data, ctx) => {
+  // Validación personalizada para migración gradual
+  const tienePresentacionText = data.presentacion && data.presentacion.trim() !== '';
+  const tienePresentacionId = data.presentacion_id;
+
+  if (!tienePresentacionText && !tienePresentacionId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Debe especificar presentación (texto o ID)',
+      path: ['presentacion_id']
+    });
+  }
+
+  // Advertencia de compatibilidad (no error)
+  if (tienePresentacionText && tienePresentacionId) {
+    // Esto es una advertencia, no un error de validación
+    console.warn('Se especificaron tanto presentación de texto como ID. Se priorizará el ID.');
+  }
+}).refine((data) => {
+  // Para el nuevo sistema, al menos un campo de referencia debe estar presente
+  return (data.presentacion && data.presentacion.trim() !== '') || data.presentacion_id;
+}, {
+  message: 'Debe seleccionar una presentación o especificar una',
+  path: ['presentacion_id']
+});
 
 type MateriaPrimaFormData = z.infer<typeof materiaPrimaSchema>
 
@@ -137,6 +172,15 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
 
+  // Estados para el sistema de referencias
+  const [presentacionEditando, setPresentacionEditando] = useState<any>(null)
+  const [categoriaEditando, setCategoriaEditando] = useState<any>(null)
+  const [showPresentacionModal, setShowPresentacionModal] = useState(false)
+  const [showCategoriaModal, setShowCategoriaModal] = useState(false)
+
+  // ID de institución actual (esto debería venir de un contexto o configuración)
+  const CURRENT_INSTITUTION_ID = 1 // Cambiar esto por el ID real de la institución
+
   // Configuración de React Hook Form
   const form = useForm<MateriaPrimaFormData>({
     resolver: zodResolver(materiaPrimaSchema),
@@ -145,17 +189,33 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
       nombre: '',
       marca: '',
       modelo: '',
-      presentacion: 'Unidad',
+      // Compatibilidad backward durante migración
+      presentacion: '',
+      categoria: '',
+      // Nuevos campos con IDs de referencia
+      presentacion_id: null,
+      categoria_id: null,
       stock_actual: 0,
       stock_minimo: 0,
       costo_unitario: null,
       fecha_caducidad: '',
       imagen_url: '',
       descripcion: '',
-      categoria: '',
       proveedor_id: null
     },
     mode: 'onChange'
+  })
+
+  // Hook para datos de referencia con optimistic updates
+  const {
+    categorias,
+    categoriasArbol,
+    presentaciones,
+    loading: loadingReferencias,
+    actions
+  } = useReferenceData({
+    idInstitucion: CURRENT_INSTITUTION_ID,
+    autoLoad: true
   })
 
   useEffect(() => {
@@ -183,7 +243,12 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
         nombre: data.nombre || '',
         marca: data.marca || '',
         modelo: data.modelo || '',
-        presentacion: data.presentacion || 'Unidad',
+        // Compatibilidad backward durante migración
+        presentacion: data.presentacion || '',
+        categoria: data.categoria || '',
+        // Nuevos campos con IDs de referencia
+        presentacion_id: data.presentacion_id ? data.presentacion_id.toString() : null,
+        categoria_id: data.categoria_id ? data.categoria_id.toString() : null,
         stock_actual: data.stock_actual || 0,
         stock_minimo: data.stock_minimo || 0,
         costo_unitario: data.costo_unitario || null,
@@ -191,7 +256,6 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
           new Date(data.fecha_caducidad).toISOString().split('T')[0] : '',
         imagen_url: data.imagen_url || '',
         descripcion: data.descripcion || '',
-        categoria: data.categoria || '',
         proveedor_id: data.proveedor_id || null
       })
     } catch (err) {
@@ -204,8 +268,21 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     setSuccess(false)
 
     try {
+      // Lógica de backward compatibility y migración gradual
+      const dataConReferencias = {
+        ...data,
+        // Convertir string IDs a números para la base de datos
+        presentacion_id: data.presentacion_id ? parseInt(data.presentacion_id.toString()) : null,
+        categoria_id: data.categoria_id ? parseInt(data.categoria_id.toString()) : null,
+        // Mantener campos de texto para compatibilidad
+        presentacion: data.presentacion_id ? undefined : data.presentacion,
+        categoria: data.categoria_id ? undefined : data.categoria,
+        // Agregar ID de institución
+        id_institucion: CURRENT_INSTITUTION_ID
+      }
+
       // Preparar y normalizar datos antes de enviar
-      const normalizedData = prepareFormDataForSubmission(data, esEdicion)
+      const normalizedData = prepareFormDataForSubmission(dataConReferencias, esEdicion)
 
       let materialGuardado: MateriaPrimaDetail
 
@@ -299,6 +376,60 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     form.setValue('imagen_url', '')
     setUploadError(null)
     setImagePreviewError(false)
+  }
+
+  // Funciones para manejar edición inline
+  const handleEditarPresentacion = (presentacion: any) => {
+    setPresentacionEditando(presentacion)
+    setShowPresentacionModal(true)
+  }
+
+  const handleEditarCategoria = (categoria: any) => {
+    setCategoriaEditando(categoria)
+    setShowCategoriaModal(true)
+  }
+
+  const handleGuardarPresentacion = async (data: any) => {
+    try {
+      const result = await actions.editarPresentacion(presentacionEditando.id, data)
+      if (result.success) {
+        setShowPresentacionModal(false)
+        setPresentacionEditando(null)
+        // El hook ya actualizó los datos automáticamente
+      }
+      return result
+    } catch (error) {
+      console.error('Error al editar presentación:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  const handleGuardarCategoria = async (data: any) => {
+    try {
+      const result = await actions.editarCategoria(categoriaEditando.id, data)
+      if (result.success) {
+        setShowCategoriaModal(false)
+        setCategoriaEditando(null)
+        // El hook ya actualizó los datos automáticamente
+      }
+      return result
+    } catch (error) {
+      console.error('Error al editar categoría:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  const handleMoverCategoria = async (idCategoria: string, nuevoPadreId?: string) => {
+    try {
+      const result = await actions.moverCategoria(idCategoria, nuevoPadreId)
+      if (result.success) {
+        // El hook ya actualizó los datos automáticamente
+      }
+      return result
+    } catch (error) {
+      console.error('Error al mover categoría:', error)
+      return { success: false, error: error.message }
+    }
   }
 
   if (loading && esEdicion) {
@@ -483,50 +614,74 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
 
                             <FormField
                               control={form.control}
-                              name="presentacion"
+                              name="presentacion_id"
                               render={({ field, fieldState }) => (
                                 <FormItem>
                                   <FormLabel>Presentación</FormLabel>
-                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl>
-                                      <SelectTrigger className={fieldState.invalid ? "border-destructive" : ""}>
-                                        <SelectValue placeholder="Seleccionar presentación" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {presentaciones.map(pres => (
-                                        <SelectItem key={pres} value={pres}>
-                                          {pres}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
+                                  <FormControl>
+                                    <DynamicSelect
+                                      control={form.control}
+                                      name="presentacion_id"
+                                      label=""
+                                      type="presentacion"
+                                      placeholder="Seleccionar presentación..."
+                                      creatable={true}
+                                      allowEdit={true}
+                                      required={true}
+                                      disabled={loadingReferencias}
+                                      onEdit={(presentacion) => {
+                                        handleEditarPresentacion(presentacion)
+                                      }}
+                                    />
+                                  </FormControl>
                                   <FormMessage />
+                                  {/* Advertencia de compatibilidad backward */}
+                                  {form.watch('presentacion') && !field.value && (
+                                    <div className="text-xs text-yellow-600 bg-yellow-50 p-2 rounded border border-yellow-200">
+                                      ⚠️ Modo compatibilidad: usando presentación de texto. Seleccione una presentación de la lista para mejor experiencia.
+                                    </div>
+                                  )}
                                 </FormItem>
                               )}
                             />
 
                             <FormField
                               control={form.control}
-                              name="categoria"
+                              name="categoria_id"
                               render={({ field }) => (
                                 <FormItem className="sm:col-span-2 lg:col-span-1 xl:col-span-1 2xl:col-span-2">
                                   <FormLabel>Categoría</FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Seleccionar categoría" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {categorias.map(cat => (
-                                        <SelectItem key={cat} value={cat}>
-                                          {cat}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
+                                  <FormControl>
+                                    <DynamicSelect
+                                      control={form.control}
+                                      name="categoria_id"
+                                      label=""
+                                      type="categoria"
+                                      placeholder="Seleccionar categoría..."
+                                      creatable={true}
+                                      allowEdit={true}
+                                      disabled={loadingReferencias}
+                                      onEdit={(categoria) => {
+                                        handleEditarCategoria(categoria)
+                                      }}
+                                      onMove={async (idCategoria, nuevoPadreId) => {
+                                        const result = await handleMoverCategoria(idCategoria, nuevoPadreId)
+                                        if (result.success) {
+                                          // Mostrar toast de éxito
+                                          console.log('Categoría movida exitosamente')
+                                        } else {
+                                          console.error('Error al mover categoría:', result.error)
+                                        }
+                                      }}
+                                    />
+                                  </FormControl>
                                   <FormMessage />
+                                  {/* Advertencia de compatibilidad backward */}
+                                  {form.watch('categoria') && !field.value && (
+                                    <div className="text-xs text-yellow-600 bg-yellow-50 p-2 rounded border border-yellow-200">
+                                      ⚠️ Modo compatibilidad: usando categoría de texto. Seleccione una categoría de la lista para mejor experiencia.
+                                    </div>
+                                  )}
                                 </FormItem>
                               )}
                             />
@@ -809,6 +964,33 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                     </Button>
                   </div>
                 </Tabs>
+
+                {/* Modales de edición inline */}
+                {showPresentacionModal && presentacionEditando && (
+                  <InlineEditModal
+                    isOpen={showPresentacionModal}
+                    onClose={() => {
+                      setShowPresentacionModal(false)
+                      setPresentacionEditando(null)
+                    }}
+                    item={presentacionEditando}
+                    type="presentacion"
+                    onSave={handleGuardarPresentacion}
+                  />
+                )}
+
+                {showCategoriaModal && categoriaEditando && (
+                  <InlineEditModal
+                    isOpen={showCategoriaModal}
+                    onClose={() => {
+                      setShowCategoriaModal(false)
+                      setCategoriaEditando(null)
+                    }}
+                    item={categoriaEditando}
+                    type="categoria"
+                    onSave={handleGuardarCategoria}
+                  />
+                )}
                 </form>
               </Form>
             </Scroller>
