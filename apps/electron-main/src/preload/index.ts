@@ -13,6 +13,27 @@ import type {
   MateriaPrimaEstatusUpdate
 } from '@shared-types/index'
 
+// Interfaces para upload de imágenes
+interface ImageFileData {
+  name: string
+  type: string
+  size: number
+  buffer: ArrayBuffer
+}
+
+interface ImageMetadata {
+  materiaPrimaId: string
+  codigoBarras: string
+  nombre: string
+}
+
+interface ImageUploadResult {
+  success: boolean
+  url?: string
+  error?: string
+  filename?: string
+}
+
 /**
  * API segura para el renderer process utilizando contextBridge
  * Proporciona acceso type-safe a las funcionalidades de materia prima
@@ -72,10 +93,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('materiaPrima:exportar', options),
 
     // ✅ Upload de imágenes
-    subirImagen: (
-      fileData: { name: string; type: string; size: number; buffer: ArrayBuffer },
-      metadata: { materiaPrimaId: string; codigoBarras: string; nombre: string }
-    ): Promise<{ success: boolean; url?: string; error?: string; filename?: string }> =>
+    subirImagen: (fileData: ImageFileData, metadata: ImageMetadata): Promise<ImageUploadResult> =>
       ipcRenderer.invoke('materiaPrima:subirImagen', fileData, metadata)
   },
 
@@ -134,10 +152,7 @@ declare global {
         exportar: (options: { formato: 'csv' | 'excel' | 'pdf' }) => Promise<Buffer>
 
         // Upload de imágenes
-        subirImagen: (
-          fileData: { name: string; type: string; size: number; buffer: ArrayBuffer },
-          metadata: { materiaPrimaId: string; codigoBarras: string; nombre: string }
-        ): Promise<{ success: boolean; url?: string; error?: string; filename?: string }>
+        subirImagen: (fileData: ImageFileData, metadata: ImageMetadata): Promise<ImageUploadResult>
       }
 
       // ==================== SISTEMA ====================
