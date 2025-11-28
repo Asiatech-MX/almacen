@@ -5,7 +5,12 @@ import { promises as fs } from 'node:fs'
 import { setupMateriaPrimaHandlers } from './ipc/materiaPrima'
 import { setupFileSystemHandlers } from './ipc/fs'
 import { registerProveedorHandlers } from './ipc/proveedor'
+import { setupCategoriaHandlers } from './ipc/categoria'
+import { setupPresentacionHandlers } from './ipc/presentacion'
+import { setupFeatureFlagsHandlers } from './ipc/featureFlags'
+import { setupMonitoringHandlers } from './ipc/monitoring'
 import { validateDatabaseConnection } from '@backend/db/pool'
+import { monitoring } from './monitoring'
 
 // Cargar variables de entorno desde .env
 config()
@@ -172,6 +177,7 @@ async function setupWithRetry(maxRetries = 3): Promise<boolean> {
 
       const dbConnected = await validateDatabaseConnection()
       startupMetrics.dbConnectionTime = Date.now() - startTime
+      monitoring.recordStartupMetric('dbConnectionTime', startupMetrics.dbConnectionTime)
 
       if (dbConnected) {
         console.log(`✅ Database connection verified in ${startupMetrics.dbConnectionTime}ms`)
@@ -220,6 +226,7 @@ const createWindow = (): void => {
   })
 
   startupMetrics.windowCreationTime = Date.now() - startTime
+  monitoring.recordStartupMetric('windowCreationTime', startupMetrics.windowCreationTime)
   console.log(`🪟 Window created in ${startupMetrics.windowCreationTime}ms`)
 
   // HMR para desarrollo
@@ -238,9 +245,20 @@ const createWindow = (): void => {
 const setupIPC = (): void => {
   const startTime = Date.now()
 
+  // Handlers existentes
   setupMateriaPrimaHandlers()
   setupFileSystemHandlers()
   registerProveedorHandlers()
+
+  // Nuevos handlers para reference data
+  setupCategoriaHandlers()
+  setupPresentacionHandlers()
+
+  // Feature flags handlers
+  setupFeatureFlagsHandlers()
+
+  // Monitoring handlers
+  setupMonitoringHandlers()
 
   // Ping para testing
   ipcMain.handle('ping', async () => {
@@ -248,6 +266,7 @@ const setupIPC = (): void => {
   })
 
   startupMetrics.ipcSetupTime = Date.now() - startTime
+  monitoring.recordStartupMetric('startupTime', Date.now() - startupMetrics.startTime)
   console.log(`📡 IPC handlers configured in ${startupMetrics.ipcSetupTime}ms`)
 }
 
