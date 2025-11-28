@@ -40,6 +40,23 @@ export interface Auditoria {
   valorNuevo: Json | null;
 }
 
+export interface Categoria {
+  activo: Generated<boolean | null>;
+  actualizadoEn: Generated<Timestamp | null>;
+  categoriaPadreId: number | null;
+  color: string | null;
+  creadoEn: Generated<Timestamp | null>;
+  descripcion: string | null;
+  esPredeterminado: Generated<boolean | null>;
+  icono: string | null;
+  id: Generated<number>;
+  idInstitucion: number;
+  nivel: Generated<number>;
+  nombre: string;
+  orden: Generated<number | null>;
+  rutaCompleta: string | null;
+}
+
 export interface EmpresaProveedora {
   ciudad: string | null;
   codigoPostal: number | null;
@@ -109,6 +126,7 @@ export interface MateriaPrima {
   activo: Generated<boolean | null>;
   actualizadoEn: Generated<Timestamp | null>;
   categoria: string | null;
+  categoriaId: number | null;
   codigoBarras: string;
   costoUnitario: Numeric | null;
   creadoEn: Generated<Timestamp | null>;
@@ -121,6 +139,7 @@ export interface MateriaPrima {
   modelo: string | null;
   nombre: string;
   presentacion: string;
+  presentacionId: number | null;
   proveedorId: string | null;
   stockActual: Generated<Numeric>;
   stockMinimo: Generated<Numeric>;
@@ -169,6 +188,20 @@ export interface ParametroSistema {
   idInstitucion: number | null;
   tipoDato: Generated<string>;
   valor: string | null;
+}
+
+export interface Presentacion {
+  abreviatura: string | null;
+  activo: Generated<boolean | null>;
+  actualizadoEn: Generated<Timestamp | null>;
+  creadoEn: Generated<Timestamp | null>;
+  descripcion: string | null;
+  esPredeterminado: Generated<boolean | null>;
+  factorConversion: Numeric | null;
+  id: Generated<number>;
+  idInstitucion: number;
+  nombre: string;
+  unidadBase: string | null;
 }
 
 export interface Producto {
@@ -352,6 +385,7 @@ export interface VwStockMateriaPrima {
 
 export interface DB {
   auditoria: Auditoria;
+  categoria: Categoria;
   empresaProveedora: EmpresaProveedora;
   entradaMaterial: EntradaMaterial;
   entradaProducto: EntradaProducto;
@@ -360,6 +394,7 @@ export interface DB {
   materiaPrimaAuditoria: MateriaPrimaAuditoria;
   materiaPrimaLegacy20251114: MateriaPrimaLegacy20251114;
   parametroSistema: ParametroSistema;
+  presentacion: Presentacion;
   producto: Producto;
   productoDetalle: ProductoDetalle;
   productoDetalleProduccion: ProductoDetalleProduccion;
