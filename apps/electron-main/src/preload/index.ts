@@ -152,7 +152,7 @@ declare global {
         exportar: (options: { formato: 'csv' | 'excel' | 'pdf' }) => Promise<Buffer>
 
         // Upload de imágenes
-        subirImagen: (fileData: ImageFileData, metadata: ImageMetadata): Promise<ImageUploadResult>
+        subirImagen: (fileData: ImageFileData, metadata: ImageMetadata) => Promise<ImageUploadResult>
       }
 
       // ==================== SISTEMA ====================

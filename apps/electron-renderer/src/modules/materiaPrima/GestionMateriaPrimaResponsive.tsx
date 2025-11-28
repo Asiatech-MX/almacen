@@ -980,6 +980,38 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
                   <h4 className="text-slate-700 mb-4 pb-2 border-b-2 border-gray-100">
                     📦 Información General
                   </h4>
+
+                  {/* Contenedor de imagen del producto */}
+                  <div className="flex justify-center mb-6">
+                    <div
+                      className="flex items-center justify-center bg-gray-50 border border-gray-200 rounded-lg"
+                      style={{ width: '200px', height: '150px' }}
+                    >
+                      {materialDetalle.imagen_url ? (
+                        <img
+                          src={materialDetalle.imagen_url}
+                          alt="Imagen del material"
+                          className="max-w-full max-h-full"
+                          style={{ objectFit: 'contain' }}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.style.display = 'none'
+                            const placeholder = target.nextElementSibling as HTMLElement
+                            if (placeholder) {
+                              placeholder.style.display = 'flex'
+                            }
+                          }}
+                        />
+                      ) : null}
+                      {!materialDetalle.imagen_url || materialDetalle.imagen_url === '' ? (
+                        <div className="flex flex-col items-center justify-center">
+                          <ImageIcon className="h-12 w-12 text-gray-400 mb-2" />
+                          <span className="text-xs text-gray-500">Sin imagen</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <span className="font-semibold">Código de Barras:</span><br />

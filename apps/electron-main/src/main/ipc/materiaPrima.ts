@@ -132,12 +132,11 @@ async function saveImageFile(
 }
 
 /**
- * Genera URL relativa para la base de datos
+ * Genera URL segura para la base de datos usando protocolo personalizado
  */
 function generateRelativeUrl(filename: string): string {
-  const userDataPath = app.getPath('userData')
-  const relativePath = path.join(IMAGE_CONFIG.uploadsDir, filename)
-  return `file://${path.join(userDataPath, relativePath)}`
+  // Usar protocolo personalizado en lugar de file:// para evitar restricciones de seguridad
+  return `almacen-img://${filename}`
 }
 
 /**
@@ -154,8 +153,23 @@ export function setupMateriaPrimaHandlers(): void {
     try {
       console.log('📡 materiaPrima:listar handled')
       const result = await getMateriaPrimaRepository().findAll(filters, options)
-      console.log(`📋 Listados ${result.length} materiales (${options?.includeInactive ? 'incluyendo INACTIVO' : 'solo ACTIVO'})`)
-      return result
+
+      // Migrar URLs antiguas de file:// a almacen-img://
+      const migratedResult = result.map(material => {
+        if (material.imagen_url && material.imagen_url.startsWith('file://')) {
+          // Extraer nombre del archivo de la URL file://
+          const filename = material.imagen_url.split('\\').pop().split('/').pop()
+          if (filename) {
+            const newUrl = `almacen-img://${filename}`
+            console.log(`🔄 Migrating URL: ${material.imagen_url} → ${newUrl}`)
+            material.imagen_url = newUrl
+          }
+        }
+        return material
+      })
+
+      console.log(`📋 Listados ${migratedResult.length} materiales (${options?.includeInactive ? 'incluyendo INACTIVO' : 'solo ACTIVO'})`)
+      return migratedResult
     } catch (error) {
       console.error('❌ Error listando materia prima:', error)
       throw new Error(`Error al cargar la lista de materiales: ${(error as Error).message}`)
@@ -200,6 +214,16 @@ export function setupMateriaPrimaHandlers(): void {
       const result = await getMateriaPrimaRepository().findById(id, { includeInactive })
       if (!result) {
         throw new Error('Material no encontrado')
+      }
+
+      // Migrar URL antigua de file:// a almacen-img:// si es necesario
+      if (result.imagen_url && result.imagen_url.startsWith('file://')) {
+        const filename = result.imagen_url.split('\\').pop().split('/').pop()
+        if (filename) {
+          const newUrl = `almacen-img://${filename}`
+          console.log(`🔄 Migrating URL in obtener: ${result.imagen_url} → ${newUrl}`)
+          result.imagen_url = newUrl
+        }
       }
 
       console.log(`📄 Obtenido material: ${result.nombre}`)
