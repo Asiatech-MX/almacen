@@ -18,7 +18,7 @@ import { DataTableColumnHeader } from '../../components/data-table/data-table-co
 import { DataTableToolbar } from '../../components/data-table/data-table-toolbar'
 import { useDataTable } from '../../hooks/use-data-table'
 import { ColumnDef } from '@tanstack/react-table'
-import { MoreHorizontal, Eye, Edit, Package, Trash2, Search, Filter, Plus, Power, PowerOff, X } from 'lucide-react'
+import { MoreHorizontal, Eye, Edit, Package, Trash2, Search, Filter, Plus, Power, PowerOff, X, Image as ImageIcon } from 'lucide-react'
 
 // Importaciones de shadcn/ui para todos los componentes
 import { Button } from '../../components/ui/button'
@@ -94,6 +94,47 @@ const createColumns = (
       label: 'Código',
       placeholder: 'Buscar por código...',
       variant: 'text',
+    },
+  },
+  {
+    id: 'imagen',
+    accessorKey: 'imagen_url',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Imagen" />
+    ),
+    cell: ({ row }) => {
+      const imageUrl = row.getValue('imagen_url') as string
+
+      return (
+        <div className="h-10 w-10">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt="Imagen materia prima"
+              className="h-full w-full object-cover rounded"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement
+                target.style.display = 'none'
+                const placeholder = target.nextElementSibling as HTMLElement
+                if (placeholder) {
+                  placeholder.style.display = 'flex'
+                }
+              }}
+              style={{ display: 'block' }}
+            />
+          ) : null}
+          {!imageUrl || imageUrl === '' ? (
+            <div className="h-full w-full bg-gray-200 rounded flex items-center justify-center">
+              <ImageIcon className="h-4 w-4 text-gray-400" />
+            </div>
+          ) : null}
+        </div>
+      )
+    },
+    enableSorting: false,
+    enableColumnFilter: false,
+    meta: {
+      label: 'Imagen',
     },
   },
   {

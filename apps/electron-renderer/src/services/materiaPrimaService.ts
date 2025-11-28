@@ -360,6 +360,97 @@ export class MateriaPrimaService {
     }
   }
 
+  // Sube una imagen de materia prima
+  async subirImagen(
+    file: File,
+    metadata: {
+      materiaPrimaId: string
+      codigoBarras: string
+      nombre: string
+    }
+  ): Promise<{ success: boolean; url?: string; error?: string; filename?: string }> {
+    if (!this.api) {
+      // Modo desarrollo: simular upload
+      console.log('Modo desarrollo: subiendo imagen', {
+        file: file.name,
+        size: file.size,
+        type: file.type,
+        metadata
+      })
+
+      // Simular validación básica
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+      const maxSize = 5 * 1024 * 1024 // 5MB
+
+      if (!allowedTypes.includes(file.type)) {
+        return {
+          success: false,
+          error: `Tipo de archivo no soportado. Tipos permitidos: ${allowedTypes.join(', ')}`
+        }
+      }
+
+      if (file.size > maxSize) {
+        return {
+          success: false,
+          error: `Archivo demasiado grande. Tamaño máximo: ${(maxSize / 1024 / 1024).toFixed(1)}MB`
+        }
+      }
+
+      // Simular upload exitoso
+      const mockUrl = `file://mock/path/assets/images/materia-prima/mock_${Date.now()}.jpg`
+      console.log('✅ Mock upload exitoso:', mockUrl)
+
+      return {
+        success: true,
+        url: mockUrl,
+        filename: `mock_${Date.now()}.jpg`
+      }
+    }
+
+    try {
+      // Validar archivo antes de enviar al main process
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+      const maxSize = 5 * 1024 * 1024 // 5MB
+
+      if (!allowedTypes.includes(file.type)) {
+        return {
+          success: false,
+          error: `Tipo de archivo no soportado. Tipos permitidos: ${allowedTypes.join(', ')}`
+        }
+      }
+
+      if (file.size > maxSize) {
+        return {
+          success: false,
+          error: `Archivo demasiado grande. Tamaño máximo: ${(maxSize / 1024 / 1024).toFixed(1)}MB`
+        }
+      }
+
+      // Convertir File a ArrayBuffer para IPC
+      const arrayBuffer = await file.arrayBuffer()
+
+      // Enviar al main process
+      const result = await this.api.subirImagen(
+        {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          buffer: arrayBuffer
+        },
+        metadata
+      )
+
+      console.log('📤 Upload completado:', result)
+      return result
+    } catch (error) {
+      console.error('❌ Error en servicio subirImagen:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Error desconocido al subir imagen'
+      }
+    }
+  }
+
   // Actualiza un material existente
   async actualizar(id: string, data: MateriaPrimaUpdate, usuarioId?: string): Promise<MateriaPrimaDetail> {
     if (!this.api) {

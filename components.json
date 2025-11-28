@@ -1,0 +1,20 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "default",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "tailwind.config.js",
+    "css": "apps/electron-renderer/src/styles/globals.css",
+    "baseColor": "slate",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "aliases": {
+    "components": "apps/electron-renderer/src/components",
+    "utils": "apps/electron-renderer/src/lib/utils",
+    "ui": "apps/electron-renderer/src/components/ui",
+    "lib": "apps/electron-renderer/src/lib",
+    "hooks": "apps/electron-renderer/src/hooks"
+  }
+}

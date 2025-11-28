@@ -16,8 +16,10 @@ import { MaskInput } from '@/components/ui/mask-input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FieldSet, FieldLegend, FieldGroup, FieldContent, FieldTitle, FieldDescription, FieldError, Field, FieldSeparator } from '@/components/ui/fieldset'
 import { Scroller } from '@/components/ui/scroller'
+import { FileUpload } from '@/components/ui/file-upload'
 
 import useMateriaPrima, { UseMateriaPrimaOptions } from '../../hooks/useMateriaPrima'
+import materiaPrimaService from '../../services/materiaPrimaService'
 import type {
   MateriaPrimaDetail,
   NewMateriaPrima,
@@ -131,6 +133,9 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
 
   const [success, setSuccess] = useState(false)
   const [imagePreviewError, setImagePreviewError] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   // Configuración de React Hook Form
   const form = useForm<MateriaPrimaFormData>({
@@ -158,6 +163,15 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
       cargarMateriaPrima(finalId)
     }
   }, [esEdicion, finalId])
+
+  // Limpiar Object URLs cuando el componente se desmonta
+  useEffect(() => {
+    return () => {
+      selectedFiles.forEach(file => {
+        URL.revokeObjectURL(URL.createObjectURL(file))
+      })
+    }
+  }, [selectedFiles])
 
   const cargarMateriaPrima = async (id: string) => {
     try {
@@ -238,6 +252,53 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
 
   const handleImageError = () => {
     setImagePreviewError(true)
+  }
+
+  const handleFileChange = async (files: File[]) => {
+    setUploadError(null)
+
+    if (files.length === 0) {
+      setSelectedFiles([])
+      form.setValue('imagen_url', '')
+      return
+    }
+
+    const file = files[0] // Solo permitimos un archivo
+    setSelectedFiles([file])
+
+    // Iniciar carga
+    setIsUploading(true)
+
+    try {
+      // Obtener valores del formulario para metadata
+      const formValues = form.getValues()
+
+      const result = await materiaPrimaService.subirImagen(file, {
+        materiaPrimaId: finalId || 'temp',
+        codigoBarras: formValues.codigo_barras || 'temp',
+        nombre: formValues.nombre || 'temp'
+      })
+
+      if (result.success && result.url) {
+        // Actualizar campo del formulario con la URL generada
+        form.setValue('imagen_url', result.url)
+        setImagePreviewError(false)
+      } else {
+        setUploadError(result.error || 'Error al cargar la imagen')
+      }
+    } catch (error) {
+      console.error('Error al subir imagen:', error)
+      setUploadError(error instanceof Error ? error.message : 'Error desconocido al subir la imagen')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleRemoveFile = () => {
+    setSelectedFiles([])
+    form.setValue('imagen_url', '')
+    setUploadError(null)
+    setImagePreviewError(false)
   }
 
   if (loading && esEdicion) {
@@ -603,23 +664,71 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                               name="imagen_url"
                               render={({ field }) => (
                                 <FormItem className="space-y-3">
-                                  <FormLabel>URL de Imagen</FormLabel>
+                                  <FormLabel>Imagen del Material</FormLabel>
                                   <FormControl>
-                                    <Input
-                                      type="url"
-                                      placeholder="https://ejemplo.com/imagen.jpg"
-                                      {...field}
-                                      value={field.value || ''}
+                                    <Controller
+                                      name="imagen_url"
+                                      control={form.control}
+                                      render={({ field: controllerField }) => (
+                                        <div className="space-y-3">
+                                          <FileUpload
+                                            value={selectedFiles}
+                                            onValueChange={handleFileChange}
+                                            maxFiles={1}
+                                            maxSize={5 * 1024 * 1024} // 5MB
+                                            accept="image/*"
+                                            disabled={isUploading}
+                                            error={uploadError || form.formState.errors.imagen_url?.message}
+                                          >
+                                            <div className="text-center">
+                                              <p className="text-sm font-medium">
+                                                {isUploading ? 'Subiendo imagen...' : 'Arrastra y suelta una imagen aquí o'}
+                                              </p>
+                                              {!isUploading && (
+                                                <p className="text-xs text-muted-foreground">
+                                                  haz clic para seleccionar un archivo
+                                                </p>
+                                              )}
+                                              <p className="text-xs text-muted-foreground">
+                                                PNG, JPG, JPEG, WebP hasta 5MB
+                                              </p>
+                                            </div>
+                                          </FileUpload>
+                                        </div>
+                                      )}
                                     />
                                   </FormControl>
                                   <FormMessage />
 
-                                  {/* Preview de imagen */}
-                                  {field.value && (
+                                  {/* Preview de imagen existente o subida */}
+                                  {(field.value || selectedFiles.length > 0) && (
                                     <div className="mt-3">
-                                      <FormDescription>Vista previa de la imagen:</FormDescription>
+                                      <FormDescription>
+                                        Vista previa de la imagen:
+                                      </FormDescription>
                                       <div className="mt-2 p-4 border-2 border-dashed border-border rounded-lg bg-muted/30">
-                                        {!imagePreviewError ? (
+                                        {selectedFiles.length > 0 ? (
+                                          // Preview del archivo seleccionado
+                                          <div className="text-center">
+                                            <img
+                                              src={URL.createObjectURL(selectedFiles[0])}
+                                              alt="Vista previa"
+                                              className="max-w-xs max-h-48 object-contain rounded mx-auto"
+                                              onLoad={() => URL.revokeObjectURL(URL.createObjectURL(selectedFiles[0]))}
+                                            />
+                                            <div className="mt-2 text-xs text-muted-foreground">
+                                              {isUploading ? (
+                                                <div className="flex items-center justify-center gap-2">
+                                                  <div className="animate-spin size-3 border-2 border-primary border-t-transparent rounded-full"></div>
+                                                  <span>Subiendo...</span>
+                                                </div>
+                                              ) : (
+                                                <span>✅ Imagen lista</span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ) : field.value && !imagePreviewError ? (
+                                          // Preview de la imagen existente (URL)
                                           <img
                                             src={field.value}
                                             alt="Vista previa"
@@ -627,10 +736,15 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                                             onError={handleImageError}
                                           />
                                         ) : (
+                                          // Error o placeholder
                                           <div className="text-center text-muted-foreground py-8">
                                             <div className="text-4xl mb-2">🖼️</div>
-                                            <p className="text-sm">No se pudo cargar la imagen</p>
-                                            <p className="text-xs mt-1">URL: {field.value}</p>
+                                            <p className="text-sm">
+                                              {imagePreviewError ? 'No se pudo cargar la imagen' : 'No hay imagen seleccionada'}
+                                            </p>
+                                            {field.value && imagePreviewError && (
+                                              <p className="text-xs mt-1">URL: {field.value}</p>
+                                            )}
                                           </div>
                                         )}
                                       </div>

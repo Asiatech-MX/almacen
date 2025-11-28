@@ -1,4 +1,7 @@
-import { ipcMain } from 'electron'
+import { ipcMain, app } from 'electron'
+import { promises as fs } from 'node:fs'
+import path from 'node:path'
+import { v4 as uuidv4 } from 'uuid'
 import MateriaPrimaRepository from '@backend/repositories/materiaPrimaRepo'
 import type {
   MateriaPrima,
@@ -13,6 +16,28 @@ import type {
   MateriaPrimaEstatusUpdate
 } from '@shared-types/index'
 
+// Interfaces para el upload de imágenes
+interface ImageMetadata {
+  materiaPrimaId: string
+  codigoBarras: string
+  nombre: string
+}
+
+interface ImageUploadResult {
+  success: boolean
+  url?: string
+  error?: string
+  filename?: string
+}
+
+// Configuración para el upload de imágenes
+const IMAGE_CONFIG = {
+  maxSize: 5 * 1024 * 1024, // 5MB
+  allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+  allowedExtensions: ['.jpg', '.jpeg', '.png', '.webp'],
+  uploadsDir: 'assets/images/materia-prima'
+}
+
 // Variable privada para el repository (factory pattern)
 let materiaPrimaRepo: MateriaPrimaRepository | null = null
 
@@ -26,6 +51,93 @@ function getMateriaPrimaRepository(): MateriaPrimaRepository {
     materiaPrimaRepo = new MateriaPrimaRepository()
   }
   return materiaPrimaRepo
+}
+
+// ==================== UTILIDADES DE ARCHIVO ====================
+
+/**
+ * Valida el tipo MIME y extensión del archivo
+ */
+function validateFileType(mimeType: string, filename: string): boolean {
+  const hasValidMimeType = IMAGE_CONFIG.allowedTypes.includes(mimeType)
+  const fileExtension = path.extname(filename).toLowerCase()
+  const hasValidExtension = IMAGE_CONFIG.allowedExtensions.includes(fileExtension)
+
+  return hasValidMimeType && hasValidExtension
+}
+
+/**
+ * Sanitiza un nombre de archivo para remover caracteres peligrosos
+ */
+function sanitizeFilename(filename: string): string {
+  // Remover caracteres especiales, mantener solo alfanuméricos, guiones y guiones bajos
+  return filename
+    .replace(/[^a-zA-Z0-9\-_\.]/g, '_')
+    .replace(/_{2,}/g, '_')
+    .toLowerCase()
+}
+
+/**
+ * Genera un nombre de archivo único para la imagen de materia prima
+ */
+function generateUniqueFilename(codigoBarras: string, nombre: string, extension: string): string {
+  const timestamp = Date.now()
+  const uuid = uuidv4().slice(0, 8)
+  const sanitizedNombre = sanitizeFilename(nombre)
+  const sanitizedCodigo = sanitizeFilename(codigoBarras)
+
+  return `${sanitizedCodigo}_${sanitizedNombre}_${timestamp}_${uuid}${extension}`
+}
+
+/**
+ * Crea el directorio de uploads si no existe
+ */
+async function ensureUploadDirectory(): Promise<string> {
+  const userDataPath = app.getPath('userData')
+  const uploadsPath = path.join(userDataPath, IMAGE_CONFIG.uploadsDir)
+
+  try {
+    await fs.access(uploadsPath)
+  } catch (error) {
+    // El directorio no existe, crearlo con recursive: true
+    console.log(`📁 Creando directorio de uploads: ${uploadsPath}`)
+    await fs.mkdir(uploadsPath, { recursive: true })
+  }
+
+  return uploadsPath
+}
+
+/**
+ * Guarda un archivo de imagen en el sistema de archivos
+ */
+async function saveImageFile(
+  buffer: ArrayBuffer,
+  filename: string
+): Promise<{ success: boolean; filepath?: string; error?: string }> {
+  try {
+    const uploadsDir = await ensureUploadDirectory()
+    const filepath = path.join(uploadsDir, filename)
+
+    // Convertir ArrayBuffer a Buffer y guardar
+    const nodeBuffer = Buffer.from(buffer)
+    await fs.writeFile(filepath, nodeBuffer)
+
+    console.log(`💾 Imagen guardada: ${filepath}`)
+    return { success: true, filepath }
+  } catch (error) {
+    const errorMsg = `Error guardando archivo: ${(error as Error).message}`
+    console.error(`❌ ${errorMsg}`)
+    return { success: false, error: errorMsg }
+  }
+}
+
+/**
+ * Genera URL relativa para la base de datos
+ */
+function generateRelativeUrl(filename: string): string {
+  const userDataPath = app.getPath('userData')
+  const relativePath = path.join(IMAGE_CONFIG.uploadsDir, filename)
+  return `file://${path.join(userDataPath, relativePath)}`
 }
 
 /**
@@ -221,6 +333,75 @@ export function setupMateriaPrimaHandlers(): void {
     } catch (error) {
       console.error('❌ Error creando materia prima:', error)
       throw error
+    }
+  })
+
+  // ✅ Subir imagen de materia prima
+  ipcMain.handle('materiaPrima:subirImagen', async (
+    _,
+    fileData: {
+      name: string
+      type: string
+      size: number
+      buffer: ArrayBuffer
+    },
+    metadata: ImageMetadata
+  ): Promise<ImageUploadResult> => {
+    try {
+      console.log('📡 materiaPrima:subirImagen handled')
+      console.log(`📄 Archivo recibido: ${fileData.name} (${fileData.type}, ${(fileData.size / 1024).toFixed(1)}KB)`)
+
+      // Validaciones del archivo
+      if (!fileData.name || !fileData.type || !fileData.buffer) {
+        throw new Error('Datos del archivo incompletos')
+      }
+
+      if (!validateFileType(fileData.type, fileData.name)) {
+        throw new Error(`Tipo de archivo no soportado. Tipos permitidos: ${IMAGE_CONFIG.allowedExtensions.join(', ')}`)
+      }
+
+      if (fileData.size > IMAGE_CONFIG.maxSize) {
+        throw new Error(`Archivo demasiado grande. Tamaño máximo: ${(IMAGE_CONFIG.maxSize / 1024 / 1024).toFixed(1)}MB`)
+      }
+
+      // Validaciones de metadata
+      if (!metadata.materiaPrimaId || !metadata.codigoBarras || !metadata.nombre) {
+        throw new Error('Metadatos incompletos: materiaPrimaId, codigoBarras y nombre son requeridos')
+      }
+
+      // Generar nombre único para el archivo
+      const extension = path.extname(fileData.name).toLowerCase()
+      const filename = generateUniqueFilename(
+        metadata.codigoBarras,
+        metadata.nombre,
+        extension
+      )
+
+      console.log(`🏷️ Nombre generado: ${filename}`)
+
+      // Guardar archivo en sistema de archivos
+      const saveResult = await saveImageFile(fileData.buffer, filename)
+      if (!saveResult.success) {
+        throw new Error(saveResult.error || 'Error guardando el archivo')
+      }
+
+      // Generar URL relativa para almacenar en base de datos
+      const relativeUrl = generateRelativeUrl(filename)
+
+      console.log(`✅ Imagen subida exitosamente: ${relativeUrl}`)
+
+      return {
+        success: true,
+        url: relativeUrl,
+        filename: filename
+      }
+    } catch (error) {
+      const errorMessage = (error as Error).message
+      console.error('❌ Error subiendo imagen:', errorMessage)
+      return {
+        success: false,
+        error: errorMessage
+      }
     }
   })
 
