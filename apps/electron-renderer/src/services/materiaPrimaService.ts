@@ -32,6 +32,12 @@ export class MateriaPrimaService {
   constructor() {
     if (isElectron()) {
       this.api = window.electronAPI.materiaPrima
+      console.log('🔌 MateriaPrimaService inicializado en modo Electron', {
+        api: !!this.api,
+        availableMethods: this.api ? Object.keys(this.api) : 'none'
+      })
+    } else {
+      console.log('🖥️ MateriaPrimaService inicializado en modo desarrollo (mock)')
     }
   }
 
@@ -369,6 +375,14 @@ export class MateriaPrimaService {
       nombre: string
     }
   ): Promise<{ success: boolean; url?: string; error?: string; filename?: string }> {
+    console.log('🚀 Iniciando subirImagen:', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      metadata,
+      hasApi: !!this.api
+    })
+
     if (!this.api) {
       // Modo desarrollo: simular upload
       console.log('Modo desarrollo: subiendo imagen', {

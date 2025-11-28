@@ -103,7 +103,7 @@ const createColumns = (
       <DataTableColumnHeader column={column} title="Imagen" />
     ),
     cell: ({ row }) => {
-      const imageUrl = row.getValue('imagen_url') as string
+      const imageUrl = row.original.imagen_url as string
 
       return (
         <div className="h-10 w-10">
@@ -125,7 +125,7 @@ const createColumns = (
           ) : null}
           {!imageUrl || imageUrl === '' ? (
             <div className="h-full w-full bg-gray-200 rounded flex items-center justify-center">
-              <ImageIcon className="h-4 w-4 text-gray-400" />
+              <ImageIcon className="h-4 w-4 text-gray-400" data-testid="image-icon" />
             </div>
           ) : null}
         </div>

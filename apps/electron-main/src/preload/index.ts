@@ -69,7 +69,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // ✅ Utilidades
     exportar: (options: { formato: 'csv' | 'excel' | 'pdf' }): Promise<Buffer> =>
-      ipcRenderer.invoke('materiaPrima:exportar', options)
+      ipcRenderer.invoke('materiaPrima:exportar', options),
+
+    // ✅ Upload de imágenes
+    subirImagen: (
+      fileData: { name: string; type: string; size: number; buffer: ArrayBuffer },
+      metadata: { materiaPrimaId: string; codigoBarras: string; nombre: string }
+    ): Promise<{ success: boolean; url?: string; error?: string; filename?: string }> =>
+      ipcRenderer.invoke('materiaPrima:subirImagen', fileData, metadata)
   },
 
   // Sistema de archivos
@@ -125,6 +132,12 @@ declare global {
 
         // Utilidades
         exportar: (options: { formato: 'csv' | 'excel' | 'pdf' }) => Promise<Buffer>
+
+        // Upload de imágenes
+        subirImagen: (
+          fileData: { name: string; type: string; size: number; buffer: ArrayBuffer },
+          metadata: { materiaPrimaId: string; codigoBarras: string; nombre: string }
+        ): Promise<{ success: boolean; url?: string; error?: string; filename?: string }>
       }
 
       // ==================== SISTEMA ====================

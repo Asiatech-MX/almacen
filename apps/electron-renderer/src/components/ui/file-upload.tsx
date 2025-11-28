@@ -66,7 +66,7 @@ const FileUploadItem = ({ file, onRemove, preview }: FileUploadItemProps) => {
         />
       ) : (
         <div className="size-10 bg-muted rounded flex items-center justify-center">
-          <ImageIcon className="size-4 text-muted-foreground" />
+          <ImageIcon className="size-4 text-muted-foreground" data-testid="image-icon" />
         </div>
       )}
       <div className="flex-1 min-w-0">
