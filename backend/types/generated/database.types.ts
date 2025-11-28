@@ -50,10 +50,16 @@ export interface Categoria {
   esPredeterminado: Generated<boolean | null>;
   icono: string | null;
   id: Generated<number>;
+  /**
+   * Institution to which this category belongs (multi-tenant support)
+   */
   idInstitucion: number;
   nivel: Generated<number>;
   nombre: string;
   orden: Generated<number | null>;
+  /**
+   * Ruta jerárquica completa para facilitar búsquedas y visualización
+   */
   rutaCompleta: string | null;
 }
 
@@ -191,14 +197,23 @@ export interface ParametroSistema {
 }
 
 export interface Presentacion {
+  /**
+   * Abreviatura para display en selects y formularios
+   */
   abreviatura: string | null;
   activo: Generated<boolean | null>;
   actualizadoEn: Generated<Timestamp | null>;
   creadoEn: Generated<Timestamp | null>;
   descripcion: string | null;
   esPredeterminado: Generated<boolean | null>;
+  /**
+   * Factor para convertir a unidad_base
+   */
   factorConversion: Numeric | null;
   id: Generated<number>;
+  /**
+   * Institution to which this presentation belongs (multi-tenant support)
+   */
   idInstitucion: number;
   nombre: string;
   unidadBase: string | null;
