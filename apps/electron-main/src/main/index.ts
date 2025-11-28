@@ -1,6 +1,7 @@
 import { config } from 'dotenv'
-import { app, BrowserWindow, ipcMain, dialog, session } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, session, protocol } from 'electron'
 import { join } from 'path'
+import { promises as fs } from 'node:fs'
 import { setupMateriaPrimaHandlers } from './ipc/materiaPrima'
 import { setupFileSystemHandlers } from './ipc/fs'
 import { registerProveedorHandlers } from './ipc/proveedor'
@@ -17,8 +18,117 @@ const startupMetrics = {
   ipcSetupTime: 0
 }
 
+// Configuración de protocolo personalizado para imágenes
+const setupImageProtocol = (): void => {
+  const IMAGE_CONFIG = {
+    uploadsDir: 'assets/images/materia-prima'
+  }
+
+  protocol.registerFileProtocol('almacen-img', (request, callback) => {
+    try {
+      // Extraer el nombre del archivo de la URL
+      const url = request.url
+      if (!url || !url.startsWith('almacen-img://')) {
+        console.error('❌ Invalid protocol URL:', url)
+        callback({ error: -3 }) // Access denied
+        return
+      }
+
+      const filename = url.replace('almacen-img://', '').trim()
+
+      // Validaciones de seguridad del nombre de archivo
+      if (!filename ||
+          filename.length === 0 ||
+          filename.length > 255 || // Límite de nombre de archivo
+          filename.includes('..') ||
+          filename.includes('\\') ||
+          filename.includes('/') ||
+          filename.includes(':') ||
+          filename.includes('*') ||
+          filename.includes('?') ||
+          filename.includes('"') ||
+          filename.includes('<') ||
+          filename.includes('>') ||
+          filename.includes('|')) {
+        console.error('❌ Invalid filename in image protocol request:', filename)
+        callback({ error: -3 }) // Access denied
+        return
+      }
+
+      // Validar que tenga una extensión de imagen permitida
+      const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp']
+      const fileExtension = filename.toLowerCase().substring(filename.lastIndexOf('.'))
+      if (!allowedExtensions.includes(fileExtension)) {
+        console.error('❌ Invalid file extension:', fileExtension)
+        callback({ error: -3 }) // Access denied
+        return
+      }
+
+      const userDataPath = app.getPath('userData')
+      const imagePath = join(userDataPath, IMAGE_CONFIG.uploadsDir, filename)
+
+      // Validar que el archivo exista y sea accesible
+      fs.access(imagePath, fs.constants.F_OK | fs.constants.R_OK)
+        .then(async () => {
+          try {
+            // Validación adicional: verificar el tipo de archivo (mágica)
+            const stats = await fs.stat(imagePath)
+            if (!stats.isFile()) {
+              throw new Error('Path is not a file')
+            }
+
+            // Verificar que el archivo no sea demasiado grande (opcional)
+            const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+            if (stats.size > MAX_FILE_SIZE) {
+              throw new Error('File too large')
+            }
+
+            console.log(`📷 Serving image: ${filename} (${stats.size} bytes)`)
+            callback({ path: imagePath })
+          } catch (fileError) {
+            console.error('❌ File validation error:', fileError)
+            callback({ error: -2 }) // File not found or invalid
+          }
+        })
+        .catch((err) => {
+          console.error(`❌ Image not found or inaccessible: ${imagePath}`, err)
+          callback({ error: -2 }) // File not found
+        })
+    } catch (error) {
+      console.error('❌ Critical error in image protocol handler:', error)
+      callback({ error: -3 }) // Access denied
+    }
+  })
+
+  console.log('🖼️ Image protocol "almacen-img://" registered successfully')
+}
+
 // Configuración de seguridad de sesión
 const setupSecurity = (): void => {
+  // Configurar Content Security Policy para permitir nuestro protocolo personalizado
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self';" +
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval';" +
+          "style-src 'self' 'unsafe-inline';" +
+          "img-src 'self' data: blob: almacen-img:;" +
+          "font-src 'self' data:;" +
+          "connect-src 'self' ws: wss:;" +
+          "media-src 'self' blob:;" +
+          "object-src 'none';" +
+          "frame-src 'none';" +
+          "child-src 'none';" +
+          "worker-src 'self' blob:;" +
+          "manifest-src 'self';" +
+          "upgrade-insecure-requests"
+        ]
+      }
+    })
+  })
+
   // Configurar manejo de permisos de forma restrictiva
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
     // Denegar permisos desconocidos
@@ -39,14 +149,18 @@ const setupSecurity = (): void => {
 
   // Configurar manejo de verificación de permisos
   session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
-    // Permitir solo orígenes locales
-    if (requestingOrigin && (requestingOrigin.startsWith('http://localhost:') || requestingOrigin.startsWith('file://'))) {
+    // Permitir solo orígenes locales y nuestro protocolo personalizado
+    if (requestingOrigin && (
+      requestingOrigin.startsWith('http://localhost:') ||
+      requestingOrigin.startsWith('file://') ||
+      requestingOrigin.startsWith('almacen-img://')
+    )) {
       return permission === 'notifications' || permission === 'clipboard-read' || permission === 'clipboard-sanitized-write'
     }
     return false
   })
 
-  console.log('🔒 Security configuration applied')
+  console.log('🔒 Security configuration applied with CSP for almacen-img://')
 }
 
 // Función de reintentos para conexión a base de datos
@@ -95,7 +209,13 @@ const createWindow = (): void => {
       allowRunningInsecureContent: false,
       experimentalFeatures: false,
       enableBlinkFeatures: undefined,
-      spellcheck: true
+      spellcheck: true,
+      // Configuración específica para soporte de protocolos personalizados
+      additionalArguments: [
+        '--disable-features=VizDisplayCompositor'
+      ],
+      // Permitir protocolos personalizados
+      protocols: ['almacen-img']
     }
   })
 
@@ -131,12 +251,28 @@ const setupIPC = (): void => {
   console.log(`📡 IPC handlers configured in ${startupMetrics.ipcSetupTime}ms`)
 }
 
+// Registrar protocolos privilegiados antes de app.whenReady()
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'almacen-img',
+    privileges: {
+      secure: true,
+      allowServiceWorkers: false,
+      supportFetchAPI: true,
+      corsEnabled: true
+    }
+  }
+])
+
 app.whenReady().then(async () => {
   try {
     console.log('🚀 Starting application...')
 
     // Configurar seguridad primero
     setupSecurity()
+
+    // Configurar protocolo de imágenes
+    setupImageProtocol()
 
     // Validar conexión a base de datos con reintentos
     const dbConnected = await setupWithRetry()
