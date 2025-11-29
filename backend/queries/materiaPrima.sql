@@ -7,13 +7,15 @@ SELECT
   mp.marca,
   mp.modelo,
   mp.presentacion,
-  mp.stock as stock,
+  mp.presentacion_id, -- ✅ Agregar campo de referencia
+  mp.stock as stock_actual,
   mp.stock_minimo,
   0 as costo_unitario, -- Column doesn't exist in schema
   NULL as fecha_caducidad, -- Column doesn't exist in schema
   mp.imagen_url,
   NULL as descripcion, -- Column doesn't exist in schema
   NULL as categoria, -- Column doesn't exist in schema
+  mp.categoria_id, -- ✅ Agregar campo de referencia
   NULL as proveedor_id, -- Column doesn't exist in schema
   mp.estatus,
   p.nombre as proveedor_nombre,
@@ -34,19 +36,19 @@ SELECT
   p.email as proveedor_email
 FROM materia_prima mp
 LEFT JOIN proveedor p ON 1=1 -- Placeholder join since provider relation is not clear in schema
-WHERE mp.id = :id AND mp.estatus = 'ACTIVO';
+WHERE mp.id = :id;
 
 /* @name FindMateriaPrimaByCodigoBarras
 /* Busca material prima por código de barras
 SELECT *
 FROM materia_prima
-WHERE codigo_barras = :codigoBarras AND estatus = 'ACTIVO';
+WHERE codigo_barras = :codigoBarras;
 
 /* @name SearchMateriaPrima
 /* Busca materiales por texto en múltiples campos
 SELECT
-  id, codigo_barras, nombre, marca, presentacion,
-  stock, stock_minimo, categoria, imagen_url,
+  id, codigo_barras, nombre, marca, presentacion, presentacion_id,
+  stock as stock_actual, stock_minimo, categoria, categoria_id, imagen_url,
   costo_unitario
 FROM materia_prima
 WHERE
@@ -64,8 +66,8 @@ LIMIT :limit;
 /* @name FindLowStockItems
 /* Obtiene materiales con stock bajo o agotado
 SELECT
-  id, codigo_barras, nombre, marca, presentacion,
-  stock, stock_minimo, categoria,
+  id, codigo_barras, nombre, marca, presentacion, presentacion_id,
+  stock as stock_actual, stock_minimo, categoria, categoria_id,
   (stock::DECIMAL / NULLIF(stock_minimo, 0)) as stock_ratio
 FROM materia_prima
 WHERE
@@ -77,7 +79,7 @@ ORDER BY stock_ratio ASC;
 /* Verifica si hay stock suficiente para una cantidad determinada
 SELECT
   stock >= :cantidad as disponible,
-  stock,
+  stock as stock_actual,
   stock_minimo,
   (stock - :cantidad) as stock_restante
 FROM materia_prima
@@ -86,8 +88,8 @@ WHERE id = :id AND estatus = 'ACTIVO';
 /* @name FindMateriaPrimaByCategoria
 /* Obtiene materiales por categoría
 SELECT
-  id, codigo_barras, nombre, marca, presentacion,
-  stock, stock_minimo, categoria, imagen_url
+  id, codigo_barras, nombre, marca, presentacion, presentacion_id,
+  stock as stock_actual, stock_minimo, categoria, categoria_id, imagen_url
 FROM materia_prima
 WHERE categoria = :categoria AND estatus = 'ACTIVO'
 ORDER BY nombre;
@@ -95,8 +97,8 @@ ORDER BY nombre;
 /* @name FindMateriaPrimaByProveedor
 /* Obtiene materiales por proveedor
 SELECT
-  mp.id, mp.codigo_barras, mp.nombre, mp.marca, mp.presentacion,
-  mp.stock, mp.stock_minimo, mp.categoria,
+  mp.id, mp.codigo_barras, mp.nombre, mp.marca, mp.presentacion, mp.presentacion_id,
+  mp.stock as stock_actual, mp.stock_minimo, mp.categoria, mp.categoria_id,
   p.nombre as proveedor_nombre
 FROM materia_prima mp
 INNER JOIN proveedor p ON CAST(mp.proveedor_id AS VARCHAR) = CAST(p.id AS VARCHAR)
@@ -128,7 +130,7 @@ ORDER BY cantidad DESC;
 
 /* @name FindMateriaPrimaParaActualizar
 /* Query para actualizar un material prima (verifica que exista y esté activo)
-SELECT id, stock, actualizado_en
+SELECT id, stock as stock_actual, actualizado_en
 FROM materia_prima
 WHERE id = :id AND estatus = 'ACTIVO'
 FOR UPDATE;

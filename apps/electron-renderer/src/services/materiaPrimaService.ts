@@ -744,7 +744,7 @@ export class MateriaPrimaService {
     return this.filterMateriales(data, filters)
   }
 
-  // Datos mock para desarrollo (limpios y con estatus explícito)
+  // Datos mock para desarrollo (usando estructura Kysely con mapeo a frontend)
   private getMockData(): MateriaPrima[] {
     return [
       // === MATERIALES ACTIVOS (7 items) ===
@@ -754,17 +754,19 @@ export class MateriaPrimaService {
         marca: 'Holcim',
         modelo: 'Tipo Portland',
         categoria: 'Construcción',
+        categoria_id: 1, // ✅ ID de referencia (número según Kysely)
         presentacion: 'Saco 50kg',
+        presentacion_id: 1, // ✅ ID de referencia (número según Kysely)
         stock_actual: 150,
         stock_minimo: 50,
         codigo_barras: '1234567890123',
         costo_unitario: 125.50,
-        fecha_caducidad: '2025-12-31',
+        fecha_caducidad: new Date('2025-12-31'),
         descripcion: 'Cemento Portland de alta resistencia para construcción',
         proveedor_id: 'prov-001',
         imagen_url: '',
-        creado_en: '2024-01-01T00:00:00Z',
-        actualizado_en: '2024-01-01T00:00:00Z',
+        creado_en: new Date('2024-01-01T00:00:00Z'),
+        actualizado_en: new Date('2024-01-01T00:00:00Z'),
         estatus: 'ACTIVO'
       },
       {
@@ -773,17 +775,19 @@ export class MateriaPrimaService {
         marca: 'Ladrillera',
         modelo: 'Standard',
         categoria: 'Construcción',
+        categoria_id: 1,
         presentacion: 'Pieza',
+        presentacion_id: 2,
         stock_actual: 500,
         stock_minimo: 200,
         codigo_barras: '2345678901234',
         costo_unitario: 8.75,
-        fecha_caducidad: '2026-06-30',
+        fecha_caducidad: new Date('2026-06-30'),
         descripcion: 'Ladrillo rojo estándar para muros',
         proveedor_id: 'prov-002',
         imagen_url: '',
-        creado_en: '2024-01-01T00:00:00Z',
-        actualizado_en: '2024-01-01T00:00:00Z',
+        creado_en: new Date('2024-01-01T00:00:00Z'),
+        actualizado_en: new Date('2024-01-01T00:00:00Z'),
         estatus: 'ACTIVO'
       },
       {
@@ -792,17 +796,19 @@ export class MateriaPrimaService {
         marca: 'Sika',
         modelo: 'Latex Interior',
         categoria: 'Pinturas',
+        categoria_id: 2,
         presentacion: 'Galón 3.78L',
+        presentacion_id: 3,
         stock_actual: 25,
         stock_minimo: 10,
         codigo_barras: '3456789012345',
         costo_unitario: 45.00,
-        fecha_caducidad: '2025-08-15',
+        fecha_caducidad: new Date('2025-08-15'),
         descripcion: 'Pintura látex interior color blanco mate',
         proveedor_id: 'prov-003',
         imagen_url: '',
-        creado_en: '2024-01-01T00:00:00Z',
-        actualizado_en: '2024-01-01T00:00:00Z',
+        creado_en: new Date('2024-01-01T00:00:00Z'),
+        actualizado_en: new Date('2024-01-01T00:00:00Z'),
         estatus: 'ACTIVO'
       },
       {
@@ -811,7 +817,9 @@ export class MateriaPrimaService {
         marca: 'AceroStrong',
         modelo: 'Calibre 12',
         categoria: 'Herramientas',
+        categoria_id: 3,
         presentacion: 'Rollo 100m',
+        presentacion_id: 4,
         stock_actual: 5, // ⚠️ Stock bajo
         stock_minimo: 20,
         codigo_barras: '4567890123456',
@@ -820,8 +828,8 @@ export class MateriaPrimaService {
         descripcion: 'Alambre de acero para construcción',
         proveedor_id: 'prov-001',
         imagen_url: '',
-        creado_en: '2024-01-01T00:00:00Z',
-        actualizado_en: '2024-01-01T00:00:00Z',
+        creado_en: new Date('2024-01-01T00:00:00Z'),
+        actualizado_en: new Date('2024-01-01T00:00:00Z'),
         estatus: 'ACTIVO'
       },
       {
@@ -830,7 +838,9 @@ export class MateriaPrimaService {
         marca: 'FixFast',
         modelo: '3 pulgadas',
         categoria: 'Herramientas',
+        categoria_id: 3,
         presentacion: 'Caja 1kg',
+        presentacion_id: 5,
         stock_actual: 0, // ⚠️ Agotado
         stock_minimo: 50,
         codigo_barras: '5678901234567',
@@ -839,8 +849,8 @@ export class MateriaPrimaService {
         descripcion: 'Clavos galvanizados para madera',
         proveedor_id: 'prov-002',
         imagen_url: '',
-        creado_en: '2024-01-01T00:00:00Z',
-        actualizado_en: '2024-01-01T00:00:00Z',
+        creado_en: new Date('2024-01-01T00:00:00Z'),
+        actualizado_en: new Date('2024-01-01T00:00:00Z'),
         estatus: 'ACTIVO'
       },
       {
@@ -849,17 +859,19 @@ export class MateriaPrimaService {
         marca: 'Sika',
         modelo: 'Latex Exterior',
         categoria: 'Pinturas',
+        categoria_id: 2,
         presentacion: 'Galón 3.78L',
+        presentacion_id: 3,
         stock_actual: 8, // ⚠️ Stock bajo
         stock_minimo: 15,
         codigo_barras: '6789012345678',
         costo_unitario: 48.50,
-        fecha_caducidad: '2025-10-20',
+        fecha_caducidad: new Date('2025-10-20'),
         descripcion: 'Pintura látex exterior color azul marino',
         proveedor_id: 'prov-003',
         imagen_url: '',
-        creado_en: '2024-01-01T00:00:00Z',
-        actualizado_en: '2024-01-01T00:00:00Z',
+        creado_en: new Date('2024-01-01T00:00:00Z'),
+        actualizado_en: new Date('2024-01-01T00:00:00Z'),
         estatus: 'ACTIVO'
       },
       {
@@ -868,7 +880,9 @@ export class MateriaPrimaService {
         marca: 'Pipesol',
         modelo: 'Schedule 40',
         categoria: 'Construcción',
+        categoria_id: 1,
         presentacion: 'Barril 3m',
+        presentacion_id: 6,
         stock_actual: 75,
         stock_minimo: 30,
         codigo_barras: '7890123456789',
@@ -877,8 +891,8 @@ export class MateriaPrimaService {
         descripcion: 'Tubo de PVC para instalaciones sanitarias',
         proveedor_id: 'prov-001',
         imagen_url: '',
-        creado_en: '2024-01-01T00:00:00Z',
-        actualizado_en: '2024-01-01T00:00:00Z',
+        creado_en: new Date('2024-01-01T00:00:00Z'),
+        actualizado_en: new Date('2024-01-01T00:00:00Z'),
         estatus: 'ACTIVO'
       },
 
@@ -889,7 +903,9 @@ export class MateriaPrimaService {
         marca: 'Stanley',
         modelo: 'Professional',
         categoria: 'Herramientas',
+        categoria_id: 3,
         presentacion: 'Pieza',
+        presentacion_id: 2,
         stock_actual: 50,
         stock_minimo: 10,
         codigo_barras: '8901234567890',
@@ -898,8 +914,8 @@ export class MateriaPrimaService {
         descripcion: 'Martillo profesional para carpintería (PRODUCTO DESCONTINUADO)',
         proveedor_id: 'prov-004',
         imagen_url: '',
-        creado_en: '2024-01-01T00:00:00Z',
-        actualizado_en: '2024-01-01T00:00:00Z',
+        creado_en: new Date('2024-01-01T00:00:00Z'),
+        actualizado_en: new Date('2024-01-01T00:00:00Z'),
         estatus: 'INACTIVO'
       },
       {
@@ -908,7 +924,9 @@ export class MateriaPrimaService {
         marca: 'FixFast',
         modelo: '3 pulgadas',
         categoria: 'Herramientas',
+        categoria_id: 3,
         presentacion: 'Caja 1kg',
+        presentacion_id: 5,
         stock_actual: 200,
         stock_minimo: 50,
         codigo_barras: '9012345678901',
@@ -917,8 +935,8 @@ export class MateriaPrimaService {
         descripcion: 'Clavos de acero para construcción (SIN PROVEEDOR)',
         proveedor_id: 'prov-004',
         imagen_url: '',
-        creado_en: '2024-01-01T00:00:00Z',
-        actualizado_en: '2024-01-01T00:00:00Z',
+        creado_en: new Date('2024-01-01T00:00:00Z'),
+        actualizado_en: new Date('2024-01-01T00:00:00Z'),
         estatus: 'INACTIVO'
       },
       {
@@ -927,7 +945,9 @@ export class MateriaPrimaService {
         marca: 'Bosch',
         modelo: 'Industrial',
         categoria: 'Herramientas',
+        categoria_id: 3,
         presentacion: 'Pieza',
+        presentacion_id: 2,
         stock_actual: 25,
         stock_minimo: 15,
         codigo_barras: '0123456789012',
@@ -936,8 +956,8 @@ export class MateriaPrimaService {
         descripcion: 'Disco de corte para metal (EN REVISIÓN)',
         proveedor_id: 'prov-004',
         imagen_url: '',
-        creado_en: '2024-01-01T00:00:00Z',
-        actualizado_en: '2024-01-01T00:00:00Z',
+        creado_en: new Date('2024-01-01T00:00:00Z'),
+        actualizado_en: new Date('2024-01-01T00:00:00Z'),
         estatus: 'INACTIVO'
       }
     ]

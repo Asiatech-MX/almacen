@@ -265,6 +265,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'mp.marca',
         'mp.modelo',
         'mp.presentacion',
+        'mp.presentacion_id', // ✅ Add reference field
         'mp.stock_actual',
         'mp.stock_minimo',
         'mp.costo_unitario',
@@ -272,6 +273,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'mp.imagen_url',
         'mp.descripcion',
         'mp.categoria',
+        'mp.categoria_id',   // ✅ Add reference field
         'mp.proveedor_id',
         sql<string>`CASE
           WHEN mp.activo = true THEN 'ACTIVO'
@@ -364,6 +366,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'mp.marca',
         'mp.modelo',
         'mp.presentacion',
+        'mp.presentacion_id', // ✅ Add reference field
         'mp.stock_actual',
         'mp.stock_minimo',
         'mp.costo_unitario',
@@ -371,6 +374,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'mp.imagen_url',
         'mp.descripcion',
         'mp.categoria',
+        'mp.categoria_id',   // ✅ Add reference field
         'mp.proveedor_id',
         'p.nombre as proveedor_nombre',
         sql<string>`NULL`.as('proveedor_rfc'), // Temporarily NULL since no providers exist
@@ -408,9 +412,11 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
           'materia_prima.nombre',
           'materia_prima.marca',
           'materia_prima.presentacion',
+          'materia_prima.presentacion_id', // ✅ Add reference field
           'materia_prima.stock_actual',
           'materia_prima.stock_minimo',
           'materia_prima.categoria',
+          'materia_prima.categoria_id',   // ✅ Add reference field
           'materia_prima.imagen_url',
           sql<string>`NULL`.as('proveedor_nombre') // Temporal: NULL until provider schema is fixed
         ])
@@ -432,9 +438,11 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'nombre',
         'marca',
         'presentacion',
+        'presentacion_id', // ✅ Add reference field
         'stock_actual',
         'stock_minimo',
         'categoria',
+        'categoria_id',   // ✅ Add reference field
         sql<number | null>`CASE
           WHEN stock_minimo > 0 THEN ROUND((stock_actual::numeric / stock_minimo::numeric), 2)
           ELSE NULL
@@ -891,6 +899,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'mp.marca',
         'mp.modelo',
         'mp.presentacion',
+        'mp.presentacion_id', // ✅ Add reference field
         'mp.stock_actual',
         'mp.stock_minimo',
         'mp.costo_unitario',
@@ -898,6 +907,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'mp.imagen_url',
         'mp.descripcion',
         'mp.categoria',
+        'mp.categoria_id',   // ✅ Add reference field
         'mp.proveedor_id',
         sql<string>`NULL`.as('proveedor_nombre'), // Temporal: NULL until provider schema is fixed
         sql<string>`NULL`.as('proveedor_rfc'), // Temporal: NULL until provider schema is fixed

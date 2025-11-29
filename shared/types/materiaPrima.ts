@@ -1,29 +1,62 @@
+// Importar tipos desde Kysely Codegen
 import type {
-  FindAllMateriaPrimaResult,
-  FindMateriaPrimaByIdResult,
-  FindMateriaPrimaByCodigoBarrasResult,
-  SearchMateriaPrimaResult,
-  FindLowStockItemsResult,
-  CheckStockDisponibleResult,
-  GetAuditTrailResult,
-  GetMateriaPrimaStatsResult,
-  GetCategoriaStatsResult
-} from '../../backend/types/generated/materiaPrima.types'
+  MateriaPrima as KyselyMateriaPrima,
+  Presentacion,
+  Categoria
+} from '../../backend/types/generated/database.types'
 
 import type {
   FindAllProveedoresResult,
   SearchProveedoresResult
 } from '../../backend/types/generated/proveedores.types'
 
-// Tipos principales de Materia Prima
-export type MateriaPrima = FindAllMateriaPrimaResult
-export type MateriaPrimaDetail = FindMateriaPrimaByIdResult
-export type MateriaPrimaSearch = SearchMateriaPrimaResult
-export type LowStockItem = FindLowStockItemsResult
-export type StockCheck = CheckStockDisponibleResult
-export type AuditTrail = GetAuditTrailResult
-export type MateriaPrimaStats = GetMateriaPrimaStatsResult
-export type CategoriaStats = GetCategoriaStatsResult
+// Tipos principales de Materia Prima - usando Kysely types
+export type MateriaPrima = KyselyMateriaPrima & {
+  // Mapeo de campos Kysely a nombres del frontend
+  stock_actual: KyselyMateriaPrima['stockActual']
+  stock_minimo: KyselyMateriaPrima['stockMinimo']
+  codigo_barras: KyselyMateriaPrima['codigoBarras']
+  costo_unitario: KyselyMateriaPrima['costoUnitario']
+  fecha_caducidad: KyselyMateriaPrima['fechaCaducidad']
+  imagen_url: KyselyMateriaPrima['imagenUrl']
+  proveedor_id: KyselyMateriaPrima['proveedorId']
+  categoria_id: KyselyMateriaPrima['categoriaId']
+  presentacion_id: KyselyMateriaPrima['presentacionId']
+  creado_en: KyselyMateriaPrima['creadoEn']
+  actualizado_en: KyselyMateriaPrima['actualizadoEn']
+  estatus: 'ACTIVO' | 'INACTIVO' // Derivado de activo
+}
+
+export type MateriaPrimaDetail = MateriaPrima & {
+  proveedor_nombre?: string | null
+  proveedor_rfc?: string | null
+  proveedor_telefono?: string | null
+  proveedor_email?: string | null
+}
+
+// Tipos de búsqueda y estadísticas (mantener compatibilidad temporal)
+export type MateriaPrimaSearch = MateriaPrima
+export type LowStockItem = MateriaPrima
+export type StockCheck = {
+  disponible: boolean
+  stock_actual: number
+  stock_minimo?: number
+  stock_restante?: number
+}
+export type AuditTrail = any // TODO: Implementar con tipos Kysely
+export type MateriaPrimaStats = {
+  total_materiales: number
+  bajo_stock: number
+  sin_stock: number
+  valor_total_inventario: number
+  con_categoria: number
+}
+export type CategoriaStats = {
+  categoria: string
+  cantidad: number
+  valor_total: number
+  bajo_stock: number
+}
 
 // Tipos de Proveedor
 export type Proveedor = FindAllProveedoresResult
@@ -35,14 +68,12 @@ export interface NewMateriaPrima {
   nombre: string
   marca?: string | null
   modelo?: string | null
-  // Compatibilidad backward durante migración
-  presentacion?: string | null
+  presentacion: string // Campo requerido en Kysely
   categoria?: string | null
-  // Nuevos campos con IDs de referencia
-  presentacion_id?: string | null
-  categoria_id?: string | null
-  stock_actual?: number
-  stock_minimo?: number
+  presentacion_id?: number | null
+  categoria_id?: number | null
+  stock_actual: number
+  stock_minimo: number
   costo_unitario?: number | null
   fecha_caducidad?: Date | null
   imagen_url?: string | null
@@ -56,12 +87,10 @@ export interface MateriaPrimaUpdate {
   nombre?: string
   marca?: string | null
   modelo?: string | null
-  // Compatibilidad backward durante migración
-  presentacion?: string | null
+  presentacion?: string
   categoria?: string | null
-  // Nuevos campos con IDs de referencia
-  presentacion_id?: string | null
-  categoria_id?: string | null
+  presentacion_id?: number | null
+  categoria_id?: number | null
   stock_actual?: number
   stock_minimo?: number
   costo_unitario?: number | null

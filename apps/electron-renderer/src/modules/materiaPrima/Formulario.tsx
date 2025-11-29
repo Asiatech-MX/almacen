@@ -24,10 +24,11 @@ import { useReferenceData } from '../../hooks/useReferenceData'
 import { MemoizedDynamicSelect } from '@/components/ui/DynamicSelect'
 import { InlineEditModal } from '@/components/ui/InlineEditModal'
 import type {
-  MateriaPrimaDetail,
+  MateriaPrima,
   NewMateriaPrima,
   MateriaPrimaUpdate
 } from '../../../../shared/types/materiaPrima'
+
 import {
   prepareFormDataForSubmission,
   extractValidationErrors
