@@ -21,7 +21,7 @@ import { FileUpload } from '@/components/ui/file-upload'
 import useMateriaPrima, { UseMateriaPrimaOptions } from '../../hooks/useMateriaPrima'
 import materiaPrimaService from '../../services/materiaPrimaService'
 import { useReferenceData } from '../../hooks/useReferenceData'
-import { DynamicSelect } from '@/components/ui/DynamicSelect'
+import { MemoizedDynamicSelect } from '@/components/ui/DynamicSelect'
 import { InlineEditModal } from '@/components/ui/InlineEditModal'
 import type {
   MateriaPrimaDetail,
@@ -86,26 +86,18 @@ const validateEAN13 = (barcode: string): boolean => {
   return checksum === parseInt(digits[12]);
 };
 
-// Schema Zod para validación con backward compatibility y sistema de referencias
+// Schema Zod simplificado - solo IDs de referencia
 const materiaPrimaSchema = z.object({
   codigo_barras: z.string()
-    .min(13, 'El código de barras debe tener exactamente 13 dígitos')
-    .max(13, 'El código de barras debe tener exactamente 13 dígitos')
+    .length(13, 'El código de barras debe tener exactamente 13 dígitos')
     .regex(/^\d{13}$/, 'El código de barras debe contener solo números')
     .refine((barcode) => validateEAN13(barcode), 'Código de barras EAN-13 inválido'),
   nombre: z.string().min(1, 'El nombre es requerido'),
   marca: z.string().optional(),
   modelo: z.string().optional(),
-  // Compatibilidad backward durante migración
-  presentacion: z.string().min(1, 'La presentación es requerida').optional(),
-  categoria: z.string().optional(),
-  // Nuevos campos con IDs de referencia
-  presentacion_id: z.union([z.string(), z.number()])
-    .nullable()
-    .optional(),
-  categoria_id: z.union([z.string(), z.number()])
-    .nullable()
-    .optional(),
+  // Solo campos con IDs de referencia
+  presentacion_id: z.string().min(1, 'La presentación es requerida'),
+  categoria_id: z.string().min(1, 'La categoría es requerida'),
   stock_actual: z.number().min(0, 'El stock actual no puede ser negativo'),
   stock_minimo: z.number().min(0, 'El stock mínimo no puede ser negativo'),
   costo_unitario: z.number().nullable().optional(),
@@ -113,30 +105,6 @@ const materiaPrimaSchema = z.object({
   imagen_url: z.string().nullable().optional(),
   descripcion: z.string().optional(),
   proveedor_id: z.string().nullable().optional()
-}).superRefine((data, ctx) => {
-  // Validación personalizada para migración gradual
-  const tienePresentacionText = data.presentacion && data.presentacion.trim() !== '';
-  const tienePresentacionId = data.presentacion_id;
-
-  if (!tienePresentacionText && !tienePresentacionId) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Debe especificar presentación (texto o ID)',
-      path: ['presentacion_id']
-    });
-  }
-
-  // Advertencia de compatibilidad (no error)
-  if (tienePresentacionText && tienePresentacionId) {
-    // Esto es una advertencia, no un error de validación
-    console.warn('Se especificaron tanto presentación de texto como ID. Se priorizará el ID.');
-  }
-}).refine((data) => {
-  // Para el nuevo sistema, al menos un campo de referencia debe estar presente
-  return (data.presentacion && data.presentacion.trim() !== '') || data.presentacion_id;
-}, {
-  message: 'Debe seleccionar una presentación o especificar una',
-  path: ['presentacion_id']
 });
 
 type MateriaPrimaFormData = z.infer<typeof materiaPrimaSchema>
@@ -171,6 +139,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [generalError, setGeneralError] = useState<string | null>(null)
 
   // Estados para el sistema de referencias
   const [presentacionEditando, setPresentacionEditando] = useState<any>(null)
@@ -189,12 +158,9 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
       nombre: '',
       marca: '',
       modelo: '',
-      // Compatibilidad backward durante migración
-      presentacion: '',
-      categoria: '',
-      // Nuevos campos con IDs de referencia
-      presentacion_id: null,
-      categoria_id: null,
+      // Solo campos con IDs de referencia
+      presentacion_id: '',
+      categoria_id: '',
       stock_actual: 0,
       stock_minimo: 0,
       costo_unitario: null,
@@ -243,12 +209,9 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
         nombre: data.nombre || '',
         marca: data.marca || '',
         modelo: data.modelo || '',
-        // Compatibilidad backward durante migración
-        presentacion: data.presentacion || '',
-        categoria: data.categoria || '',
-        // Nuevos campos con IDs de referencia
-        presentacion_id: data.presentacion_id ? data.presentacion_id.toString() : null,
-        categoria_id: data.categoria_id ? data.categoria_id.toString() : null,
+        // Solo campos con IDs de referencia
+        presentacion_id: data.presentacion_id ? data.presentacion_id.toString() : '',
+        categoria_id: data.categoria_id ? data.categoria_id.toString() : '',
         stock_actual: data.stock_actual || 0,
         stock_minimo: data.stock_minimo || 0,
         costo_unitario: data.costo_unitario || null,
@@ -256,7 +219,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
           new Date(data.fecha_caducidad).toISOString().split('T')[0] : '',
         imagen_url: data.imagen_url || '',
         descripcion: data.descripcion || '',
-        proveedor_id: data.proveedor_id || null
+        proveedor_id: data.proveedor_id || ''
       })
     } catch (err) {
       console.error('Error al cargar material:', err)
@@ -266,30 +229,33 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
   const handleSubmit = async (data: MateriaPrimaFormData) => {
     clearError()
     setSuccess(false)
+    setGeneralError(null) // Limpiar errores generales previos
 
     try {
-      // Lógica de backward compatibility y migración gradual
-      const dataConReferencias = {
-        ...data,
-        // Convertir string IDs a números para la base de datos
-        presentacion_id: data.presentacion_id ? parseInt(data.presentacion_id.toString()) : null,
-        categoria_id: data.categoria_id ? parseInt(data.categoria_id.toString()) : null,
-        // Mantener campos de texto para compatibilidad
-        presentacion: data.presentacion_id ? undefined : data.presentacion,
-        categoria: data.categoria_id ? undefined : data.categoria,
-        // Agregar ID de institución
+      // Pipeline de datos simplificado y directo
+      const submissionData = {
+        codigo_barras: data.codigo_barras,
+        nombre: data.nombre,
+        marca: data.marca || null,
+        modelo: data.modelo || null,
+        presentacion_id: parseInt(data.presentacion_id),
+        categoria_id: parseInt(data.categoria_id),
+        stock_actual: data.stock_actual,
+        stock_minimo: data.stock_minimo,
+        costo_unitario: data.costo_unitario || null,
+        fecha_caducidad: data.fecha_caducidad || null,
+        imagen_url: data.imagen_url || null,
+        descripcion: data.descripcion || null,
+        proveedor_id: data.proveedor_id || null,
         id_institucion: CURRENT_INSTITUTION_ID
       }
-
-      // Preparar y normalizar datos antes de enviar
-      const normalizedData = prepareFormDataForSubmission(dataConReferencias, esEdicion)
 
       let materialGuardado: MateriaPrimaDetail
 
       if (esEdicion && finalId) {
-        materialGuardado = await actualizarMaterial(finalId, normalizedData as MateriaPrimaUpdate)
+        materialGuardado = await actualizarMaterial(finalId, submissionData as MateriaPrimaUpdate)
       } else {
-        materialGuardado = await crearMaterial(normalizedData as NewMateriaPrima)
+        materialGuardado = await crearMaterial(submissionData as NewMateriaPrima)
       }
 
       setSuccess(true)
@@ -315,6 +281,11 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
             message: message as string
           })
         })
+      }
+
+      // Mostrar error general si no hay errores de campo específicos
+      if (generalError && Object.keys(fieldErrors).length === 0) {
+        setGeneralError(generalError)
       }
     }
   }
@@ -457,6 +428,15 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
           </div>
         )}
 
+        {generalError && (
+          <div className="mb-6 p-4 rounded-md bg-destructive/15 border border-destructive/30">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">❌</span>
+              <span className="text-destructive font-medium">{generalError}</span>
+            </div>
+          </div>
+        )}
+
         {success && (
           <div className="mb-6 p-4 rounded-md bg-green-50 border border-green-200 dark:bg-green-900/20 dark:border-green-800">
             <div className="flex items-center gap-2">
@@ -496,7 +476,12 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
           <CardContent className="p-6 sm:p-8 lg:p-10">
             <Scroller viewportAware size={16} offset={8}>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 pb-4">
+                <form
+                  onSubmit={form.handleSubmit(handleSubmit)}
+                  method="POST"
+                  action="#"
+                  className="space-y-6 pb-4"
+                >
                 <Tabs defaultValue="basic-info" className="w-full">
                   {/* Tabs Navigation - Dashboard Moderno */}
                   <TabsList className="grid w-full grid-cols-3 h-auto p-1 mb-8 bg-muted/50 backdrop-blur-sm rounded-xl">
@@ -551,15 +536,12 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                                     <span className="text-destructive">*</span>
                                   </FormLabel>
                                   <FormControl>
-                                    <MaskInput
-                                      mask="custom"
-                                      pattern="9999999999999"
+                                    <Input
+                                      type="text"
                                       placeholder="Ej: 7501234567890"
-                                      value={field.value}
-                                      onValueChange={(masked, unmasked) => {
-                                        field.onChange(unmasked)
-                                      }}
+                                      maxLength={13}
                                       className={`transition-colors focus:ring-2 focus:ring-primary/20 ${fieldState.invalid ? "border-destructive" : ""}`}
+                                      {...field}
                                     />
                                   </FormControl>
                                   <FormMessage />
@@ -619,7 +601,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                                 <FormItem>
                                   <FormLabel>Presentación</FormLabel>
                                   <FormControl>
-                                    <DynamicSelect
+                                    <MemoizedDynamicSelect
                                       control={form.control}
                                       name="presentacion_id"
                                       label=""
@@ -652,7 +634,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                                 <FormItem className="sm:col-span-2 lg:col-span-1 xl:col-span-1 2xl:col-span-2">
                                   <FormLabel>Categoría</FormLabel>
                                   <FormControl>
-                                    <DynamicSelect
+                                    <MemoizedDynamicSelect
                                       control={form.control}
                                       name="categoria_id"
                                       label=""
@@ -937,14 +919,14 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                   <div className="flex flex-col xs:flex-row gap-3 xs:gap-4 pt-8 border-t bg-muted/20 -mx-10 px-10 py-6 rounded-b-xl">
                     <Button
                       type="submit"
-                      disabled={form.formState.isSubmitting || success}
+                      disabled={form.formState.isSubmitting || loading || success}
                       className="w-full xs:w-auto min-w-[140px] h-12 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-200 order-2 xs:order-1"
                       size="lg"
                     >
-                      {form.formState.isSubmitting ? (
+                      {form.formState.isSubmitting || loading ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                          Guardando...
+                          {loading ? 'Procesando...' : 'Guardando...'}
                         </>
                       ) : (
                         <>

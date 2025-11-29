@@ -31,9 +31,9 @@ import {
  */
 const CreateMateriaPrimaSchema = z.object({
   codigo_barras: z.string()
-    .min(1, 'El código de barras es requerido')
-    .max(50, 'El código de barras no puede exceder 50 caracteres')
-    .regex(/^[A-Za-z0-9\-_]+$/, 'Solo se permiten letras, números, guiones y guiones bajos'),
+    .min(13, 'El código de barras debe tener exactamente 13 dígitos')
+    .max(13, 'El código de barras debe tener exactamente 13 dígitos')
+    .regex(/^\d{13}$/, 'El código de barras debe contener solo números'),
 
   nombre: z.string()
     .min(1, 'El nombre es requerido')
@@ -54,6 +54,18 @@ const CreateMateriaPrimaSchema = z.object({
     .min(1, 'La presentación es requerida')
     .max(50, 'La presentación no puede exceder 50 caracteres')
     .trim(),
+
+  // Nuevos campos para soporte de IDs del frontend
+  presentacion_id: z.union([z.string(), z.number()])
+    .optional(),
+
+  categoria: z.string()
+    .max(100, 'La categoría no puede exceder 100 caracteres')
+    .nullable()
+    .optional(),
+
+  categoria_id: z.union([z.string(), z.number()])
+    .optional(),
 
   stock_actual: z.number()
     .min(0, 'El stock actual no puede ser negativo')
@@ -96,12 +108,6 @@ const CreateMateriaPrimaSchema = z.object({
 
   descripcion: z.string()
     .max(1000, 'La descripción no puede exceder 1000 caracteres')
-    .trim()
-    .nullable()
-    .optional(),
-
-  categoria: z.string()
-    .max(100, 'La categoría no puede exceder 100 caracteres')
     .trim()
     .nullable()
     .optional(),

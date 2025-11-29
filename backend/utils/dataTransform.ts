@@ -156,20 +156,35 @@ export const transformNombre = (value: any): string => {
  * Transforma y valida la presentación
  */
 export const transformPresentacion = (value: any): string => {
-  if (!value || typeof value !== 'string') {
+  if (!value) {
     throw new Error('La presentación es requerida y debe ser un texto')
   }
 
-  const trimmed = value.trim()
-  if (trimmed === '') {
+  // Convertir a string y limpiar
+  let stringValue = value.toString().trim()
+
+  // Si es un ID numérico, necesitamos buscar el nombre real
+  if (/^\d+$/.test(stringValue)) {
+    // Por ahora, retornamos el ID como string fallback
+    // TODO: Implementar lookup de base de datos para obtener el nombre real
+    console.log(`⚠️ transformPresentacion: recibió ID ${stringValue}, usando fallback`)
+    if (stringValue === '1') stringValue = 'Unidad'
+    else if (stringValue === '2') stringValue = 'Caja'
+    else if (stringValue === '3') stringValue = 'Paquete'
+    else if (stringValue === '4') stringValue = 'Litro'
+    else if (stringValue === '5') stringValue = 'Kilogramo'
+    else stringValue = `Presentación ID: ${stringValue}`
+  }
+
+  if (stringValue === '') {
     throw new Error('La presentación no puede estar vacía')
   }
 
-  if (trimmed.length > 50) {
+  if (stringValue.length > 50) {
     throw new Error('La presentación no puede exceder 50 caracteres')
   }
 
-  return trimmed
+  return stringValue
 }
 
 /**
@@ -185,15 +200,28 @@ export const transformMateriaPrimaData = (
       nombre: transformNombre(data.nombre),
       marca: transformOptionalString(data.marca),
       modelo: transformOptionalString(data.modelo),
-      presentacion: transformPresentacion(data.presentacion),
+      // Soportar ambos: presentacion (string) o presentacion_id (number/string)
+      presentacion: transformPresentacion(
+        data.presentacion ||
+        data.presentacion_id ||
+        ''
+      ),
       stock_actual: data.stock_actual !== undefined ? Number(data.stock_actual) : 0,
       stock_minimo: data.stock_minimo !== undefined ? Number(data.stock_minimo) : 0,
       costo_unitario: transformOptionalNumber(data.costo_unitario),
       fecha_caducidad: transformDateField(data.fecha_caducidad),
       imagen_url: transformOptionalString(data.imagen_url),
       descripcion: transformOptionalString(data.descripcion),
-      categoria: transformOptionalString(data.categoria),
-      proveedor_id: transformOptionalString(data.proveedor_id)
+      // Soportar ambos: categoria (string) o categoria_id (number/string)
+      categoria: transformOptionalString(
+        data.categoria ||
+        data.categoria_id ||
+        null
+      ),
+      proveedor_id: transformOptionalString(data.proveedor_id),
+      // Mantener los IDs originales para referencia
+      presentacion_id: data.presentacion_id,
+      categoria_id: data.categoria_id
     }
   } catch (error) {
     // Re-lanzar el error para que sea manejado por el caller

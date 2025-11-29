@@ -338,7 +338,6 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
             )}>
               {creatable ? (
                 <CreatableSelect
-                  {...field}
                   options={options}
                   onCreateOption={handleCreateOption}
                   components={{
@@ -350,7 +349,6 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
                   isLoading={loading || isCreating}
                   className={cn("react-select-container", error && "error")}
                   classNamePrefix="react-select"
-                  styles={customStyles}
                   formatCreateLabel={(inputValue) => (
                     <div className="flex items-center gap-2">
                       <Plus className="w-4 h-4" />
@@ -376,6 +374,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
                     field.onChange(value);
                   }}
                   value={flatOptions.find(option => option.value === field.value) || null}
+                  onBlur={field.onBlur}
                   styles={{
                     ...customStyles,
                     menuPortal: (base) => ({
@@ -387,7 +386,6 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
                 />
               ) : (
                 <Select
-                  {...field}
                   options={options}
                   components={{
                     Option: CustomOption,
@@ -398,7 +396,6 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
                   isLoading={loading}
                   className={cn("react-select-container", error && "error")}
                   classNamePrefix="react-select"
-                  styles={customStyles}
                   noOptionsMessage={() => 'No hay opciones disponibles'}
                   isClearable
                   isSearchable={!isMobile}
@@ -414,6 +411,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
                     field.onChange(value);
                   }}
                   value={flatOptions.find(option => option.value === field.value) || null}
+                  onBlur={field.onBlur}
                   styles={{
                     ...customStyles,
                     menuPortal: (base) => ({
@@ -447,5 +445,20 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
     />
   );
 };
+
+// Memoize el componente para evitar re-renders innecesarios
+export const MemoizedDynamicSelect = React.memo(DynamicSelect, (prevProps, nextProps) => {
+  // Re-render solo si cambian las propiedades importantes
+  return (
+    prevProps.control === nextProps.control &&
+    prevProps.name === nextProps.name &&
+    prevProps.value === nextProps.value &&
+    prevProps.disabled === nextProps.disabled &&
+    prevProps.loading === nextProps.loading &&
+    prevProps.error === nextProps.error &&
+    prevProps.required === nextProps.required &&
+    prevProps.type === nextProps.type
+  );
+});
 
 export default DynamicSelect;

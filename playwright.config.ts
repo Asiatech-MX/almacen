@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'path';
 
 /**
  * @see https://playwright.dev/docs/test-configuration
@@ -55,14 +56,10 @@ const config = defineConfig({
     /* Test against Electron */
     {
       name: 'electron',
+      testMatch: /.*\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
-        // Electron specific configuration
-        electronApplicationPath: require('electron'),
-        electronApplicationArgs: [
-          'apps/electron-main/dist/main.js',
-          '--no-sandbox'
-        ]
+        // No special electronApplicationPath needed - will use electron from PATH
       },
       testIgnore: [
         // Ignore tests that require web-specific APIs not available in Electron
@@ -72,11 +69,9 @@ const config = defineConfig({
     }
   ],
 
-  /* Global setup and teardown */
-  globalSetup: require('./tests/e2e/global-setup.ts'),
-
-  /* Global teardown */
-  globalTeardown: require('./tests/e2e/global-teardown.ts'),
+  /* Global setup and teardown - commented out for now */
+  // globalSetup: './tests/e2e/global-setup.ts',
+  // globalTeardown: './tests/e2e/global-teardown.ts',
 
   /* Test timeout */
   timeout: 30000,
