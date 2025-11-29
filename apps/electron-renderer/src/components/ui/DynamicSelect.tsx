@@ -4,7 +4,7 @@ import CreatableSelect from 'react-select/creatable';
 import { Controller, Control, FieldError } from 'react-hook-form';
 import { cn } from '@/lib/utils';
 import { Label } from './label';
-import { Edit2, Plus, HelpCircle, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
+import { Edit2, Plus, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
 import { Categoria, Presentacion } from '../../../../packages/shared-types/src/referenceData';
 import { useReferenceData } from '@/hooks/useReferenceData';
 import { useResponsiveSelect } from '@/hooks/useResponsiveSelect';
@@ -183,17 +183,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
               </button>
             )}
 
-            {/* Help tooltip */}
-            {(type === 'categoria' && data.data?.descripcion) ||
-             (type === 'presentacion' && data.data?.descripcion) ? (
-              <div className="relative group/help">
-                <HelpCircle className="w-3 h-3 text-muted-foreground cursor-help" />
-                <div className="help-tooltip help-tooltip--visible group-hover/help:block">
-                  {data.data.descripcion}
-                </div>
-              </div>
-            ) : null}
-          </div>
+            </div>
         </div>
       </components.Option>
     );
@@ -316,17 +306,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
               <Loader2 className="w-4 h-4 animate-spin text-primary" />
             )}
 
-            {/* Help tooltip */}
-            <div className="relative group/contextual-help">
-              <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
-              <div className="help-tooltip help-tooltip--visible group-hover/contextual-help:block">
-                {type === 'categoria'
-                  ? 'Seleccione o cree una nueva categoría. Use las flechas para navegar la jerarquía.'
-                  : 'Seleccione o cree una nueva presentación.'
-                }
-              </div>
             </div>
-          </div>
 
           {/* Show skeleton during initial loading */}
           {loading ? (
