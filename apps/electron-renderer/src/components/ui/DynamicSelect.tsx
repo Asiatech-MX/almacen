@@ -298,7 +298,6 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
           <div className="flex items-center gap-2">
             <Label htmlFor={name} className={cn(error && "text-destructive")}>
               {label}
-              {required && <span className="text-destructive ml-1">*</span>}
             </Label>
 
             {/* Loading indicator for create operation */}
