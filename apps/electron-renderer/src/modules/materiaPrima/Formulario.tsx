@@ -17,6 +17,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FieldSet, FieldLegend, FieldGroup, FieldContent, FieldTitle, FieldDescription, FieldError, Field, FieldSeparator } from '@/components/ui/fieldset'
 import { Scroller } from '@/components/ui/scroller'
 import { FileUpload } from '@/components/ui/file-upload'
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
+import { HelpCircle } from 'lucide-react'
 
 import useMateriaPrima, { UseMateriaPrimaOptions } from '../../hooks/useMateriaPrima'
 import materiaPrimaService from '../../services/materiaPrimaService'
@@ -33,6 +35,23 @@ import {
   prepareFormDataForSubmission,
   extractValidationErrors
 } from '../../utils/formDataNormalizer'
+
+// Componente reutilizable para tooltips consistentes
+const FieldTooltip: React.FC<{ content: string }> = ({ content }) => (
+  <Tooltip delayDuration={300}>
+    <TooltipTrigger asChild>
+      <HelpCircle className="inline-block w-4 h-4 ml-1 text-muted-foreground hover:text-foreground cursor-help transition-colors" />
+    </TooltipTrigger>
+    <TooltipContent
+      className="max-w-xs text-sm bg-popover border border-border text-popover-foreground"
+      side="top"
+      align="center"
+      sideOffset={4}
+    >
+      <p>{content}</p>
+    </TooltipContent>
+  </Tooltip>
+)
 
 const presentaciones = [
   'Unidad',
@@ -416,9 +435,10 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
   }
 
   return (
-    <div className="w-full bg-background">
-      {/* Contenedor principal sin width constraints */}
-      <div className="w-full p-4 sm:p-6 lg:p-8">
+    <TooltipProvider delayDuration={300}>
+      <div className="w-full bg-background">
+        {/* Contenedor principal con max-width para evitar estiramiento excesivo */}
+        <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         {/* Mensajes de estado */}
         {error && (
           <div className="mb-6 p-4 rounded-md bg-destructive/15 border border-destructive/30">
@@ -526,7 +546,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                         <FieldDescription className="text-base text-muted-foreground leading-relaxed">
                           Datos principales del material para identificación en el sistema. Los campos marcados con <span className="text-destructive">*</span> son obligatorios.
                         </FieldDescription>
-                        <FieldGroup className="grid-cols-1 xs:grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
+                        <FieldGroup className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
                             <FormField
                               control={form.control}
                               name="codigo_barras"
@@ -535,6 +555,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                                   <FormLabel className="font-medium flex items-center gap-2">
                                     Código de Barras
                                     <span className="text-destructive">*</span>
+                                    <FieldTooltip content="Código EAN-13 de 13 dígitos para identificación única del producto en el sistema" />
                                   </FormLabel>
                                   <FormControl>
                                     <Input
@@ -600,7 +621,11 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                               name="presentacion_id"
                               render={({ field, fieldState }) => (
                                 <FormItem>
-                                  <FormLabel>Presentación</FormLabel>
+                                  <FormLabel className="flex items-center gap-2">
+                                    Presentación
+                                    <span className="text-destructive">*</span>
+                                    <FieldTooltip content="Unidad de medida o empaque del producto (caja, kilogramo, unidad, etc.)" />
+                                  </FormLabel>
                                   <FormControl>
                                     <MemoizedDynamicSelect
                                       control={form.control}
@@ -632,8 +657,12 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                               control={form.control}
                               name="categoria_id"
                               render={({ field }) => (
-                                <FormItem className="sm:col-span-2 lg:col-span-1 xl:col-span-1 2xl:col-span-2">
-                                  <FormLabel>Categoría</FormLabel>
+                                <FormItem className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
+                                  <FormLabel className="flex items-center gap-2">
+                                  Categoría
+                                  <span className="text-destructive">*</span>
+                                  <FieldTooltip content="Clasificación principal para organización, reportes y análisis" />
+                                </FormLabel>
                                   <FormControl>
                                     <MemoizedDynamicSelect
                                       control={form.control}
@@ -682,7 +711,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                         <FieldDescription className="text-base text-muted-foreground leading-relaxed">
                           Configure los niveles de inventario y costos del material. Mantenga el control sobre el flujo de productos.
                         </FieldDescription>
-                        <FieldGroup className="grid-cols-1 xs:grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-6 lg:gap-8">
+                        <FieldGroup className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
                             <FormField
                               control={form.control}
                               name="stock_actual"
@@ -709,7 +738,10 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                               name="stock_minimo"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Stock Mínimo</FormLabel>
+                                  <FormLabel className="flex items-center gap-2">
+                                  Stock Mínimo
+                                  <FieldTooltip content="Nivel mínimo para activar alertas de reposición automática" />
+                                </FormLabel>
                                   <FormControl>
                                     <Input
                                       type="number"
@@ -730,7 +762,10 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                               name="costo_unitario"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Costo Unitario</FormLabel>
+                                  <FormLabel className="flex items-center gap-2">
+                                  Costo Unitario
+                                  <FieldTooltip content="Costo por unidad sin incluir impuestos ni gastos de envío" />
+                                </FormLabel>
                                   <FormControl>
                                     <MaskInput
                                       mask="currency"
@@ -752,7 +787,10 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                               name="fecha_caducidad"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Fecha de Caducidad</FormLabel>
+                                  <FormLabel className="flex items-center gap-2">
+                                  Fecha de Caducidad
+                                  <FieldTooltip content="Fecha en que el producto pierde su validez (aplicable solo para perecederos)" />
+                                </FormLabel>
                                   <FormControl>
                                     <Input
                                       type="date"
@@ -778,7 +816,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                         <FieldDescription className="text-base text-muted-foreground leading-relaxed">
                           Información complementaria y detalles extra del material. Agregue contexto para mejorar la gestión.
                         </FieldDescription>
-                        <FieldGroup className="grid-cols-1 xs:grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+                        <FieldGroup className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
                             <FormField
                               control={form.control}
                               name="proveedor_id"
@@ -897,8 +935,11 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                               control={form.control}
                               name="descripcion"
                               render={({ field }) => (
-                                <FormItem className="xs:col-span-1 sm:col-span-1 md:col-span-2 lg:col-span-2 xl:col-span-3 2xl:col-span-4">
-                                  <FormLabel>Descripción</FormLabel>
+                                <FormItem className="col-span-1 sm:col-span-2 lg:col-span-3">
+                                  <FormLabel className="flex items-center gap-2">
+                                  Descripción
+                                  <FieldTooltip content="Detalles adicionales, especificaciones técnicas o notas importantes del material" />
+                                </FormLabel>
                                   <FormControl>
                                     <Textarea
                                       placeholder="Descripción detallada del material..."
@@ -981,6 +1022,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
         </Card>
       </div>
     </div>
+    </TooltipProvider>
   )
 }
 
