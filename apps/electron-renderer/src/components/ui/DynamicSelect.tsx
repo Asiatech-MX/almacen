@@ -40,7 +40,13 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
   className,
   error
 }) => {
-  const { categoriasOptions, categoriasFlatOptions, presentacionesOptions, loading } = useReferenceData({
+  const {
+    categoriasOptions,
+    categoriasFlatOptions,
+    presentacionesOptions,
+    loading,
+    actions
+  } = useReferenceData({
     idInstitucion: 1 // TODO: Obtener del contexto actual
   });
 
@@ -71,6 +77,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
   const handleCreateOption = async (inputValue: string) => {
     const nuevoItem = {
       nombre: inputValue.trim(),
+      descripcion: '',
       id_institucion: 1 // TODO: Obtener del contexto actual
     };
 
@@ -79,19 +86,22 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
     try {
       let result;
       if (type === 'categoria') {
-        result = await window.electronAPI.categoria.crear(nuevoItem, undefined);
+        result = await actions.crearCategoria(nuevoItem);
       } else {
-        result = await window.electronAPI.presentacion.crear(nuevoItem);
+        result = await actions.crearPresentacion(nuevoItem);
       }
 
-      if (result && result.id) {
-        return result.id.toString();
+      if (result.success && result.data) {
+        // Devolver el ID del nuevo elemento para que react-select lo seleccione
+        return result.data.id.toString();
       } else {
-        console.error('Error creating option:', result);
+        console.error('Error creating option:', result?.error);
+        // Mostrar error al usuario (podríamos agregar un toast aquí)
         return null;
       }
     } catch (error) {
       console.error('Error creating option:', error);
+      // Mostrar error al usuario (podríamos agregar un toast aquí)
       return null;
     } finally {
       setIsCreating(false);
@@ -318,7 +328,13 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
               {creatable ? (
                 <CreatableSelect
                   options={options}
-                  onCreateOption={handleCreateOption}
+                  onCreateOption={async (inputValue) => {
+                    const newValue = await handleCreateOption(inputValue);
+                    // Preseleccionar el nuevo elemento si se creó exitosamente
+                    if (newValue) {
+                      field.onChange(newValue);
+                    }
+                  }}
                   components={{
                     Option: CustomOption,
                     LoadingIndicator: () => <Loader2 className="w-4 h-4 animate-spin text-primary" />

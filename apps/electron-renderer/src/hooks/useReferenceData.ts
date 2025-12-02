@@ -92,9 +92,10 @@ export const useReferenceData = ({
   const crearCategoria = async (categoria: NewCategoria, idPadre?: string) => {
     try {
       // Optimistic update
+      const tempId = `temp-${Date.now()}`;
       const tempCategoria: Categoria = {
         ...categoria,
-        id: `temp-${Date.now()}`,
+        id: tempId,
         categoria_padre_id: idPadre,
         nivel: idPadre ? getNivelCategoria(idPadre) + 1 : 1,
         ruta_completa: idPadre ? `${getRutaCategoria(idPadre)} > ${categoria.nombre}` : categoria.nombre,
@@ -113,16 +114,31 @@ export const useReferenceData = ({
       const result = await window.electronAPI.categoria.crear(categoria, idPadre);
 
       if (result) {
-        // Actualizar con datos reales
+        // Actualizar el elemento temporal con el ID real
+        setState(prev => ({
+          ...prev,
+          categorias: prev.categorias.map(cat =>
+            cat.id === tempId ? { ...result, actualizado_en: new Date().toISOString() } : cat
+          )
+        }));
+
+        // Recargar datos para actualizar jerarquía y árbol
         await cargarDatosIniciales();
         return { success: true, data: result };
       } else {
-        // Rollback en error
-        await cargarDatosIniciales();
+        // Rollback en error - remover el elemento temporal
+        setState(prev => ({
+          ...prev,
+          categorias: prev.categorias.filter(cat => cat.id !== tempId)
+        }));
         return { success: false, error: 'Error al crear categoría' };
       }
     } catch (error) {
-      await cargarDatosIniciales();
+      // Rollback en error - remover el elemento temporal
+      setState(prev => ({
+        ...prev,
+        categorias: prev.categorias.filter(cat => !cat.id.startsWith('temp-'))
+      }));
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Error desconocido'
@@ -185,9 +201,10 @@ export const useReferenceData = ({
   const crearPresentacion = async (presentacion: NewPresentacion) => {
     try {
       // Optimistic update
+      const tempId = `temp-${Date.now()}`;
       const tempPresentacion: Presentacion = {
         ...presentacion,
-        id: `temp-${Date.now()}`,
+        id: tempId,
         activo: true,
         es_predeterminado: false,
         creado_en: new Date().toISOString(),
@@ -202,16 +219,28 @@ export const useReferenceData = ({
       const result = await window.electronAPI.presentacion.crear(presentacion);
 
       if (result) {
-        // Actualizar con datos reales
-        await cargarDatosIniciales();
+        // Actualizar el elemento temporal con el ID real
+        setState(prev => ({
+          ...prev,
+          presentaciones: prev.presentaciones.map(p =>
+            p.id === tempId ? { ...result, actualizado_en: new Date().toISOString() } : p
+          )
+        }));
         return { success: true, data: result };
       } else {
-        // Rollback en error
-        await cargarDatosIniciales();
+        // Rollback en error - remover el elemento temporal
+        setState(prev => ({
+          ...prev,
+          presentaciones: prev.presentaciones.filter(p => p.id !== tempId)
+        }));
         return { success: false, error: 'Error al crear presentación' };
       }
     } catch (error) {
-      await cargarDatosIniciales();
+      // Rollback en error - remover el elemento temporal
+      setState(prev => ({
+        ...prev,
+        presentaciones: prev.presentaciones.filter(p => !p.id.startsWith('temp-'))
+      }));
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Error desconocido'
