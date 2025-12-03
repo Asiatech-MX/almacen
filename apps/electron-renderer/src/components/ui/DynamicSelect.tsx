@@ -63,9 +63,8 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
   const { measureRender, measureInteraction, measureAsync, recordMetric } = usePerformanceMonitor('DynamicSelect');
 
   const {
-    categoriasOptions,
-    categoriasFlatOptions,
-    presentacionesOptions,
+    categorias,
+    presentaciones,
     loading,
     actions
   } = useReferenceData({
@@ -83,26 +82,32 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
     }, `${type}-select-${name}`);
   }, [type, name, loading]);
 
-  // Opciones con jerarquía para categorías
+  // Opciones simples para categorías
   const categoriaOptions = useMemo(() => {
-    if (type === 'categoria') {
-      return categoriasOptions || [];
+    if (type === 'categoria' && categorias) {
+      return categorias.map(categoria => ({
+        value: categoria.id,
+        label: categoria.nombre,
+        data: categoria
+      }));
     }
     return [];
-  }, [type, categoriasOptions]);
+  }, [type, categorias]);
 
   // Opciones para presentaciones
   const presentacionOptions = useMemo(() => {
-    if (type === 'presentacion') {
-      return presentacionesOptions || [];
+    if (type === 'presentacion' && presentaciones) {
+      return presentaciones.map(presentacion => ({
+        value: presentacion.id,
+        label: presentacion.nombre,
+        data: presentacion
+      }));
     }
     return [];
-  }, [type, presentacionesOptions]);
+  }, [type, presentaciones]);
 
   const options = type === 'categoria' ? categoriaOptions : presentacionOptions;
-
-  // Para el value matching, usar opciones planas
-  const flatOptions = type === 'categoria' ? categoriasFlatOptions : presentacionesOptions;
+  const flatOptions = options;
 
   // Memoized create option handler with useCallback
   const handleCreateOption = useCallback(async (inputValue: string) => {

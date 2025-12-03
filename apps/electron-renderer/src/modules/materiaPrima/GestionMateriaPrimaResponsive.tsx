@@ -175,11 +175,14 @@ const createColumns = (
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Categoría" />
     ),
-    cell: ({ row }) => (
-      <div>
-        {row.getValue('categoria') || '-'}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const categoria = row.original.categoria_nombre || row.original.categoria;
+      return (
+        <div>
+          {categoria || '-'}
+        </div>
+      );
+    },
     enableColumnFilter: true,
     meta: {
       label: 'Categoría',
