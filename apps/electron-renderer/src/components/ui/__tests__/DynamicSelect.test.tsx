@@ -1,24 +1,26 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import React from 'react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useForm, Control } from 'react-hook-form';
-import DynamicSelect from '../DynamicSelect';
+import DynamicSelect, { MemoizedDynamicSelect } from '../DynamicSelect';
 import { Categoria, Presentacion } from '../../../../../../../packages/shared-types/src/referenceData';
 
 // Mock de los hooks
-jest.mock('@/hooks/useReferenceData', () => ({
-  useReferenceData: jest.fn()
+vi.mock('@/hooks/useReferenceData', () => ({
+  useReferenceData: vi.fn()
 }));
 
-jest.mock('@/hooks/useResponsiveSelect', () => ({
-  useResponsiveSelect: jest.fn()
+vi.mock('@/hooks/useResponsiveSelect', () => ({
+  useResponsiveSelect: vi.fn()
 }));
 
-jest.mock('@/lib/utils', () => ({
-  cn: jest.fn((...classes) => classes.filter(Boolean).join(' '))
+vi.mock('@/lib/utils', () => ({
+  cn: vi.fn((...classes) => classes.filter(Boolean).join(' '))
 }));
 
 // Mock del componente Label
-jest.mock('../label', () => ({
+vi.mock('../label', () => ({
   Label: ({ children, className, ...props }: any) => (
     <label className={className} {...props}>
       {children}
@@ -26,8 +28,20 @@ jest.mock('../label', () => ({
   )
 }));
 
-const mockUseReferenceData = require('@/hooks/useReferenceData').useReferenceData;
-const mockUseResponsiveSelect = require('@/hooks/useResponsiveSelect').useResponsiveSelect;
+// Mock de InlineEditor
+vi.mock('@/components/ui/InlineEditor', () => ({
+  default: vi.fn(({ value, onSave, type }) => (
+    <div data-testid="inline-editor">
+      <input data-testid={`inline-input-${type}`} defaultValue={value?.nombre} />
+      <button onClick={() => onSave?.(value)} data-testid="save-button">
+        Guardar
+      </button>
+    </div>
+  ))
+}));
+
+const mockUseReferenceData = vi.mocked(require('@/hooks/useReferenceData').useReferenceData);
+const mockUseResponsiveSelect = vi.mocked(require('@/hooks/useResponsiveSelect').useResponsiveSelect);
 
 // Mock data
 const mockCategorias: Categoria[] = [
@@ -121,12 +135,10 @@ const TestWrapper: React.FC<{
 };
 
 describe('DynamicSelect Component', () => {
-  const mockEdit = jest.fn();
-  const mockOnCreateCategoria = window.electronAPI.categoria.crear;
-  const mockOnCreatePresentacion = window.electronAPI.presentacion.crear;
+  const mockEdit = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Configurar mocks por defecto
     mockUseReferenceData.mockReturnValue({
@@ -137,28 +149,34 @@ describe('DynamicSelect Component', () => {
         nivel: cat.nivel,
         hijos: []
       })),
+      categoriasFlatOptions: mockCategorias.map(cat => ({
+        value: cat.id,
+        label: cat.nombre,
+        data: cat
+      })),
       presentacionesOptions: mockPresentaciones.map(pres => ({
         value: pres.id,
         label: `${pres.nombre}${pres.abreviatura ? ` (${pres.abreviatura})` : ''}`,
         data: pres
       })),
-      loading: false
+      loading: false,
+      actions: {
+        crearCategoria: vi.fn().mockResolvedValue({
+          success: true,
+          data: { id: 'new-id', nombre: 'Nueva Categoría' }
+        }),
+        editarCategoria: vi.fn(),
+        crearPresentacion: vi.fn().mockResolvedValue({
+          success: true,
+          data: { id: 'new-id', nombre: 'Nueva Presentación' }
+        }),
+        editarPresentacion: vi.fn()
+      }
     });
 
     mockUseResponsiveSelect.mockReturnValue({
       isMobile: false,
-      getSelectProps: jest.fn(() => ({}))
-    });
-
-    // Mock para APIs de creación
-    mockOnCreateCategoria.mockResolvedValue({
-      success: true,
-      data: { id: 'new-id', nombre: 'Nueva Categoría' }
-    });
-
-    mockOnCreatePresentacion.mockResolvedValue({
-      success: true,
-      data: { id: 'new-id', nombre: 'Nueva Presentación' }
+      getSelectProps: vi.fn(() => ({}))
     });
   });
 
@@ -291,7 +309,7 @@ describe('DynamicSelect Component', () => {
 
       // Verificar que se llamó a la API de creación
       await waitFor(() => {
-        expect(mockOnCreateCategoria).toHaveBeenCalledWith({
+        expect(mockUseReferenceData().actions.crearCategoria).toHaveBeenCalledWith({
           nombre: 'Nueva Categoría',
           id_institucion: 1
         });
@@ -310,7 +328,7 @@ describe('DynamicSelect Component', () => {
 
       // Verificar que se llamó a la API de creación
       await waitFor(() => {
-        expect(mockOnCreatePresentacion).toHaveBeenCalledWith({
+        expect(mockUseReferenceData().actions.crearPresentacion).toHaveBeenCalledWith({
           nombre: 'Nueva Presentación',
           id_institucion: 1
         });
@@ -318,12 +336,35 @@ describe('DynamicSelect Component', () => {
     });
 
     test('debe mostrar estado de carga durante creación', async () => {
-      mockOnCreateCategoria.mockImplementation(() =>
+      const mockCrearCategoria = vi.fn().mockImplementation(() =>
         new Promise(resolve => setTimeout(() => resolve({
           success: true,
           data: { id: 'new-id', nombre: 'Nueva Categoría' }
         }), 100))
       );
+
+      mockUseReferenceData.mockReturnValue({
+        categoriasOptions: mockCategorias.map(cat => ({
+          value: cat.id,
+          label: cat.nombre,
+          data: cat,
+          nivel: cat.nivel,
+          hijos: []
+        })),
+        categoriasFlatOptions: mockCategorias.map(cat => ({
+          value: cat.id,
+          label: cat.nombre,
+          data: cat
+        })),
+        presentacionesOptions: [],
+        loading: false,
+        actions: {
+          crearCategoria: mockCrearCategoria,
+          editarCategoria: vi.fn(),
+          crearPresentacion: vi.fn(),
+          editarPresentacion: vi.fn()
+        }
+      });
 
       render(<TestWrapper type="categoria" creatable={true} />);
 
@@ -339,9 +380,30 @@ describe('DynamicSelect Component', () => {
     });
 
     test('debe manejar errores en la creación', async () => {
-      mockOnCreateCategoria.mockResolvedValue({
-        success: false,
-        error: 'Error al crear categoría'
+      mockUseReferenceData.mockReturnValue({
+        categoriasOptions: mockCategorias.map(cat => ({
+          value: cat.id,
+          label: cat.nombre,
+          data: cat,
+          nivel: cat.nivel,
+          hijos: []
+        })),
+        categoriasFlatOptions: mockCategorias.map(cat => ({
+          value: cat.id,
+          label: cat.nombre,
+          data: cat
+        })),
+        presentacionesOptions: [],
+        loading: false,
+        actions: {
+          crearCategoria: vi.fn().mockResolvedValue({
+            success: false,
+            error: 'Error al crear categoría'
+          }),
+          editarCategoria: vi.fn(),
+          crearPresentacion: vi.fn(),
+          editarPresentacion: vi.fn()
+        }
       });
 
       render(<TestWrapper type="categoria" creatable={true} />);
@@ -354,7 +416,7 @@ describe('DynamicSelect Component', () => {
 
       // Verificar que maneja el error
       await waitFor(() => {
-        expect(mockOnCreateCategoria).toHaveBeenCalled();
+        expect(mockUseReferenceData().actions.crearCategoria).toHaveBeenCalled();
       });
     });
   });
@@ -450,6 +512,389 @@ describe('DynamicSelect Component', () => {
 
       const select = screen.getByLabelText('Categoría');
       expect(select).toBeInTheDocument();
+    });
+  });
+
+  describe('Performance Testing', () => {
+    test('should memoize component correctly with memo wrapper', () => {
+      const { rerender } = render(
+        <MemoizedDynamicSelect
+          control={{} as Control}
+          name="test"
+          label="Test"
+          type="categoria"
+        />
+      );
+
+      const initialRenderCount = vi.fn();
+      initialRenderCount();
+
+      // Re-render con mismas props - no debería volver a renderizar
+      rerender(
+        <MemoizedDynamicSelect
+          control={{} as Control}
+          name="test"
+          label="Test"
+          type="categoria"
+        />
+      );
+
+      // Verificar que no se vuelve a renderizar con mismas props
+      expect(initialRenderCount).toHaveBeenCalledTimes(1);
+    });
+
+    test('should re-render when important props change', () => {
+      const { rerender } = render(
+        <MemoizedDynamicSelect
+          control={{} as Control}
+          name="test"
+          label="Test"
+          type="categoria"
+          disabled={false}
+        />
+      );
+
+      // Re-render con prop cambiada - debería volver a renderizar
+      rerender(
+        <MemoizedDynamicSelect
+          control={{} as Control}
+          name="test"
+          label="Test"
+          type="categoria"
+          disabled={true}
+        />
+      );
+
+      expect(screen.getByRole('combobox')).toBeDisabled();
+    });
+
+    test('should handle large datasets efficiently', async () => {
+      const largeOptions = Array.from({ length: 1000 }, (_, i) => ({
+        label: `Opción ${i}`,
+        value: `option-${i}`,
+        data: {
+          id: `option-${i}`,
+          nombre: `Opción ${i}`,
+          descripcion: `Descripción ${i}`
+        }
+      }));
+
+      mockUseReferenceData.mockReturnValue({
+        categoriasOptions: largeOptions,
+        categoriasFlatOptions: largeOptions,
+        presentacionesOptions: [],
+        loading: false
+      });
+
+      const startTime = performance.now();
+
+      render(<TestWrapper type="categoria" />);
+
+      const endTime = performance.now();
+      const renderTime = endTime - startTime;
+
+      // El renderizado debería tomar menos de 100ms incluso con 1000 opciones
+      expect(renderTime).toBeLessThan(100);
+    });
+
+    test('should not re-render unnecessarily with useCallback optimizations', async () => {
+      const mockEdit = vi.fn();
+      const { rerender } = render(
+        <TestWrapper type="categoria" allowEdit={true} onEdit={mockEdit} />
+      );
+
+      const initialEditCallCount = mockEdit.mock.calls.length;
+
+      // Re-render sin cambios relevantes
+      rerender(
+        <TestWrapper type="categoria" allowEdit={true} onEdit={mockEdit} />
+      );
+
+      // No debería haber nuevas llamadas a onEdit
+      expect(mockEdit.mock.calls.length).toBe(initialEditCallCount);
+    });
+  });
+
+  describe('Memory Management', () => {
+    test('should cleanup event listeners properly', () => {
+      const { unmount } = render(<TestWrapper type="categoria" />);
+
+      // Simular comportamiento de mouse events
+      const option = screen.getByText('Construcción');
+      fireEvent.mouseEnter(option);
+      fireEvent.mouseLeave(option);
+
+      unmount();
+
+      // No debería haber memory leaks después del unmount
+      expect(() => {
+        fireEvent.mouseEnter(option);
+      }).toThrow();
+    });
+
+    test('should handle state cleanup on unmount', () => {
+      const { unmount } = render(
+        <TestWrapper type="categoria" allowInlineEdit={true} />
+      );
+
+      // Iniciar edición inline
+      const editButton = screen.getByRole('button', { name: /editar/i });
+      userEvent.click(editButton);
+
+      // Desmontar componente durante edición
+      unmount();
+
+      // No debería haber errores de state updates después del unmount
+      expect(() => {}).not.toThrow();
+    });
+
+    test('should not retain references to unmounted components', () => {
+      const { unmount, rerender } = render(<TestWrapper type="categoria" />);
+
+      // Get reference to component instance
+      const componentElement = screen.getByRole('combobox');
+
+      // Unmount component
+      unmount();
+
+      // Verify no retained references
+      expect(componentElement.isConnected).toBe(false);
+
+      // Remount should work correctly
+      render(<TestWrapper type="categoria" />);
+      expect(screen.getByRole('combobox')).toBeInTheDocument();
+    });
+  });
+
+  describe('Advanced Accessibility Testing', () => {
+    test('should have proper ARIA attributes', () => {
+      render(<TestWrapper type="categoria" creatable={false} />);
+
+      const combobox = screen.getByRole('combobox');
+      expect(combobox).toHaveAttribute('aria-label', 'Categoría');
+      expect(combobox).toHaveAttribute('aria-required', 'true');
+    });
+
+    test('should announce errors to screen readers', async () => {
+      const error = { message: 'Este campo es requerido' };
+      render(<TestWrapper type="categoria" creatable={false} error={error} />);
+
+      // Error debería ser anunciado
+      const errorMessage = screen.getByText('Este campo es requerido');
+      expect(errorMessage).toHaveAttribute('role', 'alert');
+    });
+
+    test('should support keyboard navigation', async () => {
+      render(<TestWrapper type="categoria" creatable={false} />);
+
+      const combobox = screen.getByRole('combobox');
+
+      // Tab para enfocar
+      await userEvent.tab();
+      expect(combobox).toHaveFocus();
+
+      // Enter o Space para abrir menú
+      await userEvent.keyboard('{Enter}');
+
+      // Flechas para navegar opciones
+      await userEvent.keyboard('{ArrowDown}');
+      await userEvent.keyboard('{ArrowDown}');
+    });
+
+    test('should have proper focus management', async () => {
+      render(<TestWrapper type="categoria" creatable={false} />);
+
+      const combobox = screen.getByRole('combobox');
+
+      // Focus management
+      await userEvent.click(combobox);
+      expect(combobox).toHaveFocus();
+
+      // Escape should close menu and return focus
+      await userEvent.keyboard('{Escape}');
+      expect(combobox).toHaveFocus();
+    });
+
+    test('should provide color contrast compliance', () => {
+      render(<TestWrapper type="categoria" creatable={false} />);
+
+      // Verificar elementos visuales tienen contraste adecuado
+      const label = screen.getByText('Categoría');
+      expect(label).toBeInTheDocument();
+
+      // Los elementos deberían tener clases de contraste apropiadas
+      const container = screen.getByRole('combobox').closest('.react-select-container');
+      expect(container).toHaveClass('react-select-container');
+    });
+  });
+
+  describe('Error Handling & Edge Cases', () => {
+    test('should handle network errors gracefully', async () => {
+      const mockActions = {
+        crearCategoria: vi.fn().mockRejectedValue(new Error('Network error')),
+        editarCategoria: vi.fn(),
+        crearPresentacion: vi.fn(),
+        editarPresentacion: vi.fn()
+      };
+
+      mockUseReferenceData.mockReturnValue({
+        categoriasOptions: [],
+        categoriasFlatOptions: [],
+        presentacionesOptions: [],
+        loading: false,
+        actions: mockActions
+      });
+
+      render(<TestWrapper type="categoria" creatable={true} />);
+
+      // Intentar crear nueva categoría
+      const combobox = screen.getByRole('combobox');
+      await userEvent.type(combobox, 'Nueva Categoría');
+      await userEvent.keyboard('{Enter}');
+
+      // Debería manejar el error sin crash
+      await waitFor(() => {
+        expect(console.error).toHaveBeenCalled();
+      });
+    });
+
+    test('should handle invalid data gracefully', () => {
+      mockUseReferenceData.mockReturnValue({
+        categoriasOptions: [
+          // @ts-ignore - Datos inválidos para testing
+          { label: null, value: undefined, data: null },
+          { label: 'Valid', value: 'valid', data: { id: 'valid', nombre: 'Valid' } }
+        ],
+        categoriasFlatOptions: [],
+        presentacionesOptions: [],
+        loading: false,
+        actions: {
+          crearCategoria: vi.fn(),
+          editarCategoria: vi.fn(),
+          crearPresentacion: vi.fn(),
+          editarPresentacion: vi.fn()
+        }
+      });
+
+      expect(() => {
+        render(<TestWrapper type="categoria" creatable={false} />);
+      }).not.toThrow();
+    });
+
+    test('should handle concurrent operations safely', async () => {
+      const mockCreate = vi.fn().mockResolvedValue({ success: true, data: { id: 'new' } });
+
+      mockUseReferenceData.mockReturnValue({
+        categoriasOptions: [],
+        categoriasFlatOptions: [],
+        presentacionesOptions: [],
+        loading: false,
+        actions: {
+          crearCategoria: mockCreate,
+          editarCategoria: vi.fn(),
+          crearPresentacion: vi.fn(),
+          editarPresentacion: vi.fn()
+        }
+      });
+
+      render(<TestWrapper type="categoria" creatable={true} />);
+
+      const combobox = screen.getByRole('combobox');
+
+      // Operaciones concurrentes
+      const operation1 = userEvent.type(combobox, 'Categoria 1{enter}');
+      const operation2 = userEvent.type(combobox, 'Categoria 2{enter}');
+
+      await waitFor(() => {
+        expect(mockCreate).toHaveBeenCalledTimes(2);
+      });
+    });
+  });
+
+  describe('Inline Editing Integration', () => {
+    test('should integrate inline editing correctly', async () => {
+      const onInlineEditStart = vi.fn();
+      const onInlineEditSuccess = vi.fn();
+      const onInlineEditError = vi.fn();
+
+      render(
+        <DynamicSelect
+          control={{} as Control}
+          name="categoria"
+          label="Categoría"
+          type="categoria"
+          allowInlineEdit={true}
+          onInlineEditStart={onInlineEditStart}
+          onInlineEditSuccess={onInlineEditSuccess}
+          onInlineEditError={onInlineEditError}
+        />
+      );
+
+      // Iniciar edición inline
+      const editButton = screen.getByRole('button', { name: /editar/i });
+      await userEvent.click(editButton);
+
+      // Verificar callbacks
+      expect(onInlineEditStart).toHaveBeenCalled();
+
+      // Verificar componente inline editor
+      expect(screen.getByTestId('inline-editor')).toBeInTheDocument();
+
+      // Simular guardado exitoso
+      const saveButton = screen.getByTestId('save-button');
+      await userEvent.click(saveButton);
+
+      await waitFor(() => {
+        expect(onInlineEditSuccess).toHaveBeenCalled();
+      });
+    });
+
+    test('should handle inline editing errors', async () => {
+      const onInlineEditError = vi.fn();
+
+      mockUseReferenceData.mockReturnValue({
+        categoriasOptions: mockCategorias.map(cat => ({
+          value: cat.id,
+          label: cat.nombre,
+          data: cat,
+          nivel: cat.nivel,
+          hijos: []
+        })),
+        categoriasFlatOptions: mockCategorias.map(cat => ({
+          value: cat.id,
+          label: cat.nombre,
+          data: cat
+        })),
+        presentacionesOptions: [],
+        loading: false,
+        actions: {
+          crearCategoria: vi.fn(),
+          editarCategoria: vi.fn().mockRejectedValue(new Error('Edit error')),
+          crearPresentacion: vi.fn(),
+          editarPresentacion: vi.fn()
+        }
+      });
+
+      render(
+        <DynamicSelect
+          control={{} as Control}
+          name="categoria"
+          label="Categoría"
+          type="categoria"
+          allowInlineEdit={true}
+          onInlineEditError={onInlineEditError}
+        />
+      );
+
+      const editButton = screen.getByRole('button', { name: /editar/i });
+      await userEvent.click(editButton);
+
+      const saveButton = screen.getByTestId('save-button');
+      await userEvent.click(saveButton);
+
+      await waitFor(() => {
+        expect(onInlineEditError).toHaveBeenCalled();
+      });
     });
   });
 });

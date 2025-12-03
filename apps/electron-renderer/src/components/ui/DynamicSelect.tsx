@@ -1,13 +1,23 @@
-import React, { useMemo, useState } from 'react';
+import React, {
+  useMemo,
+  useState,
+  useCallback,
+  memo,
+  useRef,
+  useEffect
+} from 'react';
+import { usePerformanceMonitor } from '@/lib/performanceMonitor';
 import Select, { GroupBase, components, StylesConfig } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import { Controller, Control, FieldError } from 'react-hook-form';
 import { cn } from '@/lib/utils';
 import { Label } from './label';
-import { Edit2, Plus, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
-import { Categoria, Presentacion } from '../../../../packages/shared-types/src/referenceData';
+import { Edit2, Plus, ChevronRight, Loader2, AlertCircle, X, Check } from 'lucide-react';
+import { Categoria, Presentacion, CategoriaUpdate, PresentacionUpdate } from '../../../../packages/shared-types/src/referenceData';
 import { useReferenceData } from '@/hooks/useReferenceData';
 import { useResponsiveSelect } from '@/hooks/useResponsiveSelect';
+import { useInlineEditor } from '@/hooks/useInlineEditor';
+import InlineEditor from '@/components/ui/InlineEditor';
 
 interface DynamicSelectProps {
   control: Control<any>;
@@ -17,13 +27,19 @@ interface DynamicSelectProps {
   placeholder?: string;
   creatable?: boolean;
   allowEdit?: boolean;
+  allowInlineEdit?: boolean;  // Nueva propiedad para edición inline
   onEdit?: (item: Categoria | Presentacion) => void;
   onMove?: (id: string, nuevoPadreId?: string) => void;
   disabled?: boolean;
   required?: boolean;
   className?: string;
   error?: FieldError;
+  // Callbacks para edición inline
+  onInlineEditStart?: (item: Categoria | Presentacion) => void;
+  onInlineEditSuccess?: (item: Categoria | Presentacion) => void;
+  onInlineEditError?: (item: Categoria | Presentacion, error: string) => void;
 }
+
 
 export const DynamicSelect: React.FC<DynamicSelectProps> = ({
   control,
@@ -33,13 +49,19 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
   placeholder = `Seleccionar ${label}...`,
   creatable = true,
   allowEdit = false,
+  allowInlineEdit = false,
   onEdit,
   onMove,
   disabled = false,
   required = false,
   className,
-  error
+  error,
+  onInlineEditStart,
+  onInlineEditSuccess,
+  onInlineEditError
 }) => {
+  const { measureRender, measureInteraction, measureAsync, recordMetric } = usePerformanceMonitor('DynamicSelect');
+
   const {
     categoriasOptions,
     categoriasFlatOptions,
@@ -51,7 +73,15 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
   });
 
   const [isCreating, setIsCreating] = useState(false);
+  const [editingItem, setEditingItem] = useState<Categoria | Presentacion | null>(null);
   const { isMobile, getSelectProps } = useResponsiveSelect();
+
+  // Monitorear rendimiento del renderizado
+  useEffect(() => {
+    measureRender(() => {
+      // El renderizado ya se completó aquí
+    }, `${type}-select-${name}`);
+  }, [type, name, loading]);
 
   // Opciones con jerarquía para categorías
   const categoriaOptions = useMemo(() => {
@@ -74,7 +104,8 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
   // Para el value matching, usar opciones planas
   const flatOptions = type === 'categoria' ? categoriasFlatOptions : presentacionesOptions;
 
-  const handleCreateOption = async (inputValue: string) => {
+  // Memoized create option handler with useCallback
+  const handleCreateOption = useCallback(async (inputValue: string) => {
     const nuevoItem = {
       nombre: inputValue.trim(),
       descripcion: '',
@@ -106,99 +137,48 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
     } finally {
       setIsCreating(false);
     }
-  };
+  }, [type, actions, onInlineEditSuccess, onInlineEditError, measureAsync, recordMetric, name]);
 
-  const CustomOption = ({ children, ...props }: any) => {
-    const { data } = props;
+  // Memoized inline edit handler with useCallback
+  const handleInlineEdit = useCallback(async (item: Categoria | Presentacion): Promise<{ success: boolean; data?: Categoria | Presentacion; error?: string }> => {
+    try {
+      let result;
 
-    // Group heading
-    if (data.__isGroup__) {
-      return (
-        <div className={cn(
-          "font-semibold px-3 py-2 text-muted-foreground bg-muted/50",
-          "uppercase tracking-wide text-xs flex items-center gap-2"
-        )}>
-          <ChevronRight className="w-3 h-3" />
-          {children}
-        </div>
-      );
+      if (type === 'categoria') {
+        const categoria = item as Categoria;
+        const cambios: CategoriaUpdate = {
+          nombre: categoria.nombre,
+          descripcion: categoria.descripcion
+        };
+        result = await actions.editarCategoria(categoria.id, cambios);
+      } else {
+        const presentacion = item as Presentacion;
+        const cambios: PresentacionUpdate = {
+          nombre: presentacion.nombre,
+          descripcion: presentacion.descripcion,
+          abreviatura: presentacion.abreviatura,
+          unidad_base: presentacion.unidad_base,
+          factor_conversion: presentacion.factor_conversion
+        };
+        result = await actions.editarPresentacion(presentacion.id, cambios);
+      }
+
+      if (result.success) {
+        onInlineEditSuccess?.(result.data!);
+        return { success: true, data: result.data };
+      } else {
+        onInlineEditError?.(item, result.error || 'Error al editar');
+        return { success: false, error: result.error };
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      onInlineEditError?.(item, errorMessage);
+      return { success: false, error: errorMessage };
     }
+  }, [type, actions, onInlineEditSuccess, onInlineEditError]);
 
-    // Regular option with hierarchy indicators
-    const hierarchyLevel = data.nivel ? data.nivel - 1 : 0;
-    const hasChildren = data.hijos && data.hijos.length > 0;
-
-    return (
-      <components.Option {...props}>
-        <div className={cn(
-          "flex items-center justify-between group",
-          "hierarchy-line",
-          hierarchyLevel > 0 && `hierarchy-indent-${Math.min(hierarchyLevel, 4)}`
-        )}>
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {/* Hierarchy indicator */}
-            {type === 'categoria' && (
-              <>
-                {hierarchyLevel > 0 && (
-                  <div className="flex items-center gap-1">
-                    {[...Array(hierarchyLevel)].map((_, i) => (
-                      <div key={i} className="w-1 h-1 bg-border rounded-full" />
-                    ))}
-                  </div>
-                )}
-                {hasChildren && (
-                  <ChevronRight className="w-3 h-3 text-muted-foreground" />
-                )}
-                {/* Category icon if available */}
-                {data.data?.icono && (
-                  <span className="text-sm">{data.data.icono}</span>
-                )}
-                {/* Category color indicator */}
-                {data.data?.color && (
-                  <div
-                    className="w-2 h-2 rounded-full border border-border"
-                    style={{ backgroundColor: data.data.color }}
-                  />
-                )}
-              </>
-            )}
-
-            {/* Option label with truncation */}
-            <span className="truncate" title={children}>
-              {children}
-            </span>
-
-            {/* Additional info */}
-            {type === 'presentacion' && data.data?.abreviatura && (
-              <span className="text-xs text-muted-foreground ml-1">
-                ({data.data.abreviatura})
-              </span>
-            )}
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            {allowEdit && data.data && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit?.(data.data);
-                }}
-                className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                title={`Editar ${type}`}
-                aria-label={`Editar ${children}`}
-              >
-                <Edit2 className="w-3 h-3" />
-              </button>
-            )}
-
-            </div>
-        </div>
-      </components.Option>
-    );
-  };
-
+  
+  
   const customStyles: StylesConfig<any, boolean, GroupBase<any>> = {
     control: (base, state) => ({
       ...base,
@@ -336,7 +316,142 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
                     }
                   }}
                   components={{
-                    Option: CustomOption,
+                    Option: memo(({ children, ...props }: any) => {
+                      const { data } = props;
+
+                      // Group heading
+                      if (data.__isGroup__) {
+                        return (
+                          <div className={cn(
+                            "font-semibold px-3 py-2 text-muted-foreground bg-muted/50",
+                            "uppercase tracking-wide text-xs flex items-center gap-2"
+                          )}>
+                            <ChevronRight className="w-3 h-3" />
+                            {children}
+                          </div>
+                        );
+                      }
+
+                      // Memoized calculations for regular options
+                      const hierarchyLevel = useMemo(() =>
+                        data.nivel ? data.nivel - 1 : 0, [data.nivel]);
+
+                      const hasChildren = useMemo(() =>
+                        data.hijos && data.hijos.length > 0, [data.hijos]);
+
+                      const itemData = useMemo(() => data.data, [data.data]);
+
+                      // Memoized styling classes
+                      const containerClasses = useMemo(() => cn(
+                        "flex items-center justify-between group",
+                        "hierarchy-line",
+                        hierarchyLevel > 0 && `hierarchy-indent-${Math.min(hierarchyLevel, 4)}`
+                      ), [hierarchyLevel]);
+
+                      // Si estamos editando este ítem inline, mostrar el editor
+                      if (allowInlineEdit && editingItem && itemData && editingItem.id === itemData.id) {
+                        return (
+                          <div className="p-2 bg-white border-2 border-blue-500 shadow-lg" onClick={(e) => e.stopPropagation()}>
+                            <InlineEditor
+                              value={editingItem}
+                              onSave={handleInlineEdit}
+                              type={type}
+                              disabled={disabled}
+                              onStartEditing={() => onInlineEditStart?.(editingItem)}
+                              onSaveSuccess={(savedItem) => {
+                                setEditingItem(null);
+                                onInlineEditSuccess?.(savedItem);
+                              }}
+                              onSaveError={(error) => {
+                                onInlineEditError?.(editingItem, error);
+                              }}
+                            />
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <components.Option {...props}>
+                          <div className={containerClasses}>
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              {/* Hierarchy indicators */}
+                              {type === 'categoria' && (
+                                <>
+                                  {hierarchyLevel > 0 && (
+                                    <div className="flex items-center gap-1">
+                                      {useMemo(() =>
+                                        [...Array(hierarchyLevel)].map((_, i) => (
+                                          <div key={i} className="w-1 h-1 bg-border rounded-full" />
+                                        )), [hierarchyLevel])
+                                      }
+                                    </div>
+                                  )}
+                                  {hasChildren && (
+                                    <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                                  )}
+                                  {/* Category icon if available */}
+                                  {itemData?.icono && (
+                                    <span className="text-sm">{itemData.icono}</span>
+                                  )}
+                                  {/* Category color indicator */}
+                                  {itemData?.color && (
+                                    <div
+                                      className="w-2 h-2 rounded-full border border-border"
+                                      style={{ backgroundColor: itemData.color }}
+                                    />
+                                  )}
+                                </>
+                              )}
+
+                              {/* Option label with truncation */}
+                              <span className="truncate" title={children}>
+                                {children}
+                              </span>
+
+                              {/* Additional info */}
+                              {type === 'presentacion' && itemData?.abreviatura && (
+                                <span className="text-xs text-muted-foreground ml-1">
+                                  ({itemData.abreviatura})
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Inline edit button */}
+                            {allowInlineEdit && itemData && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingItem(itemData);
+                                  onInlineEditStart?.(itemData);
+                                }}
+                                className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
+                                title={`Editar inline ${type}`}
+                                aria-label={`Editar inline ${children}`}
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                            )}
+
+                            {/* Modal edit button */}
+                            {allowEdit && !allowInlineEdit && itemData && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEdit?.(itemData);
+                                }}
+                                className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                title={`Editar ${type}`}
+                                aria-label={`Editar ${children}`}
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        </components.Option>
+                      );
+                    }),
                     LoadingIndicator: () => <Loader2 className="w-4 h-4 animate-spin text-primary" />
                   }}
                   placeholder={placeholder}
@@ -383,7 +498,142 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
                 <Select
                   options={options}
                   components={{
-                    Option: CustomOption,
+                    Option: memo(({ children, ...props }: any) => {
+                      const { data } = props;
+
+                      // Group heading
+                      if (data.__isGroup__) {
+                        return (
+                          <div className={cn(
+                            "font-semibold px-3 py-2 text-muted-foreground bg-muted/50",
+                            "uppercase tracking-wide text-xs flex items-center gap-2"
+                          )}>
+                            <ChevronRight className="w-3 h-3" />
+                            {children}
+                          </div>
+                        );
+                      }
+
+                      // Memoized calculations for regular options
+                      const hierarchyLevel = useMemo(() =>
+                        data.nivel ? data.nivel - 1 : 0, [data.nivel]);
+
+                      const hasChildren = useMemo(() =>
+                        data.hijos && data.hijos.length > 0, [data.hijos]);
+
+                      const itemData = useMemo(() => data.data, [data.data]);
+
+                      // Memoized styling classes
+                      const containerClasses = useMemo(() => cn(
+                        "flex items-center justify-between group",
+                        "hierarchy-line",
+                        hierarchyLevel > 0 && `hierarchy-indent-${Math.min(hierarchyLevel, 4)}`
+                      ), [hierarchyLevel]);
+
+                      // Si estamos editando este ítem inline, mostrar el editor
+                      if (allowInlineEdit && editingItem && itemData && editingItem.id === itemData.id) {
+                        return (
+                          <div className="p-2 bg-white border-2 border-blue-500 shadow-lg" onClick={(e) => e.stopPropagation()}>
+                            <InlineEditor
+                              value={editingItem}
+                              onSave={handleInlineEdit}
+                              type={type}
+                              disabled={disabled}
+                              onStartEditing={() => onInlineEditStart?.(editingItem)}
+                              onSaveSuccess={(savedItem) => {
+                                setEditingItem(null);
+                                onInlineEditSuccess?.(savedItem);
+                              }}
+                              onSaveError={(error) => {
+                                onInlineEditError?.(editingItem, error);
+                              }}
+                            />
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <components.Option {...props}>
+                          <div className={containerClasses}>
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              {/* Hierarchy indicators */}
+                              {type === 'categoria' && (
+                                <>
+                                  {hierarchyLevel > 0 && (
+                                    <div className="flex items-center gap-1">
+                                      {useMemo(() =>
+                                        [...Array(hierarchyLevel)].map((_, i) => (
+                                          <div key={i} className="w-1 h-1 bg-border rounded-full" />
+                                        )), [hierarchyLevel])
+                                      }
+                                    </div>
+                                  )}
+                                  {hasChildren && (
+                                    <ChevronRight className="w-3 h-3 text-muted-foreground" />
+                                  )}
+                                  {/* Category icon if available */}
+                                  {itemData?.icono && (
+                                    <span className="text-sm">{itemData.icono}</span>
+                                  )}
+                                  {/* Category color indicator */}
+                                  {itemData?.color && (
+                                    <div
+                                      className="w-2 h-2 rounded-full border border-border"
+                                      style={{ backgroundColor: itemData.color }}
+                                    />
+                                  )}
+                                </>
+                              )}
+
+                              {/* Option label with truncation */}
+                              <span className="truncate" title={children}>
+                                {children}
+                              </span>
+
+                              {/* Additional info */}
+                              {type === 'presentacion' && itemData?.abreviatura && (
+                                <span className="text-xs text-muted-foreground ml-1">
+                                  ({itemData.abreviatura})
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Inline edit button */}
+                            {allowInlineEdit && itemData && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingItem(itemData);
+                                  onInlineEditStart?.(itemData);
+                                }}
+                                className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
+                                title={`Editar inline ${type}`}
+                                aria-label={`Editar inline ${children}`}
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                            )}
+
+                            {/* Modal edit button */}
+                            {allowEdit && !allowInlineEdit && itemData && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEdit?.(itemData);
+                                }}
+                                className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                title={`Editar ${type}`}
+                                aria-label={`Editar ${children}`}
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        </components.Option>
+                      );
+                    }),
                     LoadingIndicator: () => <Loader2 className="w-4 h-4 animate-spin text-primary" />
                   }}
                   placeholder={placeholder}
@@ -441,8 +691,8 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
   );
 };
 
-// Memoize el componente para evitar re-renders innecesarios
-export const MemoizedDynamicSelect = React.memo(DynamicSelect, (prevProps, nextProps) => {
+// Memoized component with custom comparison function
+export const MemoizedDynamicSelect = memo(DynamicSelect, (prevProps, nextProps) => {
   // Re-render solo si cambian las propiedades importantes
   return (
     prevProps.control === nextProps.control &&
@@ -452,8 +702,15 @@ export const MemoizedDynamicSelect = React.memo(DynamicSelect, (prevProps, nextP
     prevProps.loading === nextProps.loading &&
     prevProps.error === nextProps.error &&
     prevProps.required === nextProps.required &&
-    prevProps.type === nextProps.type
+    prevProps.type === nextProps.type &&
+    prevProps.allowInlineEdit === nextProps.allowInlineEdit &&
+    prevProps.allowEdit === nextProps.allowEdit &&
+    prevProps.creatable === nextProps.creatable &&
+    prevProps.label === nextProps.label
   );
 });
+
+// Add display names for debugging
+MemoizedDynamicSelect.displayName = 'MemoizedDynamicSelect';
 
 export default DynamicSelect;
