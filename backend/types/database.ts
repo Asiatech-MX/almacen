@@ -14,12 +14,31 @@ export interface Database {
     fecha_caducidad: Date | null
     imagen_url: string | null
     descripcion: string | null
-    categoria: string | null
+    categoria: string | null  // ✅ Restaurado: sí existe en la base de datos
+    categoria_id: number | null  // ✅ Añadido: campo de relación con tabla categoria
     proveedor_id: string | null
     activo: boolean
     creado_en: Date
     actualizado_en: Date
     eliminado_en: Date | null
+  }
+
+  // Tabla categoria
+  categoria: {
+    id: number
+    nombre: string
+    descripcion: string | null
+    categoria_padre_id: number | null
+    nivel: number
+    ruta_completa: string | null
+    icono: string | null
+    color: string | null
+    orden: number | null
+    activo: boolean
+    es_predeterminado: boolean
+    creado_en: Date
+    actualizado_en: Date
+    id_institucion: number
   }
 
   // Tabla proveedor

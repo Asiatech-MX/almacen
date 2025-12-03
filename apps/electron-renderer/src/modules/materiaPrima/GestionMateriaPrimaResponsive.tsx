@@ -171,13 +171,13 @@ const createColumns = (
   },
   {
     id: 'categoria',
-    accessorKey: 'categoria',
+    accessorKey: 'categoria_nombre',
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Categoría" />
     ),
     cell: ({ row }) => (
       <div>
-        {row.getValue('categoria') || '-'}
+        {row.getValue('categoria_nombre') || '-'}
       </div>
     ),
     enableColumnFilter: true,
@@ -392,7 +392,7 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
       const nombre = safeGet(material, 'nombre', '')
       const codigoBarras = safeGet(material, 'codigo_barras', '')
       const marca = safeGet(material, 'marca', '')
-      const categoria = safeGet(material, 'categoria', '')
+      const categoria = safeGet(material, 'categoria_nombre', '') || safeGet(material, 'categoria', '') // Priorizar categoria_nombre
       const stockActual = safeGet(material, 'stock_actual', 0)
       const stockMinimo = safeGet(material, 'stock_minimo', 0)
       const estatus = safeGet(material, 'estatus', 'ACTIVO')
@@ -426,7 +426,7 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
       ...(categoriaFilter && { categoria: categoriaFilter }),
       ...(stockFilter === 'low' && { bajoStock: true })
     }, { includeInactive })
-  }, [categoriaFilter, stockFilter, statusFilter]) // ✅ AÑADIR: statusFilter dependency
+  }, [categoriaFilter, stockFilter, statusFilter])
 
   const handleEdit = (material: MateriaPrima) => {
     if (material?.id) {
@@ -1031,7 +1031,7 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
                     </div>
                     <div>
                       <span className="font-semibold">Categoría:</span><br />
-                      {materialDetalle.categoria || 'N/A'}
+                      {materialDetalle.categoria_nombre || materialDetalle.categoria || 'N/A'}
                     </div>
                     <div>
                       <span className="font-semibold">Presentación:</span><br />

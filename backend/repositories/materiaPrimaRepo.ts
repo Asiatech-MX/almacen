@@ -258,6 +258,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
 
     let query = this.getDatabase()
       .selectFrom('materia_prima as mp')
+      .leftJoin('categoria as cat', 'cat.id', 'mp.categoria_id') // ✅ JOIN con tabla categoria
       .select([
         'mp.id',
         'mp.codigo_barras',
@@ -272,8 +273,9 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'mp.fecha_caducidad',
         'mp.imagen_url',
         'mp.descripcion',
-        'mp.categoria',
-        'mp.categoria_id',   // ✅ Add reference field
+        'mp.categoria',          // ✅ Campo de texto libre (fallback)
+        'mp.categoria_id',       // ✅ Campo de relación
+        'cat.nombre as categoria_nombre', // ✅ NOMBRE de la categoría desde tabla categoria
         'mp.proveedor_id',
         sql<string>`CASE
           WHEN mp.activo = true THEN 'ACTIVO'
@@ -359,6 +361,8 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
   async findByCodigoBarras(codigoBarras: string): Promise<MateriaPrimaDetail | null> {
     return await this.getDatabase()
       .selectFrom('materia_prima as mp')
+      .leftJoin('categoria as cat', 'cat.id', 'mp.categoria_id') // ✅ JOIN con tabla categoria
+      .leftJoin('proveedor as p', 'p.id', 'mp.proveedor_id') // ✅ JOIN con tabla proveedor
       .select([
         'mp.id',
         'mp.codigo_barras',
@@ -373,8 +377,9 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'mp.fecha_caducidad',
         'mp.imagen_url',
         'mp.descripcion',
-        'mp.categoria',
-        'mp.categoria_id',   // ✅ Add reference field
+        'mp.categoria',          // ✅ Restaurado: campo de texto libre
+        'mp.categoria_id',       // ✅ Restaurado: campo de relación
+        'cat.nombre as categoria_nombre', // ✅ JOIN con tabla categoria
         'mp.proveedor_id',
         'p.nombre as proveedor_nombre',
         sql<string>`NULL`.as('proveedor_rfc'), // Temporarily NULL since no providers exist
@@ -397,7 +402,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
       'nombre',
       'marca',
       'codigo_barras',
-      'categoria',
+      'categoria',  // ✅ Restaurado: sí existe en la base de datos
       'presentacion'
     ] as const
 
@@ -405,6 +410,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
       searchFields,
       searchTerm,
       (query) => query
+        .leftJoin('categoria as cat', 'cat.id', 'materia_prima.categoria_id') // ✅ JOIN con tabla categoria
         // .leftJoin('proveedor as p', 'p.id', 'materia_prima.proveedor_id') // Disabled: type mismatch (integer vs uuid)
         .select([
           'materia_prima.id',
@@ -417,6 +423,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
           'materia_prima.stock_minimo',
           'materia_prima.categoria',
           'materia_prima.categoria_id',   // ✅ Add reference field
+          'cat.nombre as categoria_nombre', // ✅ JOIN con tabla categoria
           'materia_prima.imagen_url',
           sql<string>`NULL`.as('proveedor_nombre') // Temporal: NULL until provider schema is fixed
         ])
@@ -431,27 +438,29 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
    */
   async getLowStockItems(): Promise<LowStockItem[]> {
     return await this.getDatabase()
-      .selectFrom('materia_prima')
+      .selectFrom('materia_prima as mp')
+      .leftJoin('categoria as cat', 'cat.id', 'mp.categoria_id') // ✅ JOIN con tabla categoria
       .select([
-        'id',
-        'codigo_barras',
-        'nombre',
-        'marca',
-        'presentacion',
-        'presentacion_id', // ✅ Add reference field
-        'stock_actual',
-        'stock_minimo',
-        'categoria',
-        'categoria_id',   // ✅ Add reference field
+        'mp.id',
+        'mp.codigo_barras',
+        'mp.nombre',
+        'mp.marca',
+        'mp.presentacion',
+        'mp.presentacion_id', // ✅ Add reference field
+        'mp.stock_actual',
+        'mp.stock_minimo',
+        'mp.categoria',
+        'mp.categoria_id',   // ✅ Add reference field
+        'cat.nombre as categoria_nombre', // ✅ JOIN con tabla categoria
         sql<number | null>`CASE
-          WHEN stock_minimo > 0 THEN ROUND((stock_actual::numeric / stock_minimo::numeric), 2)
+          WHEN mp.stock_minimo > 0 THEN ROUND((mp.stock_actual::numeric / mp.stock_minimo::numeric), 2)
           ELSE NULL
         END`.as('stock_ratio')
       ])
-      .where('activo', '=', true)
-      .where(sql`stock_actual <= stock_minimo`)
-      .where('stock_minimo', '>', 0)
-      .orderBy('stock_ratio', 'asc')
+      .where('mp.activo', '=', true)
+      .where(sql`mp.stock_actual <= mp.stock_minimo`)
+      .where('mp.stock_minimo', '>', 0)
+      .orderBy('mp.stock_ratio', 'asc')
       .execute() as LowStockItem[]
   }
 
@@ -891,6 +900,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
 
     let query = db
       .selectFrom('materia_prima as mp')
+      .leftJoin('categoria as cat', 'cat.id', 'mp.categoria_id') // ✅ JOIN con tabla categoria
       // .leftJoin('proveedor as p', 'p.id', 'mp.proveedor_id') // Disabled: type mismatch (integer vs uuid)
       .select([
         'mp.id',
@@ -906,8 +916,9 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'mp.fecha_caducidad',
         'mp.imagen_url',
         'mp.descripcion',
-        'mp.categoria',
-        'mp.categoria_id',   // ✅ Add reference field
+        'mp.categoria',          // ✅ Campo de texto libre (fallback)
+        'mp.categoria_id',       // ✅ Campo de relación
+        'cat.nombre as categoria_nombre', // ✅ NOMBRE de la categoría desde tabla categoria
         'mp.proveedor_id',
         sql<string>`NULL`.as('proveedor_nombre'), // Temporal: NULL until provider schema is fixed
         sql<string>`NULL`.as('proveedor_rfc'), // Temporal: NULL until provider schema is fixed
