@@ -164,18 +164,59 @@ export const useReferenceData = ({
 
   const editarCategoria = async (id: string, cambios: CategoriaUpdate) => {
     try {
-      const result = await window.electronAPI.categoria.editar(id, cambios);
+      // Logging detallado para debugging
+      console.log('🔍 DEBUG editarCategoria:', {
+        id,
+        idType: typeof id,
+        idValue: String(id),
+        cambios,
+        cambiosKeys: Object.keys(cambios),
+        cambiosValues: Object.values(cambios)
+      });
+
+      // Asegurar que el ID sea string válido
+      const idStr = String(id).trim();
+      if (!idStr || idStr === 'undefined' || idStr === 'null') {
+        console.error('❌ ID inválido en editarCategoria:', { id, idStr });
+        return { success: false, error: 'ID de categoría inválido' };
+      }
+
+      console.log('📡 Llamando a window.electronAPI.categoria.editar con:', {
+        id: idStr,
+        cambios: JSON.parse(JSON.stringify(cambios)), // Deep copy para logging
+        timestamp: new Date().toISOString()
+      });
+
+      const result = await window.electronAPI.categoria.editar(idStr, cambios);
+
+      console.log('📋 Respuesta de electronAPI.categoria.editar:', {
+        result,
+        resultType: typeof result,
+        timestamp: new Date().toISOString()
+      });
+
       if (result) {
         setState(prev => ({
           ...prev,
           categorias: prev.categorias.map(cat =>
-            cat.id === id ? { ...cat, ...cambios, actualizado_en: new Date().toISOString() } : cat
-          )
+            cat.id === idStr ? { ...cat, ...cambios, actualizado_en: new Date().toISOString() } : cat
+          ),
+          categoriasArbol: updateCategoriaInTree(prev.categoriasArbol, idStr, cambios)
         }));
+        console.log('✅ Estado actualizado exitosamente para categoría:', idStr);
         return { success: true, data: result };
       }
+      console.error('❌ El resultado de editar categoría es null/undefined');
       return { success: false, error: 'Error al editar categoría' };
     } catch (error) {
+      console.error('💥 Error completo en editarCategoria:', {
+        error,
+        errorMessage: error instanceof Error ? error.message : 'Error desconocido',
+        errorStack: error instanceof Error ? error.stack : undefined,
+        id,
+        cambios,
+        timestamp: new Date().toISOString()
+      });
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Error desconocido'
@@ -398,6 +439,28 @@ function flattenCategories(categorias: CategoriaArbol[]): Array<{ value: string;
 
     return acc;
   }, [] as Array<{ value: string; label: string; data: Categoria }>);
+}
+
+// Helper para actualizar recursivamente una categoría en el árbol
+function updateCategoriaInTree(categorias: CategoriaArbol[], targetId: string, cambios: CategoriaUpdate): CategoriaArbol[] {
+  return categorias.map(categoria => {
+    if (categoria.id === targetId) {
+      // Actualizar la categoría encontrada
+      return {
+        ...categoria,
+        ...cambios,
+        actualizado_en: new Date().toISOString()
+      };
+    } else if (categoria.hijos && categoria.hijos.length > 0) {
+      // Recursivamente buscar en los hijos
+      return {
+        ...categoria,
+        hijos: updateCategoriaInTree(categoria.hijos, targetId, cambios)
+      };
+    }
+    // Si no es la categoría y no tiene hijos, devolver sin cambios
+    return categoria;
+  });
 }
 
 export default useReferenceData;

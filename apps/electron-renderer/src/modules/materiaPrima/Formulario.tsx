@@ -384,6 +384,17 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     try {
       const result = await actions.editarPresentacion(presentacionEditando.id, data)
       if (result.success) {
+        // 🔥 SOLUCIÓN: Actualizar el campo del formulario con el ID editado
+        // Usamos setTimeout para asegurar que se ejecute después de que React
+        // actualice las opciones en el DynamicSelect con los datos frescos
+        setTimeout(() => {
+          form.setValue('presentacion_id', presentacionEditando.id.toString(), {
+            shouldValidate: true,
+            shouldDirty: true,
+            shouldTouch: true
+          })
+        }, 0)
+
         setShowPresentacionModal(false)
         setPresentacionEditando(null)
         // El hook ya actualizó los datos automáticamente
@@ -399,6 +410,17 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     try {
       const result = await actions.editarCategoria(categoriaEditando.id, data)
       if (result.success) {
+        // 🔥 SOLUCIÓN: Actualizar el campo del formulario con el ID editado
+        // Usamos setTimeout para asegurar que se ejecute después de que React
+        // actualice las opciones en el DynamicSelect con los datos frescos
+        setTimeout(() => {
+          form.setValue('categoria_id', categoriaEditando.id.toString(), {
+            shouldValidate: true,
+            shouldDirty: true,
+            shouldTouch: true
+          })
+        }, 0)
+
         setShowCategoriaModal(false)
         setCategoriaEditando(null)
         // El hook ya actualizó los datos automáticamente
