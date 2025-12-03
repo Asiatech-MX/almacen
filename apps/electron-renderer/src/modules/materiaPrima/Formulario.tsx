@@ -171,6 +171,9 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
   const [showPresentacionModal, setShowPresentacionModal] = useState(false)
   const [showCategoriaModal, setShowCategoriaModal] = useState(false)
 
+  // Estado para forzar re-renderizado de los selects después de editar
+  const [selectRefreshKey, setSelectRefreshKey] = useState(0)
+
   // ID de institución actual (esto debería venir de un contexto o configuración)
   const CURRENT_INSTITUTION_ID = 1 // Cambiar esto por el ID real de la institución
 
@@ -388,8 +391,8 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     try {
       const result = await actions.editarPresentacion(presentacionEditando.id, data)
       if (result.success) {
-        // La actualización del estado en useReferenceData debería ser suficiente
-        // para que el DynamicSelect se actualice automáticamente gracias a la reactividad
+        // Forzar re-render de los selects para que se muestre el nombre actualizado
+        setSelectRefreshKey(prev => prev + 1)
         setShowPresentacionModal(false)
         setPresentacionEditando(null)
       }
@@ -404,8 +407,8 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     try {
       const result = await actions.editarCategoria(categoriaEditando.id, data)
       if (result.success) {
-        // La actualización del estado en useReferenceData debería ser suficiente
-        // para que el DynamicSelect se actualice automáticamente gracias a la reactividad
+        // Forzar re-render de los selects para que se muestre el nombre actualizado
+        setSelectRefreshKey(prev => prev + 1)
         setShowCategoriaModal(false)
         setCategoriaEditando(null)
       }
@@ -420,7 +423,8 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     try {
       const result = await actions.moverCategoria(idCategoria, nuevoPadreId)
       if (result.success) {
-        // El hook ya actualizó los datos automáticamente
+        // Forzar re-render de los selects para que se muestren los cambios jerárquicos
+        setSelectRefreshKey(prev => prev + 1)
       }
       return result
     } catch (error) {
@@ -643,7 +647,8 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                                       allowEdit={true}
                                       required={true}
                                       disabled={loadingReferencias}
-                                                                            onEdit={(presentacion) => {
+                                      refreshKey={selectRefreshKey}
+                                      onEdit={(presentacion) => {
                                         handleEditarPresentacion(presentacion)
                                       }}
                                     />
@@ -679,7 +684,8 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                                       creatable={true}
                                       allowEdit={true}
                                       disabled={loadingReferencias}
-                                                                            onEdit={(categoria) => {
+                                      refreshKey={selectRefreshKey}
+                                      onEdit={(categoria) => {
                                         handleEditarCategoria(categoria)
                                       }}
                                       onMove={async (idCategoria, nuevoPadreId) => {

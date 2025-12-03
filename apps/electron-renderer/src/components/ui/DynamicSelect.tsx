@@ -504,7 +504,28 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
                     const value = selectedOption ? selectedOption.value : 0;
                     field.onChange(value);
                   }}
-                  value={flatOptions.find(option => option.value === field.value) || null}
+                  value={(() => {
+                    // Ensure the selected value is maintained even if options are updating
+                    const currentValue = field.value;
+                    if (!currentValue || currentValue === 0) return null;
+
+                    // Try to find the option in current options
+                    const selectedOption = flatOptions.find(option =>
+                      option.value === currentValue ||
+                      option.value.toString() === currentValue.toString()
+                    );
+
+                    // If not found, create a temporary option to maintain the selection
+                    if (!selectedOption && currentValue) {
+                      return {
+                        value: currentValue,
+                        label: `ID: ${currentValue} (actualizando...)`,
+                        data: null
+                      };
+                    }
+
+                    return selectedOption || null;
+                  })()}
                   onBlur={field.onBlur}
                   // Usar clave compuesta para re-renderizado optimizado
                   key={compositeKey}
@@ -679,7 +700,28 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
                     const value = selectedOption ? selectedOption.value : 0;
                     field.onChange(value);
                   }}
-                  value={flatOptions.find(option => option.value === field.value) || null}
+                  value={(() => {
+                    // Ensure the selected value is maintained even if options are updating
+                    const currentValue = field.value;
+                    if (!currentValue || currentValue === 0) return null;
+
+                    // Try to find the option in current options
+                    const selectedOption = flatOptions.find(option =>
+                      option.value === currentValue ||
+                      option.value.toString() === currentValue.toString()
+                    );
+
+                    // If not found, create a temporary option to maintain the selection
+                    if (!selectedOption && currentValue) {
+                      return {
+                        value: currentValue,
+                        label: `ID: ${currentValue} (actualizando...)`,
+                        data: null
+                      };
+                    }
+
+                    return selectedOption || null;
+                  })()}
                   onBlur={field.onBlur}
                   // Usar clave compuesta para re-renderizado optimizado
                   key={compositeKey}
