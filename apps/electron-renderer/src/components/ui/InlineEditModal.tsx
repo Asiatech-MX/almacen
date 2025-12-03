@@ -32,14 +32,30 @@ export const InlineEditModal: React.FC<InlineEditModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Reset form data when item changes
+  // Reset form data and errors when modal state changes
   useEffect(() => {
-    if (item) {
-      setFormData({ ...item });
+    if (isOpen) {
+      if (item) {
+        // Asegurar que los valores null se conviertan a undefined para el manejo del formulario
+        const cleanedData = {
+          ...item,
+          factor_conversion: item.factor_conversion === null ? undefined : item.factor_conversion,
+          unidad_base: item.unidad_base === null ? undefined : item.unidad_base,
+          abreviatura: item.abreviatura === null ? undefined : item.abreviatura,
+          descripcion: item.descripcion === null ? undefined : item.descripcion
+        };
+        setFormData(cleanedData);
+      } else {
+        setFormData({});
+      }
+      setErrors({});
+      setLoading(false);
     } else {
+      // Limpiar completamente el estado al cerrar el modal
       setFormData({});
+      setErrors({});
+      setLoading(false);
     }
-    setErrors({});
   }, [item, isOpen]);
 
   const validateForm = (): boolean => {
@@ -82,13 +98,31 @@ export const InlineEditModal: React.FC<InlineEditModalProps> = ({
         newErrors.unidad_base = 'La unidad base no puede exceder 20 caracteres';
       }
 
-      // Validación de factor de conversión
-      if (formData.factor_conversion !== undefined) {
-        if (typeof formData.factor_conversion !== 'number') {
-          newErrors.factor_conversion = 'El factor de conversión debe ser un número';
-        } else if (formData.factor_conversion <= 0) {
+      // Validación de factor de conversión (opcional)
+      if (formData.factor_conversion !== undefined && formData.factor_conversion !== null && formData.factor_conversion !== '') {
+        // Manejar robustamente la conversión a número
+        let numValue: number;
+
+        if (typeof formData.factor_conversion === 'string') {
+          const trimmed = formData.factor_conversion.trim();
+          if (trimmed === '') {
+            // Campo vacío, no validar
+            return;
+          }
+          numValue = parseFloat(trimmed);
+        } else if (typeof formData.factor_conversion === 'number') {
+          numValue = formData.factor_conversion;
+        } else {
+          newErrors.factor_conversion = 'El factor de conversión debe ser un número válido';
+          return;
+        }
+
+        // Validar que el número resultante sea válido
+        if (!isFinite(numValue) || isNaN(numValue)) {
+          newErrors.factor_conversion = 'El factor de conversión debe ser un número válido';
+        } else if (numValue <= 0) {
           newErrors.factor_conversion = 'El factor de conversión debe ser positivo';
-        } else if (formData.factor_conversion > 999999.9999) {
+        } else if (numValue > 999999.9999) {
           newErrors.factor_conversion = 'El factor de conversión no puede exceder 999999.9999';
         }
       }
@@ -116,7 +150,11 @@ export const InlineEditModal: React.FC<InlineEditModalProps> = ({
       const updateData = {
         ...formData,
         nombre: formData.nombre?.trim(),
-        descripcion: formData.descripcion?.trim() || undefined
+        descripcion: formData.descripcion?.trim() || undefined,
+        // Limpiar factor de conversión para asegurar que no se envíe NaN o null
+        factor_conversion: type === 'presentacion'
+          ? (formData.factor_conversion && !isNaN(formData.factor_conversion) ? formData.factor_conversion : undefined)
+          : undefined
       } as CategoriaUpdate | PresentacionUpdate;
 
       const result = await onSave(updateData);
@@ -250,10 +288,18 @@ export const InlineEditModal: React.FC<InlineEditModalProps> = ({
                   min="0.0001"
                   max="999999.9999"
                   value={formData.factor_conversion || ''}
-                  onChange={(e) => handleInputChange(
-                    'factor_conversion',
-                    e.target.value ? parseFloat(e.target.value) : undefined
-                  )}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value.trim() === '') {
+                      handleInputChange('factor_conversion', undefined);
+                    } else {
+                      const parsed = parseFloat(value);
+                      if (!isNaN(parsed) && isFinite(parsed)) {
+                        handleInputChange('factor_conversion', parsed);
+                      }
+                      // Si no es válido, mantener el string para que el usuario vea lo que escribió
+                    }
+                  }}
                   placeholder="1000"
                   className={errors.factor_conversion ? 'border-destructive' : ''}
                 />

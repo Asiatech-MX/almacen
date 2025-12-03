@@ -250,12 +250,28 @@ export const useReferenceData = ({
 
   const editarPresentacion = async (id: string, cambios: PresentacionUpdate) => {
     try {
-      const result = await window.electronAPI.presentacion.editar(id, cambios);
+      // Logging para debugging del problema de ID
+      console.log('🔍 DEBUG editarPresentacion:', {
+        id,
+        idType: typeof id,
+        idValue: String(id),
+        cambios,
+        cambiosKeys: Object.keys(cambios)
+      });
+
+      // Asegurar que el ID sea string válido
+      const idStr = String(id).trim();
+      if (!idStr || idStr === 'undefined' || idStr === 'null') {
+        console.error('❌ ID inválido en editarPresentacion:', { id, idStr });
+        return { success: false, error: 'ID de presentación inválido' };
+      }
+
+      const result = await window.electronAPI.presentacion.editar(idStr, cambios);
       if (result) {
         setState(prev => ({
           ...prev,
           presentaciones: prev.presentaciones.map(presentacion =>
-            presentacion.id === id ? { ...presentacion, ...cambios, actualizado_en: new Date().toISOString() } : presentacion
+            presentacion.id === idStr ? { ...presentacion, ...cambios, actualizado_en: new Date().toISOString() } : presentacion
           )
         }));
         return { success: true, data: result };
