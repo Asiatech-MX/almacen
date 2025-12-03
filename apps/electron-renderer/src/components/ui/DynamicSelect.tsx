@@ -38,6 +38,8 @@ interface DynamicSelectProps {
   onInlineEditStart?: (item: Categoria | Presentacion) => void;
   onInlineEditSuccess?: (item: Categoria | Presentacion) => void;
   onInlineEditError?: (item: Categoria | Presentacion, error: string) => void;
+  // Key para forzar re-render cuando los datos de referencia cambian
+  refreshKey?: number;
 }
 
 
@@ -58,7 +60,8 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
   error,
   onInlineEditStart,
   onInlineEditSuccess,
-  onInlineEditError
+  onInlineEditError,
+  refreshKey
 }) => {
   const { measureRender, measureInteraction, measureAsync, recordMetric } = usePerformanceMonitor('DynamicSelect');
 
@@ -74,6 +77,18 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const [editingItem, setEditingItem] = useState<Categoria | Presentacion | null>(null);
   const { isMobile, getSelectProps } = useResponsiveSelect();
+
+  // Composite key for targeted re-renders when reference data changes
+  const compositeKey = useMemo(() => {
+    const dataVersion = type === 'categoria'
+      ? categorias?.length || 0
+      : presentaciones?.length || 0;
+    const dataHash = type === 'categoria'
+      ? categorias?.map(c => `${c.id}:${c.actualizado_en}`).join('|') || ''
+      : presentaciones?.map(p => `${p.id}:${p.actualizado_en}`).join('|') || '';
+
+    return `${type}-${dataVersion}-${dataHash}-${refreshKey || 0}-${loading}`;
+  }, [type, categorias, presentaciones, refreshKey, loading]);
 
   // Monitorear rendimiento del renderizado
   useEffect(() => {
@@ -484,12 +499,15 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
                   role="combobox"
                   menuPortalTarget={document.body}
                   onChange={(selectedOption) => {
-                    // Extract just the value (string) from the selected option
-                    const value = selectedOption ? selectedOption.value : null;
+                    // Extract just the value (string) from the selected option, or 0 for no selection
+                    // z.coerce.number() will handle the string to number conversion
+                    const value = selectedOption ? selectedOption.value : 0;
                     field.onChange(value);
                   }}
                   value={flatOptions.find(option => option.value === field.value) || null}
                   onBlur={field.onBlur}
+                  // Usar clave compuesta para re-renderizado optimizado
+                  key={compositeKey}
                   styles={{
                     ...customStyles,
                     menuPortal: (base) => ({
@@ -656,12 +674,15 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
                   role="combobox"
                   menuPortalTarget={document.body}
                   onChange={(selectedOption) => {
-                    // Extract just the value (string) from the selected option
-                    const value = selectedOption ? selectedOption.value : null;
+                    // Extract just the value (string) from the selected option, or 0 for no selection
+                    // z.coerce.number() will handle the string to number conversion
+                    const value = selectedOption ? selectedOption.value : 0;
                     field.onChange(value);
                   }}
                   value={flatOptions.find(option => option.value === field.value) || null}
                   onBlur={field.onBlur}
+                  // Usar clave compuesta para re-renderizado optimizado
+                  key={compositeKey}
                   styles={{
                     ...customStyles,
                     menuPortal: (base) => ({
@@ -698,21 +719,22 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
 
 // Memoized component with custom comparison function
 export const MemoizedDynamicSelect = memo(DynamicSelect, (prevProps, nextProps) => {
-  // Re-render solo si cambian las propiedades importantes
-  return (
+  // Re-render si cambian las propiedades importantes O el refreshKey
+  const basicPropsEqual = (
     prevProps.control === nextProps.control &&
     prevProps.name === nextProps.name &&
-    prevProps.value === nextProps.value &&
     prevProps.disabled === nextProps.disabled &&
-    prevProps.loading === nextProps.loading &&
     prevProps.error === nextProps.error &&
     prevProps.required === nextProps.required &&
     prevProps.type === nextProps.type &&
     prevProps.allowInlineEdit === nextProps.allowInlineEdit &&
     prevProps.allowEdit === nextProps.allowEdit &&
     prevProps.creatable === nextProps.creatable &&
-    prevProps.label === nextProps.label
+    prevProps.label === nextProps.label &&
+    prevProps.refreshKey === nextProps.refreshKey // Incluir refreshKey en la comparación
   );
+
+  return basicPropsEqual;
 });
 
 // Add display names for debugging

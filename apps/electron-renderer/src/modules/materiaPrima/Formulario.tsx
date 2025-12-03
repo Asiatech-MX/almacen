@@ -106,7 +106,7 @@ const validateEAN13 = (barcode: string): boolean => {
   return checksum === parseInt(digits[12]);
 };
 
-// Schema Zod simplificado - solo IDs de referencia
+// Schema Zod mejorado - maneja correctamente los IDs de referencia del DynamicSelect
 const materiaPrimaSchema = z.object({
   codigo_barras: z.string()
     .length(13, 'El código de barras debe tener exactamente 13 dígitos')
@@ -115,16 +115,20 @@ const materiaPrimaSchema = z.object({
   nombre: z.string().min(1, 'El nombre es requerido'),
   marca: z.string().optional(),
   modelo: z.string().optional(),
-  // Solo campos con IDs de referencia
-  presentacion_id: z.string().min(1, 'La presentación es requerida'),
-  categoria_id: z.string().min(1, 'La categoría es requerida'),
+  // IDs de referencia con coercion automática de string a number
+  presentacion_id: z.coerce.number()
+    .positive('La presentación es requerida')
+    .min(1, 'La presentación es requerida'),
+  categoria_id: z.coerce.number()
+    .positive('La categoría es requerida')
+    .min(1, 'La categoría es requerida'),
   stock_actual: z.number().min(0, 'El stock actual no puede ser negativo'),
   stock_minimo: z.number().min(0, 'El stock mínimo no puede ser negativo'),
   costo_unitario: z.number().nullable().optional(),
   fecha_caducidad: z.string().nullable().optional(),
   imagen_url: z.string().nullable().optional(),
   descripcion: z.string().optional(),
-  proveedor_id: z.string().nullable().optional()
+  proveedor_id: z.coerce.number().nullable().optional()
 });
 
 type MateriaPrimaFormData = z.infer<typeof materiaPrimaSchema>
@@ -178,9 +182,9 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
       nombre: '',
       marca: '',
       modelo: '',
-      // Solo campos con IDs de referencia
-      presentacion_id: '',
-      categoria_id: '',
+      // IDs de referencia como números (vienen del DynamicSelect como strings pero se coercen)
+      presentacion_id: 0,
+      categoria_id: 0,
       stock_actual: 0,
       stock_minimo: 0,
       costo_unitario: null,
@@ -229,9 +233,9 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
         nombre: data.nombre || '',
         marca: data.marca || '',
         modelo: data.modelo || '',
-        // Solo campos con IDs de referencia
-        presentacion_id: data.presentacion_id ? data.presentacion_id.toString() : '',
-        categoria_id: data.categoria_id ? data.categoria_id.toString() : '',
+        // IDs de referencia como números (la coerción manejará la conversión)
+        presentacion_id: data.presentacion_id || 0,
+        categoria_id: data.categoria_id || 0,
         stock_actual: data.stock_actual || 0,
         stock_minimo: data.stock_minimo || 0,
         costo_unitario: data.costo_unitario || null,
@@ -239,7 +243,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
           new Date(data.fecha_caducidad).toISOString().split('T')[0] : '',
         imagen_url: data.imagen_url || '',
         descripcion: data.descripcion || '',
-        proveedor_id: data.proveedor_id || ''
+        proveedor_id: data.proveedor_id || null
       })
     } catch (err) {
       console.error('Error al cargar material:', err)
@@ -252,21 +256,21 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     setGeneralError(null) // Limpiar errores generales previos
 
     try {
-      // Pipeline de datos simplificado y directo
+      // Pipeline de datos simplificado y directo (sin conversión manual gracias a z.coerce)
       const submissionData = {
         codigo_barras: data.codigo_barras,
         nombre: data.nombre,
         marca: data.marca || null,
         modelo: data.modelo || null,
-        presentacion_id: parseInt(data.presentacion_id),
-        categoria_id: parseInt(data.categoria_id),
+        presentacion_id: data.presentacion_id,
+        categoria_id: data.categoria_id,
         stock_actual: data.stock_actual,
         stock_minimo: data.stock_minimo,
         costo_unitario: data.costo_unitario || null,
         fecha_caducidad: data.fecha_caducidad || null,
         imagen_url: data.imagen_url || null,
         descripcion: data.descripcion || null,
-        proveedor_id: data.proveedor_id || null,
+        proveedor_id: data.proveedor_id,
         id_institucion: CURRENT_INSTITUTION_ID
       }
 
@@ -384,20 +388,10 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     try {
       const result = await actions.editarPresentacion(presentacionEditando.id, data)
       if (result.success) {
-        // 🔥 SOLUCIÓN: Actualizar el campo del formulario con el ID editado
-        // Usamos setTimeout para asegurar que se ejecute después de que React
-        // actualice las opciones en el DynamicSelect con los datos frescos
-        setTimeout(() => {
-          form.setValue('presentacion_id', presentacionEditando.id.toString(), {
-            shouldValidate: true,
-            shouldDirty: true,
-            shouldTouch: true
-          })
-        }, 0)
-
+        // La actualización del estado en useReferenceData debería ser suficiente
+        // para que el DynamicSelect se actualice automáticamente gracias a la reactividad
         setShowPresentacionModal(false)
         setPresentacionEditando(null)
-        // El hook ya actualizó los datos automáticamente
       }
       return result
     } catch (error) {
@@ -410,20 +404,10 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     try {
       const result = await actions.editarCategoria(categoriaEditando.id, data)
       if (result.success) {
-        // 🔥 SOLUCIÓN: Actualizar el campo del formulario con el ID editado
-        // Usamos setTimeout para asegurar que se ejecute después de que React
-        // actualice las opciones en el DynamicSelect con los datos frescos
-        setTimeout(() => {
-          form.setValue('categoria_id', categoriaEditando.id.toString(), {
-            shouldValidate: true,
-            shouldDirty: true,
-            shouldTouch: true
-          })
-        }, 0)
-
+        // La actualización del estado en useReferenceData debería ser suficiente
+        // para que el DynamicSelect se actualice automáticamente gracias a la reactividad
         setShowCategoriaModal(false)
         setCategoriaEditando(null)
-        // El hook ya actualizó los datos automáticamente
       }
       return result
     } catch (error) {
@@ -659,7 +643,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                                       allowEdit={true}
                                       required={true}
                                       disabled={loadingReferencias}
-                                      onEdit={(presentacion) => {
+                                                                            onEdit={(presentacion) => {
                                         handleEditarPresentacion(presentacion)
                                       }}
                                     />
@@ -695,7 +679,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                                       creatable={true}
                                       allowEdit={true}
                                       disabled={loadingReferencias}
-                                      onEdit={(categoria) => {
+                                                                            onEdit={(categoria) => {
                                         handleEditarCategoria(categoria)
                                       }}
                                       onMove={async (idCategoria, nuevoPadreId) => {

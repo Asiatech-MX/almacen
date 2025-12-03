@@ -65,11 +65,19 @@ export const useReferenceData = ({
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
+      console.log('🔄 Recargando datos de referencia...', { idInstitucion, timestamp: new Date().toISOString() });
+
       const [categoriasRes, arbolRes, presentacionesRes] = await Promise.all([
         window.electronAPI.categoria.listar(idInstitucion, true),
         window.electronAPI.categoria.listarArbol(idInstitucion, true),
         window.electronAPI.presentacion.listar(idInstitucion, true)
       ]);
+
+      console.log('📊 Datos recargados:', {
+        categorias: Array.isArray(categoriasRes) ? categoriasRes.length : 0,
+        arbol: Array.isArray(arbolRes) ? arbolRes.length : 0,
+        presentaciones: Array.isArray(presentacionesRes) ? presentacionesRes.length : 0
+      });
 
       setState(prev => ({
         ...prev,
@@ -80,6 +88,7 @@ export const useReferenceData = ({
         initialized: true
       }));
     } catch (error) {
+      console.error('❌ Error al recargar datos de referencia:', error);
       setState(prev => ({
         ...prev,
         loading: false,
