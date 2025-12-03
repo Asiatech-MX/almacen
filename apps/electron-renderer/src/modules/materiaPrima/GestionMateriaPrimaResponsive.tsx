@@ -177,7 +177,7 @@ const createColumns = (
     ),
     cell: ({ row }) => (
       <div>
-        {row.getValue('categoria_nombre') || '-'}
+        {row.getValue('categoria') || '-'}
       </div>
     ),
     enableColumnFilter: true,
@@ -856,6 +856,9 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
             <DialogTitle className="flex items-center gap-2">
               📦 Ajustar Stock
             </DialogTitle>
+            <DialogDescription>
+              Ajusta la cantidad de stock para este material. Usa números positivos para agregar o negativos para restar unidades.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2 text-sm">
@@ -909,6 +912,12 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
             <DialogTitle className="flex items-center gap-2">
               {selectedMaterial?.estatus === 'ACTIVO' ? '🔒 Deshabilitar Material' : '✅ Habilitar Material'}
             </DialogTitle>
+            <DialogDescription>
+              {selectedMaterial?.estatus === 'ACTIVO'
+                ? 'El material deshabilitado no aparecerá en las búsquedas normales y no podrá ser utilizado en movimientos.'
+                : 'El material habilitado volverá a aparecer en las búsquedas y podrá ser utilizado normalmente.'
+              }
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <p>
@@ -961,6 +970,9 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
             <DialogTitle className="flex items-center gap-2">
               📋 Detalles del Material
             </DialogTitle>
+            <DialogDescription>
+              Visualiza toda la información detallada del material seleccionado, incluyendo datos de stock, costos y auditoría.
+            </DialogDescription>
           </DialogHeader>
           <div>
             {loadingDetalle ? (
