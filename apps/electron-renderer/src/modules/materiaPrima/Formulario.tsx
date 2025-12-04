@@ -22,7 +22,7 @@ import { HelpCircle } from 'lucide-react'
 
 import useMateriaPrima, { UseMateriaPrimaOptions } from '../../hooks/useMateriaPrima'
 import materiaPrimaService from '../../services/materiaPrimaService'
-import { useReferenceData } from '../../hooks/useReferenceData'
+import { useReferenceDataQuery, useEditarPresentacionMutation, useEditarCategoriaMutation, useMoverCategoriaMutation } from '../../hooks/useReferenceDataQuery'
 import { MemoizedDynamicSelect } from '@/components/ui/DynamicSelect'
 import { InlineEditModal } from '@/components/ui/InlineEditModal'
 import type {
@@ -116,12 +116,11 @@ const materiaPrimaSchema = z.object({
   marca: z.string().optional(),
   modelo: z.string().optional(),
   // IDs de referencia con coercion automática de string a number
+  // Permitimos 0 como estado "no seleccionado" para evitar conflictos de validación
   presentacion_id: z.coerce.number()
-    .positive('La presentación es requerida')
-    .min(1, 'La presentación es requerida'),
+    .min(0, 'La presentación es requerida'),
   categoria_id: z.coerce.number()
-    .positive('La categoría es requerida')
-    .min(1, 'La categoría es requerida'),
+    .min(0, 'La categoría es requerida'),
   stock_actual: z.number().min(0, 'El stock actual no puede ser negativo'),
   stock_minimo: z.number().min(0, 'El stock mínimo no puede ser negativo'),
   costo_unitario: z.number().nullable().optional(),
@@ -171,9 +170,6 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
   const [showPresentacionModal, setShowPresentacionModal] = useState(false)
   const [showCategoriaModal, setShowCategoriaModal] = useState(false)
 
-  // Estado para forzar re-renderizado de los selects después de editar
-  const [selectRefreshKey, setSelectRefreshKey] = useState(0)
-
   // ID de institución actual (esto debería venir de un contexto o configuración)
   const CURRENT_INSTITUTION_ID = 1 // Cambiar esto por el ID real de la institución
 
@@ -199,23 +195,25 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     mode: 'onChange'
   })
 
-  // Hook para datos de referencia con optimistic updates
+  // Hook para datos de referencia con TanStack Query
   const {
     categorias,
     categoriasArbol,
     presentaciones,
-    loading: loadingReferencias,
-    actions
-  } = useReferenceData({
-    idInstitucion: CURRENT_INSTITUTION_ID,
-    autoLoad: true
-  })
+    isLoading: loadingReferencias,
+    error: referenciaError
+  } = useReferenceDataQuery(CURRENT_INSTITUTION_ID);
+
+  // Mutaciones de TanStack Query para gestión de referencias
+  const editarPresentacionMutation = useEditarPresentacionMutation();
+  const editarCategoriaMutation = useEditarCategoriaMutation();
+  const moverCategoriaMutation = useMoverCategoriaMutation();
 
   useEffect(() => {
-    if (esEdicion && finalId) {
+    if (esEdicion && finalId && !loadingReferencias) {
       cargarMateriaPrima(finalId)
     }
-  }, [esEdicion, finalId])
+  }, [esEdicion, finalId, loadingReferencias])
 
   // Limpiar Object URLs cuando el componente se desmonta
   useEffect(() => {
@@ -389,10 +387,12 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
 
   const handleGuardarPresentacion = async (data: any) => {
     try {
-      const result = await actions.editarPresentacion(presentacionEditando.id, data)
+      const result = await editarPresentacionMutation.mutateAsync({
+        id: presentacionEditando.id,
+        cambios: data
+      })
       if (result.success) {
-        // Forzar re-render de los selects para que se muestre el nombre actualizado
-        setSelectRefreshKey(prev => prev + 1)
+        // TanStack Query maneja automáticamente la actualización del cache
         setShowPresentacionModal(false)
         setPresentacionEditando(null)
       }
@@ -405,10 +405,12 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
 
   const handleGuardarCategoria = async (data: any) => {
     try {
-      const result = await actions.editarCategoria(categoriaEditando.id, data)
+      const result = await editarCategoriaMutation.mutateAsync({
+        id: categoriaEditando.id,
+        cambios: data
+      })
       if (result.success) {
-        // Forzar re-render de los selects para que se muestre el nombre actualizado
-        setSelectRefreshKey(prev => prev + 1)
+        // TanStack Query maneja automáticamente la actualización del cache
         setShowCategoriaModal(false)
         setCategoriaEditando(null)
       }
@@ -421,11 +423,11 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
 
   const handleMoverCategoria = async (idCategoria: string, nuevoPadreId?: string) => {
     try {
-      const result = await actions.moverCategoria(idCategoria, nuevoPadreId)
-      if (result.success) {
-        // Forzar re-render de los selects para que se muestren los cambios jerárquicos
-        setSelectRefreshKey(prev => prev + 1)
-      }
+      const result = await moverCategoriaMutation.mutateAsync({
+        idCategoria,
+        nuevoPadreId
+      })
+      // TanStack Query maneja automáticamente la actualización del cache
       return result
     } catch (error) {
       console.error('Error al mover categoría:', error)
@@ -647,8 +649,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                                       allowEdit={true}
                                       required={true}
                                       disabled={loadingReferencias}
-                                      refreshKey={selectRefreshKey}
-                                      onEdit={(presentacion) => {
+                                                                            onEdit={(presentacion) => {
                                         handleEditarPresentacion(presentacion)
                                       }}
                                     />
@@ -684,8 +685,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                                       creatable={true}
                                       allowEdit={true}
                                       disabled={loadingReferencias}
-                                      refreshKey={selectRefreshKey}
-                                      onEdit={(categoria) => {
+                                                                            onEdit={(categoria) => {
                                         handleEditarCategoria(categoria)
                                       }}
                                       onMove={async (idCategoria, nuevoPadreId) => {

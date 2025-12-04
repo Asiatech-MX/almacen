@@ -14,7 +14,8 @@ import { cn } from '@/lib/utils';
 import { Label } from './label';
 import { Edit2, Plus, ChevronRight, Loader2, AlertCircle, X, Check } from 'lucide-react';
 import { Categoria, Presentacion, CategoriaUpdate, PresentacionUpdate } from '../../../../packages/shared-types/src/referenceData';
-import { useReferenceData } from '@/hooks/useReferenceData';
+import { useSelectValueResolution } from '@/hooks/useSelectValueResolution';
+import { useEditarCategoriaMutation, useEditarPresentacionMutation, useCrearCategoriaMutation, useCrearPresentacionMutation } from '@/hooks/useReferenceDataQuery';
 import { useResponsiveSelect } from '@/hooks/useResponsiveSelect';
 import { useInlineEditor } from '@/hooks/useInlineEditor';
 import InlineEditor from '@/components/ui/InlineEditor';
@@ -38,8 +39,6 @@ interface DynamicSelectProps {
   onInlineEditStart?: (item: Categoria | Presentacion) => void;
   onInlineEditSuccess?: (item: Categoria | Presentacion) => void;
   onInlineEditError?: (item: Categoria | Presentacion, error: string) => void;
-  // Key para forzar re-render cuando los datos de referencia cambian
-  refreshKey?: number;
 }
 
 
@@ -60,71 +59,45 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
   error,
   onInlineEditStart,
   onInlineEditSuccess,
-  onInlineEditError,
-  refreshKey
+  onInlineEditError
 }) => {
   const { measureRender, measureInteraction, measureAsync, recordMetric } = usePerformanceMonitor('DynamicSelect');
 
+  // Obtener el valor actual del campo del formulario
+  const currentValue = control._formValues?.[name] || null;
+
+  // Hook de persistencia de selección con TanStack Query
   const {
-    categorias,
-    presentaciones,
-    loading,
-    actions
-  } = useReferenceData({
+    resolvedValue,
+    options,
+    isLoading: isPending,
+    isFetching,
+    error: referenceError,
+    refetch
+  } = useSelectValueResolution({
+    currentValue,
+    type,
     idInstitucion: 1 // TODO: Obtener del contexto actual
   });
+
+  // Mutaciones de TanStack Query para edición y creación
+  const editarCategoriaMutation = useEditarCategoriaMutation();
+  const editarPresentacionMutation = useEditarPresentacionMutation();
+  const crearCategoriaMutation = useCrearCategoriaMutation();
+  const crearPresentacionMutation = useCrearPresentacionMutation();
 
   const [isCreating, setIsCreating] = useState(false);
   const [editingItem, setEditingItem] = useState<Categoria | Presentacion | null>(null);
   const { isMobile, getSelectProps } = useResponsiveSelect();
-
-  // Composite key for targeted re-renders when reference data changes
-  const compositeKey = useMemo(() => {
-    const dataVersion = type === 'categoria'
-      ? categorias?.length || 0
-      : presentaciones?.length || 0;
-    const dataHash = type === 'categoria'
-      ? categorias?.map(c => `${c.id}:${c.actualizado_en}`).join('|') || ''
-      : presentaciones?.map(p => `${p.id}:${p.actualizado_en}`).join('|') || '';
-
-    return `${type}-${dataVersion}-${dataHash}-${refreshKey || 0}-${loading}`;
-  }, [type, categorias, presentaciones, refreshKey, loading]);
 
   // Monitorear rendimiento del renderizado
   useEffect(() => {
     measureRender(() => {
       // El renderizado ya se completó aquí
     }, `${type}-select-${name}`);
-  }, [type, name, loading]);
+  }, [type, name, isPending, isFetching]);
 
-  // Opciones simples para categorías
-  const categoriaOptions = useMemo(() => {
-    if (type === 'categoria' && categorias) {
-      return categorias.map(categoria => ({
-        value: categoria.id,
-        label: categoria.nombre,
-        data: categoria
-      }));
-    }
-    return [];
-  }, [type, categorias]);
-
-  // Opciones para presentaciones
-  const presentacionOptions = useMemo(() => {
-    if (type === 'presentacion' && presentaciones) {
-      return presentaciones.map(presentacion => ({
-        value: presentacion.id,
-        label: presentacion.nombre,
-        data: presentacion
-      }));
-    }
-    return [];
-  }, [type, presentaciones]);
-
-  const options = type === 'categoria' ? categoriaOptions : presentacionOptions;
-  const flatOptions = options;
-
-  // Memoized create option handler with useCallback
+  // Memoized create option handler with useCallback - usando TanStack Query mutations
   const handleCreateOption = useCallback(async (inputValue: string) => {
     const nuevoItem = {
       nombre: inputValue.trim(),
@@ -137,9 +110,9 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
     try {
       let result;
       if (type === 'categoria') {
-        result = await actions.crearCategoria(nuevoItem);
+        result = await crearCategoriaMutation.mutateAsync(nuevoItem);
       } else {
-        result = await actions.crearPresentacion(nuevoItem);
+        result = await crearPresentacionMutation.mutateAsync(nuevoItem);
       }
 
       if (result.success && result.data) {
@@ -157,9 +130,9 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
     } finally {
       setIsCreating(false);
     }
-  }, [type, actions, onInlineEditSuccess, onInlineEditError, measureAsync, recordMetric, name]);
+  }, [type, crearCategoriaMutation, crearPresentacionMutation, onInlineEditSuccess, onInlineEditError, measureAsync, recordMetric, name]);
 
-  // Memoized inline edit handler with useCallback
+  // Memoized inline edit handler with useCallback - usando TanStack Query mutations
   const handleInlineEdit = useCallback(async (item: Categoria | Presentacion): Promise<{ success: boolean; data?: Categoria | Presentacion; error?: string }> => {
     try {
       let result;
@@ -170,7 +143,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
           nombre: categoria.nombre,
           descripcion: categoria.descripcion
         };
-        result = await actions.editarCategoria(categoria.id, cambios);
+        result = await editarCategoriaMutation.mutateAsync({ id: categoria.id, cambios });
       } else {
         const presentacion = item as Presentacion;
         const cambios: PresentacionUpdate = {
@@ -180,7 +153,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
           unidad_base: presentacion.unidad_base,
           factor_conversion: presentacion.factor_conversion
         };
-        result = await actions.editarPresentacion(presentacion.id, cambios);
+        result = await editarPresentacionMutation.mutateAsync({ id: presentacion.id, cambios });
       }
 
       if (result.success) {
@@ -195,7 +168,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
       onInlineEditError?.(item, errorMessage);
       return { success: false, error: errorMessage };
     }
-  }, [type, actions, onInlineEditSuccess, onInlineEditError]);
+  }, [type, editarCategoriaMutation, editarPresentacionMutation, onInlineEditSuccess, onInlineEditError]);
 
   
   
@@ -288,13 +261,38 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
     })
   };
 
-  // Loading skeleton component
+  // Enhanced loading skeleton component for initial load (isPending)
   const LoadingSkeleton = () => (
     <div className="space-y-2">
-      <Label className={cn("text-muted-foreground animate-pulse", "bg-muted rounded w-20 h-4 block")}>
+      <Label className={cn(
+        "text-muted-foreground animate-pulse",
+        "bg-muted rounded w-20 h-4 block",
+        "relative overflow-hidden"
+      )}>
+        <div className="loading-skeleton-shine" />
         &nbsp;
       </Label>
-      <div className="skeleton-select" />
+      <div className="skeleton-select">
+        <div className="loading-skeleton-shine" />
+      </div>
+    </div>
+  );
+
+  // Background fetching indicator component (isFetching)
+  const BackgroundFetchingIndicator = () => (
+    <div className="absolute top-1 right-1 z-10">
+      <div className="flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 text-primary rounded-sm">
+        <div className="w-2 h-2 bg-current rounded-full animate-pulse" />
+        <span className="text-xs font-medium">Actualizando...</span>
+      </div>
+    </div>
+  );
+
+  // Global loading state for select dropdown
+  const SelectLoadingIndicator = () => (
+    <div className="flex items-center gap-2 px-3 py-2 text-muted-foreground">
+      <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+      <span className="text-xs">Cargando opciones...</span>
     </div>
   );
 
@@ -317,14 +315,16 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
 
             </div>
 
-          {/* Show skeleton during initial loading */}
-          {loading ? (
+          {/* Show skeleton during initial loading, otherwise show select with background fetching indicator */}
+          {isPending ? (
             <LoadingSkeleton />
           ) : (
             <div className={cn(
               "relative",
               error && "border-destructive focus-within:ring-destructive/20"
             )}>
+              {/* Background fetching indicator - shown when refreshing data */}
+              {isFetching && !isPending && <BackgroundFetchingIndicator />}
               {creatable ? (
                 <CreatableSelect
                   options={options}
@@ -472,11 +472,11 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
                         </components.Option>
                       );
                     }),
-                    LoadingIndicator: () => <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    LoadingIndicator: () => <SelectLoadingIndicator />
                   }}
                   placeholder={placeholder}
                   isDisabled={disabled || isCreating}
-                  isLoading={loading || isCreating}
+                  isLoading={isPending || isCreating}
                   className={cn("react-select-container", error && "error")}
                   classNamePrefix="react-select"
                   formatCreateLabel={(inputValue) => (
@@ -499,36 +499,13 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
                   role="combobox"
                   menuPortalTarget={document.body}
                   onChange={(selectedOption) => {
-                    // Extract just the value (string) from the selected option, or 0 for no selection
-                    // z.coerce.number() will handle the string to number conversion
-                    const value = selectedOption ? selectedOption.value : 0;
+                    // Convert react-select string value to number for form consistency
+                    // React Select internally uses string values, but form expects numbers
+                    const value = selectedOption ? parseInt(selectedOption.value, 10) || 0 : 0;
                     field.onChange(value);
                   }}
-                  value={(() => {
-                    // Ensure the selected value is maintained even if options are updating
-                    const currentValue = field.value;
-                    if (!currentValue || currentValue === 0) return null;
-
-                    // Try to find the option in current options
-                    const selectedOption = flatOptions.find(option =>
-                      option.value === currentValue ||
-                      option.value.toString() === currentValue.toString()
-                    );
-
-                    // If not found, create a temporary option to maintain the selection
-                    if (!selectedOption && currentValue) {
-                      return {
-                        value: currentValue,
-                        label: `ID: ${currentValue} (actualizando...)`,
-                        data: null
-                      };
-                    }
-
-                    return selectedOption || null;
-                  })()}
+                  value={resolvedValue}
                   onBlur={field.onBlur}
-                  // Usar clave compuesta para re-renderizado optimizado
-                  key={compositeKey}
                   styles={{
                     ...customStyles,
                     menuPortal: (base) => ({
@@ -678,11 +655,11 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
                         </components.Option>
                       );
                     }),
-                    LoadingIndicator: () => <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    LoadingIndicator: () => <SelectLoadingIndicator />
                   }}
                   placeholder={placeholder}
                   isDisabled={disabled}
-                  isLoading={loading}
+                  isLoading={isPending}
                   className={cn("react-select-container", error && "error")}
                   classNamePrefix="react-select"
                   noOptionsMessage={() => 'No hay opciones disponibles'}
@@ -695,36 +672,13 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
                   role="combobox"
                   menuPortalTarget={document.body}
                   onChange={(selectedOption) => {
-                    // Extract just the value (string) from the selected option, or 0 for no selection
-                    // z.coerce.number() will handle the string to number conversion
-                    const value = selectedOption ? selectedOption.value : 0;
+                    // Convert react-select string value to number for form consistency
+                    // React Select internally uses string values, but form expects numbers
+                    const value = selectedOption ? parseInt(selectedOption.value, 10) || 0 : 0;
                     field.onChange(value);
                   }}
-                  value={(() => {
-                    // Ensure the selected value is maintained even if options are updating
-                    const currentValue = field.value;
-                    if (!currentValue || currentValue === 0) return null;
-
-                    // Try to find the option in current options
-                    const selectedOption = flatOptions.find(option =>
-                      option.value === currentValue ||
-                      option.value.toString() === currentValue.toString()
-                    );
-
-                    // If not found, create a temporary option to maintain the selection
-                    if (!selectedOption && currentValue) {
-                      return {
-                        value: currentValue,
-                        label: `ID: ${currentValue} (actualizando...)`,
-                        data: null
-                      };
-                    }
-
-                    return selectedOption || null;
-                  })()}
+                  value={resolvedValue}
                   onBlur={field.onBlur}
-                  // Usar clave compuesta para re-renderizado optimizado
-                  key={compositeKey}
                   styles={{
                     ...customStyles,
                     menuPortal: (base) => ({
@@ -759,9 +713,10 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
   );
 };
 
-// Memoized component with custom comparison function
+// Memoized component with optimized comparison function - sin refreshKey
 export const MemoizedDynamicSelect = memo(DynamicSelect, (prevProps, nextProps) => {
-  // Re-render si cambian las propiedades importantes O el refreshKey
+  // Re-render solo si cambian las propiedades importantes
+  // Ya no necesitamos refreshKey gracias a TanStack Query persistencia
   const basicPropsEqual = (
     prevProps.control === nextProps.control &&
     prevProps.name === nextProps.name &&
@@ -772,8 +727,7 @@ export const MemoizedDynamicSelect = memo(DynamicSelect, (prevProps, nextProps) 
     prevProps.allowInlineEdit === nextProps.allowInlineEdit &&
     prevProps.allowEdit === nextProps.allowEdit &&
     prevProps.creatable === nextProps.creatable &&
-    prevProps.label === nextProps.label &&
-    prevProps.refreshKey === nextProps.refreshKey // Incluir refreshKey en la comparación
+    prevProps.label === nextProps.label
   );
 
   return basicPropsEqual;
