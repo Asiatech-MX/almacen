@@ -387,37 +387,71 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
 
   const handleGuardarPresentacion = async (data: any) => {
     try {
+      // Add missing idInstitucion parameter
       const result = await editarPresentacionMutation.mutateAsync({
         id: presentacionEditando.id,
-        cambios: data
+        cambios: data,
+        idInstitucion: CURRENT_INSTITUTION_ID
       })
-      if (result.success) {
-        // TanStack Query maneja automáticamente la actualización del cache
+
+      if (result) {
+        // Close modal after successful update
         setShowPresentacionModal(false)
         setPresentacionEditando(null)
+
+        // Force form to recognize the change with proper validation
+        form.setValue('presentacion_id', result.id, {
+          shouldValidate: true,
+          shouldDirty: true,
+          shouldTouch: true
+        })
+
+        // Return expected format for modal
+        return { success: true, data: result }
       }
-      return result
+
+      return { success: false, error: 'No se pudo actualizar la presentación' }
     } catch (error) {
       console.error('Error al editar presentación:', error)
-      return { success: false, error: error.message }
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Error desconocido'
+      }
     }
   }
 
   const handleGuardarCategoria = async (data: any) => {
     try {
+      // Add missing idInstitucion parameter
       const result = await editarCategoriaMutation.mutateAsync({
         id: categoriaEditando.id,
-        cambios: data
+        cambios: data,
+        idInstitucion: CURRENT_INSTITUTION_ID
       })
-      if (result.success) {
-        // TanStack Query maneja automáticamente la actualización del cache
+
+      if (result) {
+        // Close modal after successful update
         setShowCategoriaModal(false)
         setCategoriaEditando(null)
+
+        // Force form to recognize the change with proper validation
+        form.setValue('categoria_id', result.id, {
+          shouldValidate: true,
+          shouldDirty: true,
+          shouldTouch: true
+        })
+
+        // Return expected format for modal
+        return { success: true, data: result }
       }
-      return result
+
+      return { success: false, error: 'No se pudo actualizar la categoría' }
     } catch (error) {
       console.error('Error al editar categoría:', error)
-      return { success: false, error: error.message }
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Error desconocido'
+      }
     }
   }
 

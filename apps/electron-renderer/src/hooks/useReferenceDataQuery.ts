@@ -368,16 +368,35 @@ export const useEditarCategoriaMutation = () => {
 
     onSuccess: (data, variables) => {
       toast.success(`Categoría "${data.nombre}" actualizada correctamente`)
+
+      // Ensure cache is updated with server response
+      queryClient.setQueryData(
+        referenceDataKeys.categoriasList(variables.idInstitucion),
+        (old: Categoria[] = []) =>
+          old.map(cat =>
+            cat.id === variables.id.toString()
+              ? { ...cat, ...data }
+              : cat
+          )
+      )
+
+      // Update tree structure as well
+      queryClient.setQueryData(
+        referenceDataKeys.categoriasArbol(variables.idInstitucion),
+        (old: CategoriaArbol[] = []) => updateCategoriaInTree(old, variables.id.toString(), data)
+      )
     },
 
     onSettled: (_, __, variables) => {
-      // Refrescar queries para asegurar consistencia con optimización
-      queryClient.invalidateQueries({
-        queryKey: referenceDataKeys.categoriasList(variables.idInstitucion)
-      })
-      queryClient.invalidateQueries({
-        queryKey: referenceDataKeys.categoriasArbol(variables.idInstitucion)
-      })
+      // Always invalidate to ensure fresh data
+      return Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: referenceDataKeys.categoriasList(variables.idInstitucion)
+        }),
+        queryClient.invalidateQueries({
+          queryKey: referenceDataKeys.categoriasArbol(variables.idInstitucion)
+        })
+      ])
     }
   })
 }
@@ -594,11 +613,22 @@ export const useEditarPresentacionMutation = () => {
 
     onSuccess: (data, variables) => {
       toast.success(`Presentación "${data.nombre}" actualizada correctamente`)
+
+      // Ensure cache is updated with server response
+      queryClient.setQueryData(
+        referenceDataKeys.presentacionesList(variables.idInstitucion),
+        (old: Presentacion[] = []) =>
+          old.map(p =>
+            p.id === variables.id.toString()
+              ? { ...p, ...data }
+              : p
+          )
+      )
     },
 
     onSettled: (_, __, variables) => {
-      // Refrescar queries para asegurar consistencia con optimización
-      queryClient.invalidateQueries({
+      // Always invalidate to ensure fresh data
+      return queryClient.invalidateQueries({
         queryKey: referenceDataKeys.presentacionesList(variables.idInstitucion)
       })
     }
