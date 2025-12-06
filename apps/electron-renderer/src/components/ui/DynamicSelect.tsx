@@ -9,12 +9,13 @@ import React, {
 import { usePerformanceMonitor } from '@/lib/performanceMonitor';
 import Select, { GroupBase, components, StylesConfig } from 'react-select';
 import CreatableSelect from 'react-select/creatable';
-import { Controller, Control, FieldError } from 'react-hook-form';
+import { Controller, Control, FieldError, useWatch } from 'react-hook-form';
 import { cn } from '@/lib/utils';
 import { Label } from './label';
 import { Edit2, Plus, ChevronRight, Loader2, AlertCircle, X, Check } from 'lucide-react';
 import { Categoria, Presentacion, CategoriaUpdate, PresentacionUpdate } from '../../../../packages/shared-types/src/referenceData';
-import { useSelectValueResolution } from '@/hooks/useSelectValueResolution';
+import { useDynamicSelectOptions } from '@/hooks/useDynamicSelectOptions';
+import { useDynamicSelectValue } from '@/hooks/useDynamicSelectValue';
 import { useEditarCategoriaMutation, useEditarPresentacionMutation, useCrearCategoriaMutation, useCrearPresentacionMutation } from '@/hooks/useReferenceDataQuery';
 import { useResponsiveSelect } from '@/hooks/useResponsiveSelect';
 import { useInlineEditor } from '@/hooks/useInlineEditor';
@@ -63,21 +64,39 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
 }) => {
   const { measureRender, measureInteraction, measureAsync, recordMetric } = usePerformanceMonitor('DynamicSelect');
 
-  // Obtener el valor actual del campo del formulario
-  const currentValue = control._formValues?.[name] || null;
+  // Obtener el valor actual del campo usando useWatch (recomendado por React Hook Form)
+  const currentValue = useWatch({
+    control,
+    name,
+    defaultValue: null
+  });
 
-  // Hook de persistencia de selección con TanStack Query
+  // Hook optimizado para obtener opciones
   const {
-    resolvedValue,
     options,
     isLoading: isPending,
     isFetching,
-    error: referenceError,
+    error: optionsError,
     refetch
-  } = useSelectValueResolution({
+  } = useDynamicSelectOptions({
+    type,
+    idInstitucion: 1, // TODO: Obtener del contexto actual
+    includeInactive: true
+  });
+
+  // Hook simplificado para resolver valores
+  const {
+    resolvedValue,
+    getValueForForm,
+    createTemporaryOption,
+    isUpdating
+  } = useDynamicSelectValue({
     currentValue,
     type,
-    idInstitucion: 1 // TODO: Obtener del contexto actual
+    idInstitucion: 1,
+    includeInactive: true,
+    options,
+    isFetching
   });
 
   // Mutaciones de TanStack Query para edición y creación
@@ -278,7 +297,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
     </div>
   );
 
-  // Background fetching indicator component (isFetching)
+  // Background fetching indicator component (isUpdating)
   const BackgroundFetchingIndicator = () => (
     <div className="absolute top-1 right-1 z-10">
       <div className="flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 text-primary rounded-sm">
@@ -323,8 +342,8 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
               "relative",
               error && "border-destructive focus-within:ring-destructive/20"
             )}>
-              {/* Background fetching indicator - shown when refreshing data */}
-              {isFetching && !isPending && <BackgroundFetchingIndicator />}
+              {/* Background fetching indicator - shown when updating current value */}
+              {isUpdating && <BackgroundFetchingIndicator />}
               {creatable ? (
                 <CreatableSelect
                   options={options}
@@ -693,10 +712,10 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
           )}
 
           {/* Error message */}
-          {error && (
+          {(error || optionsError) && (
             <p id={`${name}-error`} className="text-sm text-destructive flex items-center gap-1" role="alert">
               <AlertCircle className="w-3 h-3" />
-              {error.message}
+              {error?.message || optionsError?.message || 'Error al cargar datos'}
             </p>
           )}
 
@@ -713,24 +732,24 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
   );
 };
 
-// Memoized component with optimized comparison function - sin refreshKey
+// Memoized component with optimized comparison function using only primitive props
 export const MemoizedDynamicSelect = memo(DynamicSelect, (prevProps, nextProps) => {
-  // Re-render solo si cambian las propiedades importantes
-  // Ya no necesitamos refreshKey gracias a TanStack Query persistencia
-  const basicPropsEqual = (
-    prevProps.control === nextProps.control &&
+  // Solo re-render si cambian las propiedades primitivas importantes
+  // Esto evita comparaciones de objetos que causan issues
+  return (
     prevProps.name === nextProps.name &&
-    prevProps.disabled === nextProps.disabled &&
-    prevProps.error === nextProps.error &&
-    prevProps.required === nextProps.required &&
     prevProps.type === nextProps.type &&
-    prevProps.allowInlineEdit === nextProps.allowInlineEdit &&
-    prevProps.allowEdit === nextProps.allowEdit &&
+    prevProps.disabled === nextProps.disabled &&
+    prevProps.required === nextProps.required &&
     prevProps.creatable === nextProps.creatable &&
-    prevProps.label === nextProps.label
+    prevProps.allowEdit === nextProps.allowEdit &&
+    prevProps.allowInlineEdit === nextProps.allowInlineEdit &&
+    prevProps.label === nextProps.label &&
+    prevProps.placeholder === nextProps.placeholder &&
+    prevProps.className === nextProps.className
+    // Nota: No comparamos 'control' o 'error' porque son objetos
+    // React Hook Form maneja las actualizaciones del formulario eficientemente
   );
-
-  return basicPropsEqual;
 });
 
 // Add display names for debugging

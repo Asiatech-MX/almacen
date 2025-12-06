@@ -11,11 +11,13 @@ import { Badge } from '@/components/ui/badge';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CategoriaArbol, Categoria, NewCategoria, CategoriaUpdate } from '../../../../packages/shared-types/src/referenceData';
-import { useReferenceData } from '@/hooks/useReferenceData';
+import { useReferenceDataQuery } from '@/hooks/useReferenceDataQuery';
+import { useCrearCategoriaMutation, useEditarCategoriaMutation, useEliminarCategoriaMutation } from '@/hooks/useReferenceDataQuery';
 import { InlineEditModal } from '@/components/ui/InlineEditModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
 
 interface CategoriaCrearModalProps {
   isOpen: boolean;
@@ -157,27 +159,45 @@ const CategoriaCrearModal: React.FC<CategoriaCrearModalProps> = ({
 };
 
 export const CategoriaManager: React.FC = () => {
-  const { categorias, loading, actions } = useReferenceData({
-    idInstitucion: 1 // TODO: Obtener del contexto
-  });
+  const { categorias, isLoading, error } = useReferenceDataQuery(1); // TODO: Obtener idInstitución del contexto
+
+  // Mutaciones
+  const crearCategoriaMutation = useCrearCategoriaMutation();
+  const editarCategoriaMutation = useEditarCategoriaMutation();
+  const eliminarCategoriaMutation = useEliminarCategoriaMutation();
 
   const [categoriaEditando, setCategoriaEditando] = useState<Categoria | null>(null);
   const [mostrarModalCrear, setMostrarModalCrear] = useState(false);
 
-  
+
   const handleCrearCategoria = async (categoria: NewCategoria) => {
-    const result = await actions.crearCategoria(categoria);
-    return result;
+    try {
+      const result = await crearCategoriaMutation.mutateAsync(categoria);
+      return { success: true, data: result };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Error al crear categoría'
+      };
+    }
   };
 
   const handleEditarCategoria = async (cambios: CategoriaUpdate) => {
     if (!categoriaEditando) return { success: false, error: 'No hay categoría seleccionada para editar' };
 
-    const result = await actions.editarCategoria(categoriaEditando.id, cambios);
-    if (result.success) {
+    try {
+      const result = await editarCategoriaMutation.mutateAsync({
+        id: categoriaEditando.id,
+        cambios
+      });
       setCategoriaEditando(null);
+      return { success: true, data: result };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Error al editar categoría'
+      };
     }
-    return result;
   };
 
   const handleEliminarCategoria = async (id: string) => {
@@ -185,9 +205,11 @@ export const CategoriaManager: React.FC = () => {
       return;
     }
 
-    const result = await actions.eliminarCategoria(id);
-    if (!result.success) {
-      alert(result.error || 'Error al eliminar la categoría');
+    try {
+      await eliminarCategoriaMutation.mutateAsync({ id: parseInt(id) });
+      toast.success('Categoría eliminada correctamente');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Error al eliminar la categoría');
     }
   };
 
@@ -232,12 +254,28 @@ export const CategoriaManager: React.FC = () => {
     );
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Cargando categorías...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <p className="text-destructive mb-4">Error al cargar categorías: {error.message}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-primary text-primary-foreground px-4 py-2 rounded hover:bg-primary/90"
+          >
+            Reintentar
+          </button>
         </div>
       </div>
     );
