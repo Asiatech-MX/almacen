@@ -1,7 +1,6 @@
 import { useMemo, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Categoria, Presentacion } from '../../../../packages/shared-types/src/referenceData';
-import { useReferenceDataQuery, referenceDataKeys } from './useReferenceDataQuery';
+import { useReferenceDataQuery } from './useReferenceDataQuery';
 
 // Tipos para las opciones del select
 export interface DynamicSelectOption {
@@ -43,56 +42,27 @@ export const useDynamicSelectOptions = ({
   idInstitucion,
   includeInactive = true
 }: UseDynamicSelectOptionsProps): UseDynamicSelectOptionsReturn => {
-  // Usar los hooks específicos del tipo de datos
-  const categoriasQuery = useQuery({
-    queryKey: referenceDataKeys.categoriasList(idInstitucion, includeInactive),
-    queryFn: async () => {
-      if (type !== 'categoria') return [];
-      const result = await window.electronAPI.categoria.listar(idInstitucion, includeInactive);
-      return Array.isArray(result) ? result : [];
-    },
-    enabled: type === 'categoria',
-    staleTime: 5 * 60 * 1000, // 5 minutos
-    gcTime: 10 * 60 * 1000, // 10 minutos
-    retry: (failureCount, error: any) => {
-      if (error?.status >= 400 && error?.status < 500) {
-        return false;
-      }
-      return failureCount < 3;
-    },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    structuralSharing: true,
-    select: (data: Categoria[]) => data.length > 0 ? [...data] : [],
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: true,
-  });
+  // Usar el hook centralizado de datos de referencia para evitar fragmentación de cache
+  const {
+    categorias,
+    presentaciones,
+    isLoading: isPending,
+    isFetching,
+    error,
+    refetch: refetchReferenceData
+  } = useReferenceDataQuery(idInstitucion, { includeInactive });
 
-  const presentacionesQuery = useQuery({
-    queryKey: referenceDataKeys.presentacionesList(idInstitucion, includeInactive),
-    queryFn: async () => {
-      if (type !== 'presentacion') return [];
-      const result = await window.electronAPI.presentacion.listar(idInstitucion, includeInactive);
-      return Array.isArray(result) ? result : [];
-    },
-    enabled: type === 'presentacion',
-    staleTime: 5 * 60 * 1000, // 5 minutos
-    gcTime: 10 * 60 * 1000, // 10 minutos
-    retry: (failureCount, error: any) => {
-      if (error?.status >= 400 && error?.status < 500) {
-        return false;
-      }
-      return failureCount < 3;
-    },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    structuralSharing: true,
-    select: (data: Presentacion[]) => data.length > 0 ? [...data] : [],
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: true,
-  });
+  // Seleccionar los datos según el tipo
+  const data = type === 'categoria' ? categorias : presentaciones;
 
-  // Seleccionar el query activo y sus estados
-  const activeQuery = type === 'categoria' ? categoriasQuery : presentacionesQuery;
-  const { data, isLoading: isPending, isFetching, error, refetch } = activeQuery;
+  // Función de refetch optimizada que usa el hook centralizado
+  const refetch = useCallback(async (): Promise<void> => {
+    try {
+      await refetchReferenceData();
+    } catch (error) {
+      console.error(`Error refetching ${type} data:`, error);
+    }
+  }, [refetchReferenceData, type]);
 
   // Función para obtener el label de visualización
   const getDisplayLabel = useCallback((item: Categoria | Presentacion): string => {
@@ -142,22 +112,13 @@ export const useDynamicSelectOptions = ({
     );
   }, [options]);
 
-  // Función de refetch optimizada
-  const optimizedRefetch = useCallback(async (): Promise<void> => {
-    try {
-      await refetch();
-    } catch (error) {
-      console.error(`Error refetching ${type} data:`, error);
-    }
-  }, [refetch, type]);
-
   return {
     options,
     isLoading: isPending,
     isFetching,
     isPending,
     error: error as Error | null,
-    refetch: optimizedRefetch,
+    refetch,
     getOptionByValue,
     getOptionsByQuery
   };
