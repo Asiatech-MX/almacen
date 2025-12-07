@@ -184,6 +184,77 @@ export const useReferenceDataQuery = (idInstitucion: number, options?: { include
   }
 }
 
+// Hook para crear presentación (optimistic mutation)
+export const useCrearPresentacionMutation = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      presentacion,
+      idInstitucion
+    }: {
+      presentacion: NewPresentacion
+      idInstitucion: number
+    }) => {
+      return await window.electronAPI.presentacion.crear(presentacion)
+    },
+
+    onMutate: async ({ presentacion, idInstitucion }) => {
+      // Cancelar queries en progreso
+      await queryClient.cancelQueries({
+        queryKey: referenceDataKeys.presentacionesList(idInstitucion)
+      })
+
+      // Guardar estado anterior para rollback
+      const previousPresentaciones = queryClient.getQueryData(
+        referenceDataKeys.presentacionesList(idInstitucion)
+      )
+
+      // Optimistic update - crear presentación temporal
+      const tempId = `temp-${Date.now()}`
+      const optimisticPresentacion: Presentacion = {
+        ...presentacion,
+        id: tempId,
+        activo: true,
+        es_predeterminado: false,
+        orden: 0,
+        creado_en: new Date().toISOString(),
+        actualizado_en: new Date().toISOString()
+      }
+
+      // Actualizar caché con dato optimista
+      queryClient.setQueryData(
+        referenceDataKeys.presentacionesList(idInstitucion),
+        (old: Presentacion[] = []) => [...old, optimisticPresentacion]
+      )
+
+      return { previousPresentaciones, tempId }
+    },
+
+    onError: (error, variables, context) => {
+      console.error('Error en useCrearPresentacionMutation:', error)
+      toast.error('Error al crear presentación')
+
+      // Rollback en caso de error
+      if (context?.previousPresentaciones) {
+        queryClient.setQueryData(
+          referenceDataKeys.presentacionesList(variables.idInstitucion),
+          context.previousPresentaciones
+        )
+      }
+    },
+
+    onSuccess: (data, variables) => {
+      toast.success(`Presentación "${data.nombre}" creada correctamente`)
+
+      // Invalidar queries para refrescar datos del servidor
+      queryClient.invalidateQueries({
+        queryKey: referenceDataKeys.presentacionesList(variables.idInstitucion)
+      })
+    },
+  })
+}
+
 // Hook para crear categoría (optimistic mutation)
 export const useCrearCategoriaMutation = () => {
   const queryClient = useQueryClient()
@@ -273,15 +344,7 @@ export const useCrearCategoriaMutation = () => {
       })
     },
 
-    onSettled: (_, __, variables) => {
-      // Asegurar refresco de datos relacionados
-      queryClient.invalidateQueries({
-        queryKey: referenceDataKeys.categoriasList(variables.idInstitucion)
-      })
-      queryClient.invalidateQueries({
-        queryKey: referenceDataKeys.categoriasArbol(variables.idInstitucion)
-      })
-    }
+
   })
 }
 
@@ -366,7 +429,9 @@ export const useEditarCategoriaMutation = () => {
       }
     },
 
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
+      console.log('🔄 [DEBUG] useEditarCategoriaMutation onSuccess iniciado', { data, variables })
+      
       toast.success(`Categoría "${data.nombre}" actualizada correctamente`)
 
       // Ensure cache is updated with server response
@@ -385,60 +450,26 @@ export const useEditarCategoriaMutation = () => {
         referenceDataKeys.categoriasArbol(variables.idInstitucion),
         (old: CategoriaArbol[] = []) => updateCategoriaInTree(old, variables.id.toString(), data)
       )
-    },
 
-    onSettled: (_, __, variables) => {
-      // Always invalidate to ensure fresh data
-      return Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: referenceDataKeys.categoriasList(variables.idInstitucion)
-        }),
-        queryClient.invalidateQueries({
-          queryKey: referenceDataKeys.categoriasArbol(variables.idInstitucion)
-        })
-      ])
-    }
+      console.log('🔄 [DEBUG] Cache actualizado, iniciando refetchQueries')
+
+       // Forzar refresco inmediato con refetchQueries para evitar "(no encontrado)"
+       await Promise.all([
+         queryClient.refetchQueries({
+           queryKey: referenceDataKeys.categoriasList(variables.idInstitucion, true)
+         }),
+         queryClient.refetchQueries({
+           queryKey: referenceDataKeys.categoriasArbol(variables.idInstitucion, true)
+         })
+       ])
+
+       console.log('🔄 [DEBUG] Categoria refetchQueries completado - datos actualizados inmediatamente')
+    },
   })
 }
 
-// Hook para mover categoría
-export const useMoverCategoriaMutation = () => {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async ({
-      idCategoria,
-      nuevoPadreId,
-      idInstitucion
-    }: {
-      idCategoria: string
-      nuevoPadreId?: string
-      idInstitucion: number
-    }) => {
-      return await window.electronAPI.categoria.mover(idCategoria, nuevoPadreId)
-    },
-
-    onSuccess: (_, variables) => {
-      toast.success('Categoría movida correctamente')
-
-      // Invalidar queries ya que la estructura jerárquica cambió
-      queryClient.invalidateQueries({
-        queryKey: referenceDataKeys.categoriasList(variables.idInstitucion)
-      })
-      queryClient.invalidateQueries({
-        queryKey: referenceDataKeys.categoriasArbol(variables.idInstitucion)
-      })
-    },
-
-    onError: (error) => {
-      console.error('Error en useMoverCategoriaMutation:', error)
-      toast.error('Error al mover categoría')
-    }
-  })
-}
-
-// Hook para eliminar categoría
-export const useEliminarCategoriaMutation = () => {
+// Hook para eliminar presentación
+export const useEliminarPresentacionMutation = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -449,101 +480,21 @@ export const useEliminarCategoriaMutation = () => {
       id: string
       idInstitucion: number
     }) => {
-      return await window.electronAPI.categoria.eliminar(id)
+      return await window.electronAPI.presentacion.eliminar(id)
     },
 
     onSuccess: (_, variables) => {
-      toast.success('Categoría eliminada correctamente')
+      toast.success('Presentación eliminada correctamente')
 
       // Invalidar queries para refrescar
       queryClient.invalidateQueries({
-        queryKey: referenceDataKeys.categoriasList(variables.idInstitucion)
-      })
-      queryClient.invalidateQueries({
-        queryKey: referenceDataKeys.categoriasArbol(variables.idInstitucion)
+        queryKey: referenceDataKeys.presentacionesList(variables.idInstitucion)
       })
     },
 
     onError: (error) => {
-      console.error('Error en useEliminarCategoriaMutation:', error)
-      toast.error('Error al eliminar categoría')
-    }
-  })
-}
-
-// Hook para crear presentación (optimistic mutation)
-export const useCrearPresentacionMutation = () => {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async ({
-      presentacion,
-      idInstitucion
-    }: {
-      presentacion: NewPresentacion
-      idInstitucion: number
-    }) => {
-      return await window.electronAPI.presentacion.crear(presentacion)
-    },
-
-    onMutate: async ({ presentacion, idInstitucion }) => {
-      // Cancelar queries en progreso
-      await queryClient.cancelQueries({
-        queryKey: referenceDataKeys.presentacionesList(idInstitucion)
-      })
-
-      // Guardar estado anterior para rollback
-      const previousPresentaciones = queryClient.getQueryData(
-        referenceDataKeys.presentacionesList(idInstitucion)
-      )
-
-      // Optimistic update - crear presentación temporal
-      const tempId = `temp-${Date.now()}`
-      const optimisticPresentacion: Presentacion = {
-        ...presentacion,
-        id: tempId,
-        activo: true,
-        es_predeterminado: false,
-        creado_en: new Date().toISOString(),
-        actualizado_en: new Date().toISOString()
-      }
-
-      // Actualizar caché con dato optimista
-      queryClient.setQueryData(
-        referenceDataKeys.presentacionesList(idInstitucion),
-        (old: Presentacion[] = []) => [...old, optimisticPresentacion]
-      )
-
-      return { previousPresentaciones, tempId }
-    },
-
-    onError: (error, variables, context) => {
-      console.error('Error en useCrearPresentacionMutation:', error)
-      toast.error('Error al crear presentación')
-
-      // Rollback en caso de error
-      if (context?.previousPresentaciones) {
-        queryClient.setQueryData(
-          referenceDataKeys.presentacionesList(variables.idInstitucion),
-          context.previousPresentaciones
-        )
-      }
-    },
-
-    onSuccess: (data, variables) => {
-      toast.success(`Presentación "${data.nombre}" creada correctamente`)
-
-      // Invalidar queries para refrescar datos del servidor
-      queryClient.invalidateQueries({
-        queryKey: referenceDataKeys.presentacionesList(variables.idInstitucion)
-      })
-    },
-
-    onSettled: (_, __, variables) => {
-      // Asegurar refresco de datos relacionados
-      queryClient.invalidateQueries({
-        queryKey: referenceDataKeys.presentacionesList(variables.idInstitucion)
-      })
+      console.error('Error en useEliminarPresentacionMutation:', error)
+      toast.error('Error al eliminar presentación')
     }
   })
 }
@@ -611,7 +562,9 @@ export const useEditarPresentacionMutation = () => {
       }
     },
 
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
+      console.log('🔄 [DEBUG] useEditarPresentacionMutation onSuccess iniciado', { data, variables })
+      
       toast.success(`Presentación "${data.nombre}" actualizada correctamente`)
 
       // Ensure cache is updated with server response
@@ -624,44 +577,51 @@ export const useEditarPresentacionMutation = () => {
               : p
           )
       )
-    },
 
-    onSettled: (_, __, variables) => {
-      // Always invalidate to ensure fresh data
-      return queryClient.invalidateQueries({
-        queryKey: referenceDataKeys.presentacionesList(variables.idInstitucion)
+      console.log('🔄 [DEBUG] Cache actualizado, iniciando refetchQueries')
+
+      // Forzar refresco inmediato con refetchQueries para evitar "(no encontrado)"
+      await queryClient.refetchQueries({
+        queryKey: referenceDataKeys.presentacionesList(variables.idInstitucion, true)
       })
-    }
+
+      console.log('🔄 [DEBUG] Presentacion refetchQueries completado - datos actualizados inmediatamente')
+    },
   })
 }
 
-// Hook para eliminar presentación
-export const useEliminarPresentacionMutation = () => {
+// Hook para mover categoría
+export const useMoverCategoriaMutation = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async ({
-      id,
+      idCategoria,
+      nuevoPadreId,
       idInstitucion
     }: {
-      id: string
+      idCategoria: string
+      nuevoPadreId?: string
       idInstitucion: number
     }) => {
-      return await window.electronAPI.presentacion.eliminar(id)
+      return await window.electronAPI.categoria.mover(idCategoria, nuevoPadreId)
     },
 
     onSuccess: (_, variables) => {
-      toast.success('Presentación eliminada correctamente')
+      toast.success('Categoría movida correctamente')
 
-      // Invalidar queries para refrescar
+      // Invalidar queries ya que la estructura jerárquica cambió
       queryClient.invalidateQueries({
-        queryKey: referenceDataKeys.presentacionesList(variables.idInstitucion)
+        queryKey: referenceDataKeys.categoriasList(variables.idInstitucion)
+      })
+      queryClient.invalidateQueries({
+        queryKey: referenceDataKeys.categoriasArbol(variables.idInstitucion)
       })
     },
 
     onError: (error) => {
-      console.error('Error en useEliminarPresentacionMutation:', error)
-      toast.error('Error al eliminar presentación')
+      console.error('Error en useMoverCategoriaMutation:', error)
+      toast.error('Error al mover categoría')
     }
   })
 }
