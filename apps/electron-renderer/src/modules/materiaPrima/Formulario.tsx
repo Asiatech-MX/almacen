@@ -170,6 +170,8 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
   const [showPresentacionModal, setShowPresentacionModal] = useState(false)
   const [showCategoriaModal, setShowCategoriaModal] = useState(false)
 
+
+
   // ID de institución actual (esto debería venir de un contexto o configuración)
   const CURRENT_INSTITUTION_ID = 1 // Cambiar esto por el ID real de la institución
 
@@ -399,12 +401,9 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
         setShowPresentacionModal(false)
         setPresentacionEditando(null)
 
-        // Force form to recognize the change with proper validation
-        form.setValue('presentacion_id', result.id, {
-          shouldValidate: true,
-          shouldDirty: true,
-          shouldTouch: true
-        })
+        // Don't update form immediately - let TanStack Query handle cache updates
+        // The form will automatically pick up the updated value through the query system
+        // This prevents the "(ID) (no encontrado)" issue
 
         // Return expected format for modal
         return { success: true, data: result }
@@ -434,12 +433,9 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
         setShowCategoriaModal(false)
         setCategoriaEditando(null)
 
-        // Force form to recognize the change with proper validation
-        form.setValue('categoria_id', result.id, {
-          shouldValidate: true,
-          shouldDirty: true,
-          shouldTouch: true
-        })
+        // Don't update form immediately - let TanStack Query handle cache updates
+        // The form will automatically pick up the updated value through the query system
+        // This prevents the "(ID) (no encontrado)" issue
 
         // Return expected format for modal
         return { success: true, data: result }
@@ -683,7 +679,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                                       allowEdit={true}
                                       required={true}
                                       disabled={loadingReferencias}
-                                                                            onEdit={(presentacion) => {
+                                      onEdit={(presentacion) => {
                                         handleEditarPresentacion(presentacion)
                                       }}
                                     />
@@ -719,7 +715,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                                       creatable={true}
                                       allowEdit={true}
                                       disabled={loadingReferencias}
-                                                                            onEdit={(categoria) => {
+                                      onEdit={(categoria) => {
                                         handleEditarCategoria(categoria)
                                       }}
                                       onMove={async (idCategoria, nuevoPadreId) => {
