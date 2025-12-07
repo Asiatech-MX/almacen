@@ -206,6 +206,7 @@ const createWindow = (): void => {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    show: false, // Iniciar oculta para controlar cuándo se muestra
     webPreferences: {
       preload: join(__dirname, '../preload/index.cjs'),
       nodeIntegration: false,
@@ -240,6 +241,26 @@ const createWindow = (): void => {
   if (!app.isPackaged) {
     mainWindow.webContents.openDevTools()
   }
+
+  // Mostrar la ventana y asegurar que esté en primer plano
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show()
+    mainWindow.focus()
+    mainWindow.setAlwaysOnTop(true, 'screen-saver')
+    mainWindow.setAlwaysOnTop(false)
+  })
+
+  // Forzar mostrar después de un pequeño retraso como fallback
+  setTimeout(() => {
+    if (!mainWindow.isVisible()) {
+      mainWindow.show()
+      mainWindow.focus()
+      mainWindow.setAlwaysOnTop(true)
+      setTimeout(() => {
+        mainWindow.setAlwaysOnTop(false)
+      }, 1000)
+    }
+  }, 1000)
 }
 
 const setupIPC = (): void => {
