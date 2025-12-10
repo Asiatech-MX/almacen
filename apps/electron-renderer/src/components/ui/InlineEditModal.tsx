@@ -160,7 +160,10 @@ export const InlineEditModal: React.FC<InlineEditModalProps> = ({
       const result = await onSave(updateData);
 
       if (result.success) {
-        onClose();
+        // Esperar un poco para asegurar que el cache se actualice antes de cerrar
+        setTimeout(() => {
+          onClose();
+        }, 100);
       } else {
         setErrors({ general: result.error || 'Error al guardar los cambios' });
       }

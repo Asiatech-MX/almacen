@@ -117,6 +117,41 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
     }, `${type}-select-${name}`);
   }, [type, name, isPending, isFetching]);
 
+  // Efecto para detectar cambios en las opciones y actualizar el valor del formulario
+  useEffect(() => {
+    if (currentValue && options.length > 0 && !isPending) {
+      // Buscar si el valor actual existe en las opciones actualizadas
+      const currentOption = options.find(option => option.value === currentValue.toString());
+      
+      if (!currentOption) {
+        // Si el valor actual no existe en las opciones, buscar la opción actualizada
+        // Esto puede ocurrir cuando se edita una categoría/presentación existente
+        const updatedOption = options.find(option => {
+          const optionData = option.data;
+          return optionData && (
+            optionData.id === currentValue.toString() || 
+            optionData.id === parseInt(currentValue.toString(), 10)
+          );
+        });
+        
+        if (updatedOption) {
+          // Forzar actualización del formulario con el valor correcto
+          const form = control._formValues || {};
+          const currentField = form[name];
+          
+          if (currentField) {
+            // Usar el método setValue del control para una actualización correcta
+            control.setValue(name, parseInt(currentValue.toString(), 10) || 0, {
+              shouldValidate: false,  // Evitar validación durante actualización
+              shouldDirty: false,     // Evitar marcar como sucio
+              shouldTouch: false      // Evitar marcar como touched
+            });
+          }
+        }
+      }
+    }
+  }, [currentValue, options, isPending, type, name, control]);
+
   // Memoized create option handler with useCallback - usando TanStack Query mutations
   const handleCreateOption = useCallback(async (inputValue: string) => {
     const nuevoItem = {

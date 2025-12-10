@@ -482,19 +482,26 @@ export const useEditarCategoriaMutation = () => {
         (old: CategoriaArbol[] = []) => updateCategoriaInTree(old, variables.id.toString(), data)
       )
 
-      console.log('🔄 [DEBUG] Cache actualizado, iniciando refetchQueries')
+      console.log('🔄 [DEBUG] Cache actualizado - iniciando refetch síncrono para consistencia')
 
-       // Forzar refresco inmediato con refetchQueries para evitar "(no encontrado)"
-       await Promise.all([
-         queryClient.refetchQueries({
-           queryKey: referenceDataKeys.categoriasList(variables.idInstitucion, true)
-         }),
-         queryClient.refetchQueries({
-           queryKey: referenceDataKeys.categoriasArbol(variables.idInstitucion, true)
-         })
-       ])
+      // Refetch síncrono para asegurar consistencia completa
+      try {
+        await Promise.all([
+          queryClient.refetchQueries({
+            queryKey: referenceDataKeys.categoriasList(variables.idInstitucion),
+            type: 'active'  // Solo recargar queries activos
+          }),
+          queryClient.refetchQueries({
+            queryKey: referenceDataKeys.categoriasArbol(variables.idInstitucion),
+            type: 'active'
+          })
+        ])
+        console.log('🔄 [DEBUG] Refetch completado para categorías')
+      } catch (error) {
+        console.warn('🔄 [DEBUG] Error en refetch de categorías:', error)
+      }
 
-       console.log('🔄 [DEBUG] Categoria refetchQueries completado - datos actualizados inmediatamente')
+      console.log('🔄 [DEBUG] Categoria edición completada exitosamente')
     },
   })
 }
@@ -609,14 +616,20 @@ export const useEditarPresentacionMutation = () => {
           )
       )
 
-      console.log('🔄 [DEBUG] Cache actualizado, iniciando refetchQueries')
+      console.log('🔄 [DEBUG] Cache actualizado - iniciando refetch síncrono para consistencia')
 
-      // Forzar refresco inmediato con refetchQueries para evitar "(no encontrado)"
-      await queryClient.refetchQueries({
-        queryKey: referenceDataKeys.presentacionesList(variables.idInstitucion, true)
-      })
+      // Refetch síncrono para asegurar consistencia completa
+      try {
+        await queryClient.refetchQueries({
+          queryKey: referenceDataKeys.presentacionesList(variables.idInstitucion),
+          type: 'active'  // Solo recargar queries activos
+        })
+        console.log('🔄 [DEBUG] Refetch completado para presentaciones')
+      } catch (error) {
+        console.warn('🔄 [DEBUG] Error en refetch de presentaciones:', error)
+      }
 
-      console.log('🔄 [DEBUG] Presentacion refetchQueries completado - datos actualizados inmediatamente')
+      console.log('🔄 [DEBUG] Presentación edición completada exitosamente')
     },
   })
 }

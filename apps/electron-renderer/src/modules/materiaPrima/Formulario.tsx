@@ -169,6 +169,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
   const [categoriaEditando, setCategoriaEditando] = useState<any>(null)
   const [showPresentacionModal, setShowPresentacionModal] = useState(false)
   const [showCategoriaModal, setShowCategoriaModal] = useState(false)
+  const [isEditingReference, setIsEditingReference] = useState(false)
 
 
 
@@ -194,7 +195,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
       descripcion: '',
       proveedor_id: null
     },
-    mode: 'onChange'
+    mode: isEditingReference ? 'onSubmit' : 'onBlur'  // Evitar validación durante edición de referencias
   })
 
   // Hook para datos de referencia con TanStack Query
@@ -216,6 +217,16 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
       cargarMateriaPrima(finalId)
     }
   }, [esEdicion, finalId, loadingReferencias])
+
+  // Actualizar modo de validación cuando cambia el estado de edición
+  useEffect(() => {
+    // Cambiar el modo de validación para evitar validaciones durante edición
+    form.reset(form.getValues(), { 
+      keepErrors: false,  // Limpiar errores previos
+      keepDirty: false,  // Limpiar estado dirty
+      keepTouched: false // Limpiar estado touched
+    })
+  }, [isEditingReference, form])
 
   // Limpiar Object URLs cuando el componente se desmonta
   useEffect(() => {
@@ -254,6 +265,12 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
   }
 
   const handleSubmit = async (data: MateriaPrimaFormData) => {
+    // Prevenir envío si estamos editando referencias
+    if (isEditingReference) {
+      console.log('⏸️ Envío del formulario bloqueado mientras se editan referencias')
+      return
+    }
+
     clearError()
     setSuccess(false)
     setGeneralError(null) // Limpiar errores generales previos
@@ -380,11 +397,13 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
   const handleEditarPresentacion = (presentacion: any) => {
     setPresentacionEditando(presentacion)
     setShowPresentacionModal(true)
+    setIsEditingReference(true)
   }
 
   const handleEditarCategoria = (categoria: any) => {
     setCategoriaEditando(categoria)
     setShowCategoriaModal(true)
+    setIsEditingReference(true)
   }
 
   const handleGuardarPresentacion = async (data: any) => {
@@ -400,10 +419,22 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
         // Close modal after successful update
         setShowPresentacionModal(false)
         setPresentacionEditando(null)
+        setIsEditingReference(false)
 
-        // Don't update form immediately - let TanStack Query handle cache updates
-        // The form will automatically pick up the updated value through the query system
-        // This prevents the "(ID) (no encontrado)" issue
+        // Seleccionar automáticamente la presentación editada en el formulario
+        // Similar a como funciona handleCreateOption en DynamicSelect
+        try {
+          // Usar setValue con configuración completa para evitar eventos
+          form.setValue('presentacion_id', parseInt(result.id.toString(), 10) || 0, {
+            shouldValidate: false,  // Evitar validación del formulario principal
+            shouldDirty: false,     // Evitar marcar como sucio para prevenir validaciones
+            shouldTouch: false       // Evitar marcar como touched
+          })
+          console.log('✅ Campo presentacion_id actualizado sin errores:', result.id)
+        } catch (error) {
+          console.warn('Error al actualizar campo presentacion_id después de edición:', error)
+          // No bloquear el flujo por errores de validación
+        }
 
         // Return expected format for modal
         return { success: true, data: result }
@@ -432,10 +463,22 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
         // Close modal after successful update
         setShowCategoriaModal(false)
         setCategoriaEditando(null)
+        setIsEditingReference(false)
 
-        // Don't update form immediately - let TanStack Query handle cache updates
-        // The form will automatically pick up the updated value through the query system
-        // This prevents the "(ID) (no encontrado)" issue
+        // Seleccionar automáticamente la categoría editada en el formulario
+        // Similar a como funciona handleCreateOption en DynamicSelect
+        try {
+          // Usar setValue con configuración completa para evitar eventos
+          form.setValue('categoria_id', parseInt(result.id.toString(), 10) || 0, {
+            shouldValidate: false,  // Evitar validación del formulario principal
+            shouldDirty: false,     // Evitar marcar como sucio para prevenir validaciones
+            shouldTouch: false       // Evitar marcar como touched
+          })
+          console.log('✅ Campo categoria_id actualizado sin errores:', result.id)
+        } catch (error) {
+          console.warn('Error al actualizar campo categoria_id después de edición:', error)
+          // No bloquear el flujo por errores de validación
+        }
 
         // Return expected format for modal
         return { success: true, data: result }
@@ -1038,6 +1081,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                     onClose={() => {
                       setShowPresentacionModal(false)
                       setPresentacionEditando(null)
+                      setIsEditingReference(false)
                     }}
                     item={presentacionEditando}
                     type="presentacion"
@@ -1051,6 +1095,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                     onClose={() => {
                       setShowCategoriaModal(false)
                       setCategoriaEditando(null)
+                      setIsEditingReference(false)
                     }}
                     item={categoriaEditando}
                     type="categoria"
