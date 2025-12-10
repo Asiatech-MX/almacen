@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import useMateriaPrima, { useStockMateriaPrima } from '../../hooks/useMateriaPrima'
 import useDebounce from '../../hooks/useDebounce'
 import { materiaPrimaService } from '../../services/materiaPrimaService'
+import { useCategorias } from '../../hooks/useCategoria'
 import type { MateriaPrima, MateriaPrimaDetail } from '../../../../shared/types/materiaPrima'
 
 // Importar componentes de error mejorados
@@ -81,6 +82,12 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = () => {
 
   const { loading: stockLoading, actualizarStock } = useStockMateriaPrima()
 
+  // Estado para ID de institución (debería venir del contexto/auth)
+  const [idInstitucion] = useState(1) // Obtener del contexto en implementación real
+
+  // Fetch categorías dinámicas
+  const { data: categoriasDB = [], isLoading: cargandoCategorias } = useCategorias(idInstitucion)
+
   const [searchTerm, setSearchTerm] = useState('')
 
   const handleEdit = (material: MateriaPrima) => {
@@ -103,8 +110,12 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = () => {
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
-  // Obtener categorías únicas
-  const categorias = Array.from(new Set(materiales.map(m => m.categoria).filter(Boolean)))
+  // Obtener categorías combinadas (DB + existentes en materiales)
+  const categorias = React.useMemo(() => {
+    const fromMaterials = Array.from(new Set(materiales.map(m => m.categoria).filter(Boolean)))
+    const fromDB = categoriasDB.map(c => c.nombre)
+    return [...new Set([...fromDB, ...fromMaterials])].sort()
+  }, [materiales, categoriasDB])
 
   // Filtrar materiales con validaciones robustas
   const materialesFiltrados = materiales.filter(material => {
@@ -321,15 +332,21 @@ export const GestionMateriaPrima: React.FC<GestionMateriaPrimaProps> = () => {
           />
         </div>
         <div className="flex gap-2 items-center">
-          <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
+          <Select value={categoriaFilter} onValueChange={setCategoriaFilter} disabled={cargandoCategorias}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Categoría" />
+              <SelectValue placeholder={cargandoCategorias ? "Cargando..." : "Categoría"} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">Todas las categorías</SelectItem>
-              {categorias.map(cat => (
-                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-              ))}
+              {cargandoCategorias ? (
+                <div className="p-2">
+                  <div className="animate-pulse">Cargando categorías...</div>
+                </div>
+              ) : (
+                categorias.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
           <Select value={stockFilter} onValueChange={(value: any) => setStockFilter(value)}>
