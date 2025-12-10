@@ -91,7 +91,7 @@ export const useDynamicSelectOptions = ({
       data: item,
       isDisabled: !item.activo
     }));
-  }, [data?.length, type, getDisplayLabel]); // Dependencias primitivas estables
+  }, [data, type, getDisplayLabel]); // Incluir 'data' completo para reactividad completa
 
   // Función optimizada para buscar opción por valor
   const getOptionByValue = useCallback((value: string | number): DynamicSelectOption | null => {

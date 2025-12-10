@@ -20,6 +20,7 @@ import { useEditarCategoriaMutation, useEditarPresentacionMutation, useCrearCate
 import { useResponsiveSelect } from '@/hooks/useResponsiveSelect';
 import { useInlineEditor } from '@/hooks/useInlineEditor';
 import InlineEditor from '@/components/ui/InlineEditor';
+import { toast } from 'sonner';
 
 interface DynamicSelectProps {
   control: Control<any>;
@@ -140,22 +141,29 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
         });
       }
 
-      if (result.success && result.data) {
+      if (result && result.id) {
         // Devolver el ID del nuevo elemento para que react-select lo seleccione
-        return result.data.id.toString();
+        const newId = result.id.toString();
+        
+        // Forzar refresco de opciones para asegurar que el nuevo item aparezca
+        setTimeout(() => {
+          refetch();
+        }, 100);
+        
+        return newId;
       } else {
-        console.error('Error creating option:', result?.error);
-        // Mostrar error al usuario (podríamos agregar un toast aquí)
+        console.error('Error creating option:', result || 'Unknown error');
+        toast.error('Error al crear opción');
         return null;
       }
     } catch (error) {
       console.error('Error creating option:', error);
-      // Mostrar error al usuario (podríamos agregar un toast aquí)
+      toast.error('Error al crear opción');
       return null;
     } finally {
       setIsCreating(false);
     }
-  }, [type, crearCategoriaMutation, crearPresentacionMutation, onInlineEditSuccess, onInlineEditError, measureAsync, recordMetric, name]);
+  }, [type, crearCategoriaMutation, crearPresentacionMutation, refetch]);
 
   // Memoized inline edit handler with useCallback - usando TanStack Query mutations
   const handleInlineEdit = useCallback(async (item: Categoria | Presentacion): Promise<{ success: boolean; data?: Categoria | Presentacion; error?: string }> => {
@@ -168,7 +176,11 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
           nombre: categoria.nombre,
           descripcion: categoria.descripcion
         };
-        result = await editarCategoriaMutation.mutateAsync({ id: categoria.id, cambios });
+        result = await editarCategoriaMutation.mutateAsync({ 
+          id: categoria.id, 
+          cambios,
+          idInstitucion: 1 // TODO: Obtener del contexto actual
+        });
       } else {
         const presentacion = item as Presentacion;
         const cambios: PresentacionUpdate = {
@@ -178,22 +190,31 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
           unidad_base: presentacion.unidad_base,
           factor_conversion: presentacion.factor_conversion
         };
-        result = await editarPresentacionMutation.mutateAsync({ id: presentacion.id, cambios });
+        result = await editarPresentacionMutation.mutateAsync({ 
+          id: presentacion.id, 
+          cambios,
+          idInstitucion: 1 // TODO: Obtener del contexto actual
+        });
       }
 
-      if (result.success) {
-        onInlineEditSuccess?.(result.data!);
-        return { success: true, data: result.data };
+      if (result && result.id) {
+        // Forzar refresco de opciones para asegurar que el item actualizado aparezca
+        setTimeout(() => {
+          refetch();
+        }, 100);
+        
+        onInlineEditSuccess?.(result);
+        return { success: true, data: result };
       } else {
-        onInlineEditError?.(item, result.error || 'Error al editar');
-        return { success: false, error: result.error };
+        onInlineEditError?.(item, 'Error al editar');
+        return { success: false, error: 'Error al editar' };
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       onInlineEditError?.(item, errorMessage);
       return { success: false, error: errorMessage };
     }
-  }, [type, editarCategoriaMutation, editarPresentacionMutation, onInlineEditSuccess, onInlineEditError]);
+  }, [type, editarCategoriaMutation, editarPresentacionMutation, onInlineEditSuccess, onInlineEditError, refetch]);
 
   
   
@@ -357,7 +378,7 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
                     const newValue = await handleCreateOption(inputValue);
                     // Preseleccionar el nuevo elemento si se creó exitosamente
                     if (newValue) {
-                      field.onChange(newValue);
+                      field.onChange(parseInt(newValue, 10) || 0);
                     }
                   }}
                   components={{

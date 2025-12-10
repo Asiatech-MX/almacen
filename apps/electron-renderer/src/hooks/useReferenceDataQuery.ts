@@ -244,11 +244,21 @@ export const useCrearPresentacionMutation = () => {
       }
     },
 
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables, context) => {
       toast.success(`Presentación "${data.nombre}" creada correctamente`)
 
-      // Invalidar queries para refrescar datos del servidor
-      queryClient.invalidateQueries({
+      // Actualizar caché con el nuevo dato del servidor
+      queryClient.setQueryData(
+        referenceDataKeys.presentacionesList(variables.idInstitucion),
+        (old: Presentacion[] = []) => {
+          // Remover versión optimista si existe y agregar versión real del servidor
+          const filtered = old.filter(p => p.id !== context?.tempId)
+          return [...filtered, data]
+        }
+      )
+
+      // Forzar refresco inmediato para asegurar consistencia
+      await queryClient.refetchQueries({
         queryKey: referenceDataKeys.presentacionesList(variables.idInstitucion)
       })
     },
@@ -332,16 +342,37 @@ export const useCrearCategoriaMutation = () => {
       }
     },
 
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables, context) => {
       toast.success(`Categoría "${data.nombre}" creada correctamente`)
 
-      // Invalidar queries para refrescar datos del servidor
-      queryClient.invalidateQueries({
-        queryKey: referenceDataKeys.categoriasList(variables.idInstitucion)
-      })
-      queryClient.invalidateQueries({
-        queryKey: referenceDataKeys.categoriasArbol(variables.idInstitucion)
-      })
+      // Actualizar caché con el nuevo dato del servidor
+      queryClient.setQueryData(
+        referenceDataKeys.categoriasList(variables.idInstitucion),
+        (old: Categoria[] = []) => {
+          // Remover versión optimista si existe y agregar versión real del servidor
+          const filtered = old.filter(c => c.id !== context?.tempId)
+          return [...filtered, data]
+        }
+      )
+
+      queryClient.setQueryData(
+        referenceDataKeys.categoriasArbol(variables.idInstitucion),
+        (old: CategoriaArbol[] = []) => {
+          // Remover versión optimista si existe y agregar versión real del servidor
+          const filtered = old.filter(c => c.id !== context?.tempId)
+          return [...filtered, data]
+        }
+      )
+
+      // Forzar refresco inmediato para asegurar consistencia
+      await Promise.all([
+        queryClient.refetchQueries({
+          queryKey: referenceDataKeys.categoriasList(variables.idInstitucion)
+        }),
+        queryClient.refetchQueries({
+          queryKey: referenceDataKeys.categoriasArbol(variables.idInstitucion)
+        })
+      ])
     },
 
 
