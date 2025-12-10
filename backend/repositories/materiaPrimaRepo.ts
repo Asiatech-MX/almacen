@@ -446,21 +446,19 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'mp.nombre',
         'mp.marca',
         'mp.presentacion',
-        'mp.presentacion_id', // ✅ Add reference field
-        'mp.stock_actual',
+        'mp.stock as stock_actual', // Rename stock to stock_actual for compatibility
         'mp.stock_minimo',
         'mp.categoria',
         'mp.categoria_id',   // ✅ Add reference field
         'cat.nombre as categoria_nombre', // ✅ JOIN con tabla categoria
-        sql<number | null>`CASE
-          WHEN mp.stock_minimo > 0 THEN ROUND((mp.stock_actual::numeric / mp.stock_minimo::numeric), 2)
-          ELSE NULL
-        END`.as('stock_ratio')
+        'mp.imagen_url',
+        'mp.estatus',
+        sql<string>`NULL`.as('proveedor_nombre') // Temporal: NULL until provider schema is fixed
       ])
-      .where('mp.activo', '=', true)
-      .where(sql`mp.stock_actual <= mp.stock_minimo`)
+      .where('mp.estatus', '=', 'ACTIVO')
+      .where(sql`mp.stock <= mp.stock_minimo`)
       .where('mp.stock_minimo', '>', 0)
-      .orderBy('mp.stock_ratio', 'asc')
+      .orderBy(sql`(mp.stock::numeric / NULLIF(mp.stock_minimo::numeric, 0))`, 'asc')
       .execute() as LowStockItem[]
   }
 

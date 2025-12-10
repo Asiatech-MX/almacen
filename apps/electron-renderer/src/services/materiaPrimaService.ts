@@ -259,8 +259,7 @@ export class MateriaPrimaService {
           presentacion: material.presentacion || 'N/A',
           stock_actual: material.stock_actual,
           stock_minimo: material.stock_minimo,
-          categoria: material.categoria || null,
-          stock_ratio: material.stock_minimo > 0 ? material.stock_actual / material.stock_minimo : null
+          categoria: material.categoria || null
         }))
     }
 
@@ -312,7 +311,8 @@ export class MateriaPrimaService {
         categoria: criterios.categoria,
         proveedorId: criterios.proveedorId,
         bajoStock: criterios.bajoStock,
-        rangoStock: criterios.rangoStock
+        rangoStock: criterios.rangoStock,
+        estatus: criterios.estatus
       })
     }
 
@@ -324,7 +324,8 @@ export class MateriaPrimaService {
         categoria: criterios.categoria,
         proveedorId: criterios.proveedorId,
         bajoStock: criterios.bajoStock,
-        rangoStock: criterios.rangoStock
+        rangoStock: criterios.rangoStock,
+        estatus: criterios.estatus
       })
     } catch (error) {
       console.error('Error en búsqueda por criterios:', error)
@@ -708,6 +709,11 @@ export class MateriaPrimaService {
 
       // Provider filter
       if (filters.proveedorId && material.proveedor_id !== filters.proveedorId) {
+        return false
+      }
+
+      // Status filter
+      if (filters.estatus && material.estatus !== filters.estatus) {
         return false
       }
 

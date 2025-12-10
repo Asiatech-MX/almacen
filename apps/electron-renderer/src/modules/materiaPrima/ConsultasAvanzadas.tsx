@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 
 import useMateriaPrima, { useBusquedaAvanzada, useStockMateriaPrima } from '../../hooks/useMateriaPrima'
 import useDebounce from '../../hooks/useDebounce'
+import { useReferenceDataQuery } from '../../hooks/useReferenceDataQuery'
 
 import type { MateriaPrima, LowStockItem } from '../../../../shared/types/materiaPrima'
 
@@ -23,7 +24,12 @@ import { X } from 'lucide-react'
 type TabType = 'search' | 'lowStock' | 'statistics'
 
 // Optimized utility functions for stock status evaluation
-const getStockStatus = (material: MateriaPrima | LowStockItem): 'normal' | 'low' | 'out' => {
+const getStockStatus = (material: MateriaPrima | LowStockItem): 'normal' | 'low' | 'out' | 'inactive' => {
+  // Priorizar el estado del estatus del material sobre el nivel de stock
+  if ((material as MateriaPrima).estatus === 'INACTIVO') {
+    return 'inactive'
+  }
+
   const stock = material.stock_actual || 0
   const minStock = material.stock_minimo || 0
 
@@ -33,32 +39,49 @@ const getStockStatus = (material: MateriaPrima | LowStockItem): 'normal' | 'low'
 }
 
 const getStockBadgeVariant = (material: MateriaPrima | LowStockItem): "default" | "secondary" | "destructive" | "outline" => {
-  const status = getStockStatus(material)
-  switch (status) {
-    case 'normal': return 'default'
-    case 'low': return 'secondary'
-    case 'out': return 'destructive'
-    default: return 'outline'
+  const estatus = (material as MateriaPrima).estatus
+
+  // Priorizar el estado del estatus del material sobre el nivel de stock
+  if (estatus === 'INACTIVO') {
+    return 'outline'
   }
+
+  const stock = material.stock_actual || 0
+  const minStock = material.stock_minimo || 0
+
+  if (stock === 0) return 'destructive'
+  if (stock <= minStock) return 'secondary'
+  return 'default'
 }
 
 const getStockStatusText = (material: MateriaPrima | LowStockItem): React.ReactNode => {
-  const status = getStockStatus(material)
-  switch (status) {
-    case 'normal': return '✅ Normal'
-    case 'low': return '⚠️ Bajo'
-    case 'out': return (
+  const estatus = (material as MateriaPrima).estatus
+
+  // Priorizar el estado del estatus del material sobre el nivel de stock
+  if (estatus === 'INACTIVO') {
+    return '🔒 Inhabilitado'
+  }
+
+  const stock = material.stock_actual || 0
+  const minStock = material.stock_minimo || 0
+
+  if (stock === 0) {
+    return (
       <span className="flex items-center gap-1">
         <X className="h-3 w-3 text-white" />
         Agotado
       </span>
     )
-    default: return 'Desconocido'
   }
+  if (stock <= minStock) return '⚠️ Bajo'
+  return '✅ Activo'
 }
 
 export const ConsultasAvanzadas: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('search')
+
+  // Obtener categorías para mostrar nombres
+  const { categorias } = useReferenceDataQuery(1) // TODO: Obtener idInstitución del contexto
 
   // Estado para búsqueda avanzada
   const [searchFilters, setSearchFilters] = useState({
@@ -95,34 +118,71 @@ export const ConsultasAvanzadas: React.FC = () => {
 
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([])
 
-  // Obtener categorías únicas
-  const categorias = Array.from(new Set(materiales.map(m => m.categoria).filter(Boolean)))
+  // Helper function to get category name by ID
+  const getNombreCategoria = (categoriaId: string | number | null): string => {
+    if (!categoriaId) return ''
+
+    // First check if it's already a name (string)
+    if (typeof categoriaId === 'string' && isNaN(Number(categoriaId))) {
+      return categoriaId
+    }
+
+    // Otherwise look up by ID
+    const id = Number(categoriaId)
+    const categoria = categorias.find(c => c.id === id)
+    return categoria?.nombre || `ID: ${categoriaId}`
+  }
+
+  // Helper function to get category ID by name
+  const getIdCategoria = (categoriaNombre: string): string => {
+    if (!categoriaNombre || categoriaNombre === 'all') return ''
+
+    const categoria = categorias.find(c => c.nombre === categoriaNombre)
+    return categoria ? categoria.id.toString() : categoriaNombre
+  }
+
+  // Obtener categorías únicas de los materiales disponibles
+  const categoriasList = categorias.map(cat => cat.nombre)
 
   // Determinar si hay filtros activos
   const tieneFiltros = debouncedNombre ||
                       (searchFilters.categoria && searchFilters.categoria !== "") ||
                       searchFilters.proveedorId ||
                       searchFilters.bajoStock ||
-                      searchFilters.estatus !== 'ACTIVO' || // 🔥 NUEVO: Considerar cambio de estatus
+                      (searchFilters.estatus && searchFilters.estatus !== 'ACTIVO' && searchFilters.estatus !== 'all') ||
                       (searchFilters.rangoStock.min !== undefined || searchFilters.rangoStock.max !== undefined)
 
   // Ejecutar búsqueda cuando los filtros cambian
   useEffect(() => {
     if (activeTab === 'search') {
-      // Si no hay filtros específicos, cargar todos los materiales
-      if (!tieneFiltros) {
-        cargarMateriales()
-      } else {
+      // Si hay otros filtros además del estatus, siempre usar búsqueda por criterios
+      if (tieneFiltros) {
         buscarPorCriterios({
           nombre: debouncedNombre,
-          categoria: searchFilters.categoria || undefined,
+          categoria: getIdCategoria(searchFilters.categoria) || undefined,
           proveedorId: searchFilters.proveedorId || undefined,
           bajoStock: searchFilters.bajoStock,
-          estatus: searchFilters.estatus !== 'ACTIVO' ? searchFilters.estatus : undefined, // 🔥 NUEVO: Incluir estatus en búsqueda
+          estatus: searchFilters.estatus === 'all' ? undefined : searchFilters.estatus, // Enviar undefined para 'all' para incluir todos
           rangoStock: searchFilters.rangoStock.min !== undefined || searchFilters.rangoStock.max !== undefined
             ? searchFilters.rangoStock
             : undefined
         })
+      } else if (searchFilters.estatus === 'all') {
+        // Cuando se selecciona "todos los estados" y no hay otros filtros, cargar todos incluyendo inactivos
+        cargarMateriales(undefined, { includeInactive: true })
+      } else if (searchFilters.estatus === 'INACTIVO') {
+        // Cuando se selecciona solo "inactivos" y no hay otros filtros
+        buscarPorCriterios({
+          nombre: undefined,
+          categoria: undefined,
+          proveedorId: undefined,
+          bajoStock: false,
+          estatus: 'INACTIVO',
+          rangoStock: undefined
+        })
+      } else {
+        // Por defecto (ACTIVO), cargar materiales activos
+        cargarMateriales()
       }
     }
   }, [debouncedNombre, searchFilters.categoria, searchFilters.proveedorId, searchFilters.bajoStock, searchFilters.estatus, searchFilters.rangoStock, activeTab, tieneFiltros, cargarMateriales, buscarPorCriterios])
@@ -181,6 +241,7 @@ export const ConsultasAvanzadas: React.FC = () => {
       categoria: '',
       proveedorId: '',
       bajoStock: false,
+      estatus: 'ACTIVO',
       rangoStock: { min: undefined, max: undefined }
     })
     limpiarBusqueda()
@@ -247,7 +308,7 @@ export const ConsultasAvanzadas: React.FC = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Todas las categorías</SelectItem>
-                        {categorias.map(cat => (
+                        {categoriasList.map(cat => (
                           <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                         ))}
                       </SelectContent>
@@ -357,7 +418,7 @@ export const ConsultasAvanzadas: React.FC = () => {
                               <TableCell className="font-medium w-32">{material.codigo_barras}</TableCell>
                               <TableCell className="w-48">{material.nombre}</TableCell>
                               <TableCell className="w-32">{material.marca || '-'}</TableCell>
-                              <TableCell className="w-36">{material.categoria || '-'}</TableCell>
+                              <TableCell className="w-36">{getNombreCategoria(material.categoria) || '-'}</TableCell>
                               <TableCell className="w-24 text-center">{material.stock_actual}</TableCell>
                               <TableCell className="w-28 text-center">
                                 <Badge variant={getStockBadgeVariant(material)}>
@@ -428,7 +489,7 @@ export const ConsultasAvanzadas: React.FC = () => {
                               <TableCell className="w-36">{item.presentacion}</TableCell>
                               <TableCell className="w-28 text-center">{item.stock_actual}</TableCell>
                               <TableCell className="w-28 text-center">{item.stock_minimo}</TableCell>
-                              <TableCell className="w-36">{item.categoria || '-'}</TableCell>
+                              <TableCell className="w-36">{getNombreCategoria(item.categoria) || '-'}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -542,7 +603,7 @@ export const ConsultasAvanzadas: React.FC = () => {
         <Alert className="mb-5" variant="destructive">
           <AlertTitle>⚠️ Error</AlertTitle>
           <AlertDescription>
-            {searchError || stockError || 'Ocurrió un error al cargar los datos'}
+            {searchError?.userMessage || stockError?.userMessage || 'Ocurrió un error al cargar los datos'}
           </AlertDescription>
         </Alert>
       )}
