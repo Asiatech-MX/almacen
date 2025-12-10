@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   postgres:
@@ -13,7 +13,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./schema_postgres.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./almacen-db-dump-20251206-221600.sql:/docker-entrypoint-initdb.d/01-schema.sql
       - ./migracion_datos:/docker-entrypoint-initdb.d/migracion_datos
     networks:
       - almacen_network
@@ -30,7 +30,7 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@almacen.com
       PGADMIN_DEFAULT_PASSWORD: admin123
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_SERVER_MODE: "False"
     ports:
       - "5050:80"
     volumes:
