@@ -446,7 +446,7 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         'mp.nombre',
         'mp.marca',
         'mp.presentacion',
-        'mp.stock as stock_actual', // Rename stock to stock_actual for compatibility
+        'mp.stock_actual', // Use correct column name stock_actual
         'mp.stock_minimo',
         'mp.categoria',
         'mp.categoria_id',   // ✅ Add reference field
@@ -456,9 +456,9 @@ export class MateriaPrimaRepository extends BaseRepository<'materia_prima'> {
         sql<string>`NULL`.as('proveedor_nombre') // Temporal: NULL until provider schema is fixed
       ])
       .where('mp.estatus', '=', 'ACTIVO')
-      .where(sql`mp.stock <= mp.stock_minimo`)
+      .where(sql`mp.stock_actual <= mp.stock_minimo`)
       .where('mp.stock_minimo', '>', 0)
-      .orderBy(sql`(mp.stock::numeric / NULLIF(mp.stock_minimo::numeric, 0))`, 'asc')
+      .orderBy(sql`(mp.stock_actual::numeric / NULLIF(mp.stock_minimo::numeric, 0))`, 'asc')
       .execute() as LowStockItem[]
   }
 
