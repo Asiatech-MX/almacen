@@ -1,55 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type {
-  MateriaPrima,
-  MateriaPrimaDetail,
-  NewMateriaPrima,
-  MateriaPrimaUpdate,
-  MateriaPrimaFilters,
-  StockCheck,
-  LowStockItem,
-  MateriaPrimaStats,
-  AuditTrail,
-  MateriaPrimaSearch,
-  MateriaPrimaEstatusUpdate
-} from '@shared-types/index'
-import type {
-  Categoria,
-  CategoriaArbol,
-  NewCategoria,
-  CategoriaUpdate,
-  OperacionMoverCategoria,
-  OperacionReordenarCategorias,
-  Presentacion,
-  NewPresentacion,
-  PresentacionUpdate
-} from '@shared-types/referenceData'
-
-// Interfaces para upload de imágenes
-interface ImageFileData {
-  name: string
-  type: string
-  size: number
-  buffer: ArrayBuffer
-}
-
-interface ImageMetadata {
-  materiaPrimaId: string
-  codigoBarras: string
-  nombre: string
-}
-
-interface ImageUploadResult {
-  success: boolean
-  url?: string
-  error?: string
-  filename?: string
-}
+import type { ElectronAPI } from '@shared-types/preload'
 
 /**
  * API segura para el renderer process utilizando contextBridge
  * Proporciona acceso type-safe a las funcionalidades de materia prima
  */
-contextBridge.exposeInMainWorld('electronAPI', {
+const electronAPI: ElectronAPI = {
   // ==================== GESTIÓN DE MATERIA PRIMA ====================
   materiaPrima: {
     // ✅ Operaciones de lectura
@@ -145,6 +101,33 @@ contextBridge.exposeInMainWorld('electronAPI', {
     eliminar: (id: string, forzar?: boolean, usuarioId?: string): Promise<boolean> =>
       ipcRenderer.invoke('categoria:eliminar', { id, forzar, usuarioId }),
 
+    // ✅ Operaciones de estado
+    toggleActivo: (id: string, activar: boolean, usuarioId?: string): Promise<Categoria> =>
+      ipcRenderer.invoke('categoria:toggleActivo', { id, activar, usuario_id: usuarioId }),
+
+    // ✅ Operaciones de consulta
+    verificarDependencias: (id: string): Promise<{
+      tiene_hijos: boolean
+      tiene_materiales: boolean
+      num_hijos: number
+      num_materiales: number
+      puede_eliminar: boolean
+    }> =>
+      ipcRenderer.invoke('categoria:verificarDependencias', { id }),
+
+    obtenerPorNivel: (idInstitucion: number, nivel: number, soloActivas?: boolean): Promise<Categoria[]> =>
+      ipcRenderer.invoke('categoria:obtenerPorNivel', { id_institucion: idInstitucion, nivel, solo_activas: soloActivas }),
+
+    buscar: (idInstitucion: number, terminos: string, soloActivas?: boolean): Promise<Categoria[]> =>
+      ipcRenderer.invoke('categoria:buscar', { id_institucion: idInstitucion, terminos, solo_activas: soloActivas }),
+
+    obtenerRutaCompleta: (id: string): Promise<{
+      id: string
+      nombre: string
+      nivel: number
+    }[]> =>
+      ipcRenderer.invoke('categoria:obtenerRuta', { id }),
+
     // ✅ Utilidades
     validarJerarquia: (idInstitucion: number): Promise<any> =>
       ipcRenderer.invoke('categoria:validarJerarquia', { idInstitucion })
@@ -183,6 +166,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     eliminar: (id: string, forzar?: boolean, usuarioId?: string): Promise<boolean> =>
       ipcRenderer.invoke('presentacion:eliminar', { id, forzar, usuarioId }),
+
+    // ✅ Operaciones de estado
+    toggleActivo: (id: string, activar: boolean, usuarioId?: string): Promise<Presentacion> =>
+      ipcRenderer.invoke('presentacion:toggleActivo', { id, activar, usuarioId }),
+
+    // ✅ Operaciones de consulta
+    verificarDependencias: (id: string): Promise<{ tiene_materiales: boolean }> =>
+      ipcRenderer.invoke('presentacion:verificarDependencias', { id }),
+
+    buscar: (idInstitucion: number, termino: string, soloActivas?: boolean): Promise<Presentacion[]> =>
+      ipcRenderer.invoke('presentacion:buscar', { idInstitucion, termino, soloActivas }),
+
+    obtenerPorNombre: (idInstitucion: number, nombre: string, includeInactive?: boolean): Promise<Presentacion | null> =>
+      ipcRenderer.invoke('presentacion:obtenerPorNombre', { idInstitucion, nombre, includeInactive }),
+
+    listarTodas: (idInstitucion: number): Promise<Presentacion[]> =>
+      ipcRenderer.invoke('presentacion:listarTodas', { idInstitucion }),
+
+    // ✅ Operaciones de restauración
+    restaurar: (id: string, usuarioId?: string): Promise<Presentacion> =>
+      ipcRenderer.invoke('presentacion:restaurar', { id, usuarioId }),
 
     // ✅ Utilidades
     estadisticas: (idInstitucion: number): Promise<any> =>
@@ -283,128 +287,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.off(channel, callback)
   },
   send: (channel: string, ...args: any[]) => ipcRenderer.send(channel, ...args)
-})
-
-// ==================== TIPOS PARA TYPESCRIPT ====================
-/**
- * Tipos globales para window.electronAPI
- * Proporciona autocompletado y type safety en el renderer process
- */
-declare global {
-  interface Window {
-    electronAPI: {
-      // ==================== MATERIA PRIMA ====================
-      materiaPrima: {
-        // Operaciones de lectura
-        listar: (filters?: MateriaPrimaFilters, options?: { includeInactive?: boolean }) => Promise<MateriaPrima[]>
-        listarActivos: (filters?: MateriaPrimaFilters) => Promise<MateriaPrima[]>
-        listarInactivos: (filters?: MateriaPrimaFilters) => Promise<MateriaPrima[]>
-        obtener: (id: string, options?: { includeInactive?: boolean }) => Promise<MateriaPrimaDetail>
-        buscarPorCodigo: (codigoBarras: string) => Promise<MateriaPrimaDetail>
-        buscar: (searchTerm: string, limit?: number) => Promise<MateriaPrimaSearch[]>
-        stockBajo: () => Promise<LowStockItem[]>
-        verificarStock: (id: string, cantidad: number) => Promise<StockCheck>
-        estadisticas: () => Promise<MateriaPrimaStats>
-        auditoria: (materiaPrimaId: string, limit?: number) => Promise<AuditTrail[]>
-
-        // Operaciones de escritura
-        crear: (data: NewMateriaPrima, usuarioId?: string) => Promise<MateriaPrimaDetail>
-        actualizar: (id: string, data: MateriaPrimaUpdate, usuarioId?: string) => Promise<MateriaPrimaDetail>
-        actualizarEstatus: (data: MateriaPrimaEstatusUpdate) => Promise<MateriaPrimaDetail>
-        actualizarStock: (id: string, cantidad: number, motivo: string, usuarioId?: string) => Promise<boolean>
-        eliminar: (id: string, usuarioId?: string) => Promise<boolean>
-
-        // Utilidades
-        exportar: (options: { formato: 'csv' | 'excel' | 'pdf' }) => Promise<Buffer>
-
-        // Upload de imágenes
-        subirImagen: (fileData: ImageFileData, metadata: ImageMetadata) => Promise<ImageUploadResult>
-      }
-
-      // ==================== CATEGORÍAS ====================
-      categoria: {
-        // Operaciones de lectura
-        listarArbol: (idInstitucion: number, soloActivas?: boolean) => Promise<CategoriaArbol[]>
-        listar: (idInstitucion: number, soloActivas?: boolean) => Promise<Categoria[]>
-        obtener: (id: string, includeInactive?: boolean) => Promise<Categoria>
-        obtenerHijos: (idPadre: string, soloActivas?: boolean) => Promise<Categoria[]>
-        obtenerRuta: (id: string) => Promise<string>
-        verificarDescendiente: (idPosibleDescendiente: string, idPosiblePadre: string) => Promise<boolean>
-
-        // Operaciones de escritura
-        crear: (categoria: NewCategoria, idPadre?: string, usuarioId?: string) => Promise<Categoria>
-        editar: (id: string, cambios: CategoriaUpdate, usuarioId?: string) => Promise<Categoria>
-        mover: (idCategoria: string, nuevoPadreId?: string, usuarioId?: string) => Promise<Categoria>
-        reordenar: (operaciones: OperacionReordenarCategorias, usuarioId?: string) => Promise<boolean>
-        eliminar: (id: string, forzar?: boolean, usuarioId?: string) => Promise<boolean>
-
-        // Utilidades
-        validarJerarquia: (idInstitucion: number) => Promise<any>
-      },
-
-      // ==================== PRESENTACIONES ====================
-      presentacion: {
-        // Operaciones de lectura
-        listar: (idInstitucion: number, soloActivas?: boolean) => Promise<Presentacion[]>
-        obtenerPredeterminadas: (idInstitucion: number) => Promise<Presentacion[]>
-        obtener: (id: string, includeInactive?: boolean) => Promise<Presentacion>
-        buscarPorNombre: (nombre: string, idInstitucion: number, soloActivas?: boolean) => Promise<Presentacion | null>
-        buscarPorAbreviatura: (abreviatura: string, idInstitucion: number, soloActivas?: boolean) => Promise<Presentacion | null>
-        buscar: (searchTerm: string, idInstitucion: number, limit?: number) => Promise<Presentacion[]>
-
-        // Operaciones de escritura
-        crear: (presentacion: NewPresentacion, usuarioId?: string) => Promise<Presentacion>
-        editar: (id: string, cambios: PresentacionUpdate, usuarioId?: string) => Promise<Presentacion>
-        establecerPredeterminada: (id: string, idInstitucion: number, usuarioId?: string) => Promise<Presentacion>
-        eliminar: (id: string, forzar?: boolean, usuarioId?: string) => Promise<boolean>
-
-        // Utilidades
-        estadisticas: (idInstitucion: number) => Promise<any>
-        validarIntegridad: (idInstitucion: number) => Promise<any>
-      },
-
-      // ==================== SISTEMA ====================
-      sistema: {
-        leerArchivo: (ruta: string) => Promise<string>
-        guardarArchivo: (ruta: string, contenido: string) => Promise<boolean>
-      }
-
-      // ==================== FEATURE FLAGS ====================
-      featureFlags: {
-        isEnabled: (feature: string, userId?: string) => Promise<boolean>
-        getFlag: (feature: string) => Promise<any>
-        getAllFlags: () => Promise<any>
-        enableFeature: (feature: string) => Promise<boolean>
-        disableFeature: (feature: string) => Promise<boolean>
-        setRolloutPercentage: (feature: string, percentage: number) => Promise<boolean>
-        completeMigration: (feature: string) => Promise<boolean>
-        loadRemoteConfig: (configUrl?: string) => Promise<boolean>
-      }
-
-      // ==================== MONITORING ====================
-      monitoring: {
-        getErrorStats: () => Promise<Record<string, number>>
-        getPerformanceMetrics: () => Promise<any>
-        exportLogs: () => Promise<string>
-        healthCheck: () => Promise<{ status: 'healthy' | 'warning' | 'error', details: any }>
-        logUserAction: (action: string, userId?: string, context?: any) => Promise<boolean>
-        logPerformanceEvent: (event: string, duration: number, context?: any) => Promise<boolean>
-        getConfig: () => Promise<any>
-        getSystemInfo: () => Promise<any>
-        clearErrorStats: () => Promise<boolean>
-        toggleFeature: (feature: 'performanceMonitoring' | 'remoteLogging', enabled: boolean) => Promise<boolean>
-      }
-
-      // ==================== EVENTOS ====================
-      onActualizacionInventario: (callback: (data: any) => void) => void
-
-      // ==================== GENÉRICOS ====================
-      invoke: (channel: string, ...args: any[]) => Promise<any>
-      on: (channel: string, callback: (...args: any[]) => void) => void
-      off: (channel: string, callback: (...args: any[]) => void) => void
-      send: (channel: string, ...args: any[]) => void
-    }
-  }
 }
+
+// Exponer la API al renderer process
+contextBridge.exposeInMainWorld('electronAPI', electronAPI)
 
 export {}
