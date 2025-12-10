@@ -129,9 +129,15 @@ export const DynamicSelect: React.FC<DynamicSelectProps> = ({
     try {
       let result;
       if (type === 'categoria') {
-        result = await crearCategoriaMutation.mutateAsync(nuevoItem);
+        result = await crearCategoriaMutation.mutateAsync({
+          categoria: nuevoItem,
+          idInstitucion: nuevoItem.id_institucion
+        });
       } else {
-        result = await crearPresentacionMutation.mutateAsync(nuevoItem);
+        result = await crearPresentacionMutation.mutateAsync({
+          presentacion: nuevoItem,
+          idInstitucion: nuevoItem.id_institucion
+        });
       }
 
       if (result.success && result.data) {

@@ -223,9 +223,12 @@ export function setupPresentacionHandlers(): void {
   // ==================== CREATE OPERATIONS ====================
 
   // ✅ Crear nueva presentación
-  ipcMain.handle('presentacion:crear', async (_, { presentacion, usuarioId }: { presentacion: NewPresentacion, usuarioId?: string }) => {
+  ipcMain.handle('presentacion:crear', async (_, args) => {
     try {
       console.log('📡 presentacion:crear handled')
+
+      // Extraer datos de forma segura
+      const { presentacion, usuarioId } = args || {};
 
       // Validaciones básicas
       if (!presentacion || typeof presentacion !== 'object') {

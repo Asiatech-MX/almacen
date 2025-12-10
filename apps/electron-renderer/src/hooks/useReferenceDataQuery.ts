@@ -196,7 +196,7 @@ export const useCrearPresentacionMutation = () => {
       presentacion: NewPresentacion
       idInstitucion: number
     }) => {
-      return await window.electronAPI.presentacion.crear(presentacion)
+        return await window.electronAPI.presentacion.crear(presentacion, 'usuario-temporal') // TODO: Obtener ID de usuario real
     },
 
     onMutate: async ({ presentacion, idInstitucion }) => {

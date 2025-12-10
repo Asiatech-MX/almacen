@@ -206,9 +206,12 @@ export function setupCategoriaHandlers(): void {
   // ==================== CREATE OPERATIONS ====================
 
   // ✅ Crear nueva categoría con jerarquía
-  ipcMain.handle('categoria:crear', async (_, { categoria, idPadre, usuarioId }: { categoria: NewCategoria, idPadre?: string, usuarioId?: string }) => {
+  ipcMain.handle('categoria:crear', async (_, args) => {
     try {
       console.log('📡 categoria:crear handled')
+
+      // Extraer datos de forma segura
+      const { categoria, idPadre, usuarioId } = args || {};
 
       // Validaciones básicas
       if (!categoria || typeof categoria !== 'object') {
