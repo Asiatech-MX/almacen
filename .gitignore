@@ -6,6 +6,9 @@ node_modules/
 .pnpm-store/
 .pnpm-debug.log*
 
+# Bun specific
+bun.lockb
+
 # Build outputs
 dist/
 build/
@@ -151,7 +154,7 @@ test-*.html
 test-*.js
 snapshot*.html
 
-# Package manager lock files (keeping pnpm-lock.yaml)
+# Package manager lock files (keeping pnpm-lock.yaml and bun.lock)
 # yarn.lock
 # package-lock.json
 
