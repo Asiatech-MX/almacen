@@ -23,6 +23,10 @@
         "Authorization": "Bearer bc13d639e6c3419eab5458d48b70e63c.jbdjZAPfHJVKci8T"
       }
     },
+    "gh_rep": {
+      "type": "http",
+      "url": "https://mcp.grep.app"
+    },
     "docker-mcp": {
       "type": "stdio",
       "command": "docker",

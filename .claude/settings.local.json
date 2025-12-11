@@ -37,7 +37,10 @@
       "Bash(findstr:*)",
       "Bash(bun:*)",
       "mcp__docker-mcp__sequentialthinking",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "mcp__docker-mcp__resolve-library-id",
+      "mcp__docker-mcp__get-library-docs"
     ],
     "deny": [],
     "ask": []
