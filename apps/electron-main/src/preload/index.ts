@@ -151,9 +151,6 @@ const electronAPI: ElectronAPI = {
     buscarPorAbreviatura: (abreviatura: string, idInstitucion: number, soloActivas?: boolean): Promise<Presentacion | null> =>
       ipcRenderer.invoke('presentacion:buscarPorAbreviatura', { abreviatura, idInstitucion, soloActivas }),
 
-    buscar: (searchTerm: string, idInstitucion: number, limit?: number): Promise<Presentacion[]> =>
-      ipcRenderer.invoke('presentacion:buscar', { searchTerm, idInstitucion, limit }),
-
     // ✅ Operaciones de escritura
     crear: (presentacion: NewPresentacion, usuarioId?: string): Promise<Presentacion> =>
       ipcRenderer.invoke('presentacion:crear', { presentacion, usuarioId }),
