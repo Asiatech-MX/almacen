@@ -28,7 +28,9 @@
     "test:ci:unit": "jest --coverage --watchAll=false",
     "test:ci:e2e": "playwright test",
     "test:verify": "jest --coverage && playwright test && pnpm test:coverage:check",
-    "test:coverage:check": "node scripts/check-coverage.js"
+    "test:coverage:check": "node scripts/check-coverage.js",
+    "security:audit": "bun audit && bun outdated",
+    "security:audit:script": "tsx scripts/security-audit.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.0",

@@ -1,0 +1,11 @@
+{
+  "name": "almacen-backend",
+  "version": "1.0.0",
+  "description": "Backend services for almacen",
+  "type": "module",
+  "scripts": {
+    "typegen": "kysely-codegen --out-file ./src/generated/db.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

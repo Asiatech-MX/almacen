@@ -1,0 +1,45 @@
+version: 2
+registries:
+  npm:
+    type: npm-registry
+    url: https://registry.npmjs.org
+    timeout: 10
+
+updates:
+  # Enable version updates for Bun (uses npm registry)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "Asiatech-MX"
+    assignees:
+      - "Asiatech-MX"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "bun"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "Asiatech-MX"
+    assignees:
+      - "Asiatech-MX"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "github-actions"
+      - "dependencies"

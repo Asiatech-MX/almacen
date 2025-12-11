@@ -1,0 +1,98 @@
+name: Security Audit
+
+on:
+  schedule:
+    # Run every day at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  audit:
+    name: Security Audit with Bun
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run security audit
+        run: bun audit
+
+      - name: Check for outdated packages
+        run: bun outdated
+
+      - name: Upload security audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-reports
+          path: |
+            security-audit-report.json
+            security-audit-report.md
+          retention-days: 30
+
+      - name: Comment PR with audit results (if on PR)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportPath = './security-audit-report.json';
+
+            // Read comprehensive report if file exists
+            let comment = '## 🔒 Security Audit Results\n\n';
+
+            if (fs.existsSync(reportPath)) {
+              const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+
+              // Add status badge
+              const status = report.audit.hasVulnerabilities ? '❌ VULNERABILITIES' : '✅ SECURE';
+              comment += `**Security Status:** ${status}\n\n`;
+
+              // Add vulnerabilities count
+              if (report.audit.hasVulnerabilities) {
+                comment += `**Vulnerabilities Found:** ${report.audit.vulnerabilities.length}\n\n`;
+
+                // Add vulnerability details
+                report.audit.vulnerabilities.forEach((vuln, index) => {
+                  comment += `**Vulnerability ${index + 1}:**\n`;
+                  comment += '```\n' + vuln.substring(0, 500) + '...\n```\n\n';
+                });
+              } else {
+                comment += '✅ No security vulnerabilities found!\n\n';
+              }
+
+              // Add outdated packages summary
+              if (report.outdated && report.outdated.includes('Package')) {
+                comment += '📦 **Packages need updates** (see artifacts for details)\n\n';
+              }
+
+              // Add sensitive patterns warning
+              if (report.sensitivePatternsFound) {
+                comment += '⚠️ **Warning:** Potential sensitive data patterns detected\n\n';
+              }
+
+              comment += '📄 Detailed reports available in workflow artifacts.';
+            } else {
+              comment += '✅ No security vulnerabilities found!\n';
+            }
+
+            // Create or update comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
