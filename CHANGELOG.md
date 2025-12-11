@@ -5,6 +5,49 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [2025-12-09] - Fix Columna Estatus - Stock Bajo - Issue #8
+
+### Fixed
+- **Database**: Resuelto error "column mp.estatus does not exist" en pestaña Stock Bajo
+- **Schema**: Agregada columna `estatus VARCHAR(20)` a tabla `materia_prima` con DEFAULT 'ACTIVO'
+- **Constraint**: Implementado `CHECK (estatus IN ('ACTIVO', 'INACTIVO', 'SUSPENDIDO'))` para validar valores
+- **Performance**: Confirmado índice `idx_materia_prima_estatus` para optimización de consultas
+
+### Added
+- **Database Column**: Columna `estatus` en tabla `materia_prima`
+- **Data Migration**: Todos los registros existentes poblados con valor 'ACTIVO'
+- **Backup**: Creado backup de seguridad `db/backups/backup_pre_fix_20251209_224118.sql`
+- **Documentation**: Plan completo de implementación en `docs/PLAN_FIX_ESTATUS_COLUMN.md`
+
+### Changed
+- **Database Schema**: Tabla `materia_prima` ahora incluye columna `estatus` adicional a `activo`
+- **Query Performance**: Consulta de Stock Bajo optimizada con nuevo índice (<2ms ejecución)
+- **Compatibility**: Mantenida compatibilidad con columna `activo` existente
+
+### Security
+- **Data Integrity**: Constraint CHECK asegura solo valores permitidos en columna estatus
+- **Backup Strategy**: Backup creado antes de cualquier modificación estructural
+- **Validation**: Testing completo para asegurar no regresión en funcionalidades existentes
+
+### Technical Details
+- **PostgreSQL 15.15**: ALTER TABLE ejecutado sin locking completo
+- **Migration**: Strategy de migración gradual con ambas columnas temporales
+- **Index**: Índice existente `idx_materia_prima_estatus` reutilizado para optimización
+- **Testing**: Performance de consulta: 0.158ms (Excelente)
+
+### Testing Coverage
+- **Manual Testing**: ✅ Pestaña Stock Bajo funciona sin errores
+- **Database Testing**: ✅ Consulta SQL directa retorna resultados esperados
+- **Regression Testing**: ✅ CRUD de materia prima funciona correctamente
+- **Performance Testing**: ✅ Tiempos de respuesta <2s objetivo cumplido
+
+### Validation Results
+- **Stock Bajo**: ✅ Muestra correctamente "TEST DEBUG" con stock bajo y estatus ACTIVO
+- **Data Validation**: ✅ Todos los registros (3) con estatus = 'ACTIVO' validados
+- **No Regressions**: ✅ Listados general y de activos funcionan correctamente
+
 ## [2025-11-21] - Fix Eliminación Materiales INACTIVOS - Issue #4
 
 ### Fixed

@@ -17,18 +17,41 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FieldSet, FieldLegend, FieldGroup, FieldContent, FieldTitle, FieldDescription, FieldError, Field, FieldSeparator } from '@/components/ui/fieldset'
 import { Scroller } from '@/components/ui/scroller'
 import { FileUpload } from '@/components/ui/file-upload'
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
+import { HelpCircle } from 'lucide-react'
 
 import useMateriaPrima, { UseMateriaPrimaOptions } from '../../hooks/useMateriaPrima'
 import materiaPrimaService from '../../services/materiaPrimaService'
+import { useReferenceDataQuery, useEditarPresentacionMutation, useEditarCategoriaMutation, useMoverCategoriaMutation } from '../../hooks/useReferenceDataQuery'
+import { MemoizedDynamicSelect } from '@/components/ui/DynamicSelect'
+import { InlineEditModal } from '@/components/ui/InlineEditModal'
 import type {
-  MateriaPrimaDetail,
+  MateriaPrima,
   NewMateriaPrima,
   MateriaPrimaUpdate
 } from '../../../../shared/types/materiaPrima'
+
 import {
   prepareFormDataForSubmission,
   extractValidationErrors
 } from '../../utils/formDataNormalizer'
+
+// Componente reutilizable para tooltips consistentes
+const FieldTooltip: React.FC<{ content: string }> = ({ content }) => (
+  <Tooltip delayDuration={300}>
+    <TooltipTrigger asChild>
+      <HelpCircle className="inline-block w-4 h-4 ml-1 text-muted-foreground hover:text-foreground cursor-help transition-colors" />
+    </TooltipTrigger>
+    <TooltipContent
+      className="max-w-xs text-sm bg-popover border border-border text-popover-foreground"
+      side="top"
+      align="center"
+      sideOffset={4}
+    >
+      <p>{content}</p>
+    </TooltipContent>
+  </Tooltip>
+)
 
 const presentaciones = [
   'Unidad',
@@ -83,26 +106,29 @@ const validateEAN13 = (barcode: string): boolean => {
   return checksum === parseInt(digits[12]);
 };
 
-// Schema Zod para validación
+// Schema Zod mejorado - maneja correctamente los IDs de referencia del DynamicSelect
 const materiaPrimaSchema = z.object({
   codigo_barras: z.string()
-    .min(13, 'El código de barras debe tener exactamente 13 dígitos')
-    .max(13, 'El código de barras debe tener exactamente 13 dígitos')
+    .length(13, 'El código de barras debe tener exactamente 13 dígitos')
     .regex(/^\d{13}$/, 'El código de barras debe contener solo números')
     .refine((barcode) => validateEAN13(barcode), 'Código de barras EAN-13 inválido'),
   nombre: z.string().min(1, 'El nombre es requerido'),
   marca: z.string().optional(),
   modelo: z.string().optional(),
-  presentacion: z.string().min(1, 'La presentación es requerida'),
+  // IDs de referencia con coercion automática de string a number
+  // Permitimos 0 como estado "no seleccionado" para evitar conflictos de validación
+  presentacion_id: z.coerce.number()
+    .min(0, 'La presentación es requerida'),
+  categoria_id: z.coerce.number()
+    .min(0, 'La categoría es requerida'),
   stock_actual: z.number().min(0, 'El stock actual no puede ser negativo'),
   stock_minimo: z.number().min(0, 'El stock mínimo no puede ser negativo'),
   costo_unitario: z.number().nullable().optional(),
   fecha_caducidad: z.string().nullable().optional(),
   imagen_url: z.string().nullable().optional(),
   descripcion: z.string().optional(),
-  categoria: z.string().optional(),
-  proveedor_id: z.string().nullable().optional()
-})
+  proveedor_id: z.coerce.number().nullable().optional()
+});
 
 type MateriaPrimaFormData = z.infer<typeof materiaPrimaSchema>
 
@@ -136,6 +162,19 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [generalError, setGeneralError] = useState<string | null>(null)
+
+  // Estados para el sistema de referencias
+  const [presentacionEditando, setPresentacionEditando] = useState<any>(null)
+  const [categoriaEditando, setCategoriaEditando] = useState<any>(null)
+  const [showPresentacionModal, setShowPresentacionModal] = useState(false)
+  const [showCategoriaModal, setShowCategoriaModal] = useState(false)
+  const [isEditingReference, setIsEditingReference] = useState(false)
+
+
+
+  // ID de institución actual (esto debería venir de un contexto o configuración)
+  const CURRENT_INSTITUTION_ID = 1 // Cambiar esto por el ID real de la institución
 
   // Configuración de React Hook Form
   const form = useForm<MateriaPrimaFormData>({
@@ -145,24 +184,49 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
       nombre: '',
       marca: '',
       modelo: '',
-      presentacion: 'Unidad',
+      // IDs de referencia como números (vienen del DynamicSelect como strings pero se coercen)
+      presentacion_id: 0,
+      categoria_id: 0,
       stock_actual: 0,
       stock_minimo: 0,
       costo_unitario: null,
       fecha_caducidad: '',
       imagen_url: '',
       descripcion: '',
-      categoria: '',
       proveedor_id: null
     },
-    mode: 'onChange'
+    mode: isEditingReference ? 'onSubmit' : 'onBlur'  // Evitar validación durante edición de referencias
   })
 
+  // Hook para datos de referencia con TanStack Query
+  const {
+    categorias,
+    categoriasArbol,
+    presentaciones,
+    isLoading: loadingReferencias,
+    error: referenciaError
+  } = useReferenceDataQuery(CURRENT_INSTITUTION_ID);
+
+  // Mutaciones de TanStack Query para gestión de referencias
+  const editarPresentacionMutation = useEditarPresentacionMutation();
+  const editarCategoriaMutation = useEditarCategoriaMutation();
+  const moverCategoriaMutation = useMoverCategoriaMutation();
+
   useEffect(() => {
-    if (esEdicion && finalId) {
+    if (esEdicion && finalId && !loadingReferencias) {
       cargarMateriaPrima(finalId)
     }
-  }, [esEdicion, finalId])
+  }, [esEdicion, finalId, loadingReferencias])
+
+  // Actualizar modo de validación cuando cambia el estado de edición
+  useEffect(() => {
+    // Cambiar el modo de validación para evitar validaciones durante edición
+    form.reset(form.getValues(), { 
+      keepErrors: false,  // Limpiar errores previos
+      keepDirty: false,  // Limpiar estado dirty
+      keepTouched: false // Limpiar estado touched
+    })
+  }, [isEditingReference, form])
 
   // Limpiar Object URLs cuando el componente se desmonta
   useEffect(() => {
@@ -183,7 +247,9 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
         nombre: data.nombre || '',
         marca: data.marca || '',
         modelo: data.modelo || '',
-        presentacion: data.presentacion || 'Unidad',
+        // IDs de referencia como números (la coerción manejará la conversión)
+        presentacion_id: data.presentacion_id || 0,
+        categoria_id: data.categoria_id || 0,
         stock_actual: data.stock_actual || 0,
         stock_minimo: data.stock_minimo || 0,
         costo_unitario: data.costo_unitario || null,
@@ -191,7 +257,6 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
           new Date(data.fecha_caducidad).toISOString().split('T')[0] : '',
         imagen_url: data.imagen_url || '',
         descripcion: data.descripcion || '',
-        categoria: data.categoria || '',
         proveedor_id: data.proveedor_id || null
       })
     } catch (err) {
@@ -200,19 +265,41 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
   }
 
   const handleSubmit = async (data: MateriaPrimaFormData) => {
+    // Prevenir envío si estamos editando referencias
+    if (isEditingReference) {
+      console.log('⏸️ Envío del formulario bloqueado mientras se editan referencias')
+      return
+    }
+
     clearError()
     setSuccess(false)
+    setGeneralError(null) // Limpiar errores generales previos
 
     try {
-      // Preparar y normalizar datos antes de enviar
-      const normalizedData = prepareFormDataForSubmission(data, esEdicion)
+      // Pipeline de datos simplificado y directo (sin conversión manual gracias a z.coerce)
+      const submissionData = {
+        codigo_barras: data.codigo_barras,
+        nombre: data.nombre,
+        marca: data.marca || null,
+        modelo: data.modelo || null,
+        presentacion_id: data.presentacion_id,
+        categoria_id: data.categoria_id,
+        stock_actual: data.stock_actual,
+        stock_minimo: data.stock_minimo,
+        costo_unitario: data.costo_unitario || null,
+        fecha_caducidad: data.fecha_caducidad || null,
+        imagen_url: data.imagen_url || null,
+        descripcion: data.descripcion || null,
+        proveedor_id: data.proveedor_id,
+        id_institucion: CURRENT_INSTITUTION_ID
+      }
 
       let materialGuardado: MateriaPrimaDetail
 
       if (esEdicion && finalId) {
-        materialGuardado = await actualizarMaterial(finalId, normalizedData as MateriaPrimaUpdate)
+        materialGuardado = await actualizarMaterial(finalId, submissionData as MateriaPrimaUpdate)
       } else {
-        materialGuardado = await crearMaterial(normalizedData as NewMateriaPrima)
+        materialGuardado = await crearMaterial(submissionData as NewMateriaPrima)
       }
 
       setSuccess(true)
@@ -238,6 +325,11 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
             message: message as string
           })
         })
+      }
+
+      // Mostrar error general si no hay errores de campo específicos
+      if (generalError && Object.keys(fieldErrors).length === 0) {
+        setGeneralError(generalError)
       }
     }
   }
@@ -301,6 +393,121 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     setImagePreviewError(false)
   }
 
+  // Funciones para manejar edición inline
+  const handleEditarPresentacion = (presentacion: any) => {
+    setPresentacionEditando(presentacion)
+    setShowPresentacionModal(true)
+    setIsEditingReference(true)
+  }
+
+  const handleEditarCategoria = (categoria: any) => {
+    setCategoriaEditando(categoria)
+    setShowCategoriaModal(true)
+    setIsEditingReference(true)
+  }
+
+  const handleGuardarPresentacion = async (data: any) => {
+    try {
+      // Add missing idInstitucion parameter
+      const result = await editarPresentacionMutation.mutateAsync({
+        id: presentacionEditando.id,
+        cambios: data,
+        idInstitucion: CURRENT_INSTITUTION_ID
+      })
+
+      if (result) {
+        // Close modal after successful update
+        setShowPresentacionModal(false)
+        setPresentacionEditando(null)
+        setIsEditingReference(false)
+
+        // Seleccionar automáticamente la presentación editada en el formulario
+        // Similar a como funciona handleCreateOption en DynamicSelect
+        try {
+          // Usar setValue con configuración completa para evitar eventos
+          form.setValue('presentacion_id', parseInt(result.id.toString(), 10) || 0, {
+            shouldValidate: false,  // Evitar validación del formulario principal
+            shouldDirty: false,     // Evitar marcar como sucio para prevenir validaciones
+            shouldTouch: false       // Evitar marcar como touched
+          })
+          console.log('✅ Campo presentacion_id actualizado sin errores:', result.id)
+        } catch (error) {
+          console.warn('Error al actualizar campo presentacion_id después de edición:', error)
+          // No bloquear el flujo por errores de validación
+        }
+
+        // Return expected format for modal
+        return { success: true, data: result }
+      }
+
+      return { success: false, error: 'No se pudo actualizar la presentación' }
+    } catch (error) {
+      console.error('Error al editar presentación:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Error desconocido'
+      }
+    }
+  }
+
+  const handleGuardarCategoria = async (data: any) => {
+    try {
+      // Add missing idInstitucion parameter
+      const result = await editarCategoriaMutation.mutateAsync({
+        id: categoriaEditando.id,
+        cambios: data,
+        idInstitucion: CURRENT_INSTITUTION_ID
+      })
+
+      if (result) {
+        // Close modal after successful update
+        setShowCategoriaModal(false)
+        setCategoriaEditando(null)
+        setIsEditingReference(false)
+
+        // Seleccionar automáticamente la categoría editada en el formulario
+        // Similar a como funciona handleCreateOption en DynamicSelect
+        try {
+          // Usar setValue con configuración completa para evitar eventos
+          form.setValue('categoria_id', parseInt(result.id.toString(), 10) || 0, {
+            shouldValidate: false,  // Evitar validación del formulario principal
+            shouldDirty: false,     // Evitar marcar como sucio para prevenir validaciones
+            shouldTouch: false       // Evitar marcar como touched
+          })
+          console.log('✅ Campo categoria_id actualizado sin errores:', result.id)
+        } catch (error) {
+          console.warn('Error al actualizar campo categoria_id después de edición:', error)
+          // No bloquear el flujo por errores de validación
+        }
+
+        // Return expected format for modal
+        return { success: true, data: result }
+      }
+
+      return { success: false, error: 'No se pudo actualizar la categoría' }
+    } catch (error) {
+      console.error('Error al editar categoría:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Error desconocido'
+      }
+    }
+  }
+
+  const handleMoverCategoria = async (idCategoria: string, nuevoPadreId?: string) => {
+    try {
+      const result = await moverCategoriaMutation.mutateAsync({
+        idCategoria,
+        nuevoPadreId
+      })
+      // TanStack Query maneja automáticamente la actualización del cache
+      return result
+    } catch (error) {
+      console.error('Error al mover categoría:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
   if (loading && esEdicion) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -313,15 +520,25 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
   }
 
   return (
-    <div className="w-full bg-background">
-      {/* Contenedor principal sin width constraints */}
-      <div className="w-full p-4 sm:p-6 lg:p-8">
+    <TooltipProvider delayDuration={300}>
+      <div className="w-full bg-background">
+        {/* Contenedor principal con max-width para evitar estiramiento excesivo */}
+        <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         {/* Mensajes de estado */}
         {error && (
           <div className="mb-6 p-4 rounded-md bg-destructive/15 border border-destructive/30">
             <div className="flex items-center gap-2">
               <span className="text-lg">⚠️</span>
               <span className="text-destructive font-medium">{error}</span>
+            </div>
+          </div>
+        )}
+
+        {generalError && (
+          <div className="mb-6 p-4 rounded-md bg-destructive/15 border border-destructive/30">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">❌</span>
+              <span className="text-destructive font-medium">{generalError}</span>
             </div>
           </div>
         )}
@@ -365,7 +582,12 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
           <CardContent className="p-6 sm:p-8 lg:p-10">
             <Scroller viewportAware size={16} offset={8}>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 pb-4">
+                <form
+                  onSubmit={form.handleSubmit(handleSubmit)}
+                  method="POST"
+                  action="#"
+                  className="space-y-6 pb-4"
+                >
                 <Tabs defaultValue="basic-info" className="w-full">
                   {/* Tabs Navigation - Dashboard Moderno */}
                   <TabsList className="grid w-full grid-cols-3 h-auto p-1 mb-8 bg-muted/50 backdrop-blur-sm rounded-xl">
@@ -409,7 +631,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                         <FieldDescription className="text-base text-muted-foreground leading-relaxed">
                           Datos principales del material para identificación en el sistema. Los campos marcados con <span className="text-destructive">*</span> son obligatorios.
                         </FieldDescription>
-                        <FieldGroup className="grid-cols-1 xs:grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
+                        <FieldGroup className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
                             <FormField
                               control={form.control}
                               name="codigo_barras"
@@ -418,17 +640,15 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                                   <FormLabel className="font-medium flex items-center gap-2">
                                     Código de Barras
                                     <span className="text-destructive">*</span>
+                                    <FieldTooltip content="Código EAN-13 de 13 dígitos para identificación única del producto en el sistema" />
                                   </FormLabel>
                                   <FormControl>
-                                    <MaskInput
-                                      mask="custom"
-                                      pattern="9999999999999"
+                                    <Input
+                                      type="text"
                                       placeholder="Ej: 7501234567890"
-                                      value={field.value}
-                                      onValueChange={(masked, unmasked) => {
-                                        field.onChange(unmasked)
-                                      }}
+                                      maxLength={13}
                                       className={`transition-colors focus:ring-2 focus:ring-primary/20 ${fieldState.invalid ? "border-destructive" : ""}`}
+                                      {...field}
                                     />
                                   </FormControl>
                                   <FormMessage />
@@ -483,50 +703,82 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
 
                             <FormField
                               control={form.control}
-                              name="presentacion"
+                              name="presentacion_id"
                               render={({ field, fieldState }) => (
                                 <FormItem>
-                                  <FormLabel>Presentación</FormLabel>
-                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl>
-                                      <SelectTrigger className={fieldState.invalid ? "border-destructive" : ""}>
-                                        <SelectValue placeholder="Seleccionar presentación" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {presentaciones.map(pres => (
-                                        <SelectItem key={pres} value={pres}>
-                                          {pres}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
+                                  <FormLabel className="flex items-center gap-2">
+                                    Presentación
+                                    <span className="text-destructive">*</span>
+                                    <FieldTooltip content="Unidad de medida o empaque del producto (caja, kilogramo, unidad, etc.)" />
+                                  </FormLabel>
+                                  <FormControl>
+                                    <MemoizedDynamicSelect
+                                      control={form.control}
+                                      name="presentacion_id"
+                                      label=""
+                                      type="presentacion"
+                                      placeholder="Seleccionar presentación..."
+                                      creatable={true}
+                                      allowEdit={true}
+                                      required={true}
+                                      disabled={loadingReferencias}
+                                      onEdit={(presentacion) => {
+                                        handleEditarPresentacion(presentacion)
+                                      }}
+                                    />
+                                  </FormControl>
                                   <FormMessage />
+                                  {/* Advertencia de compatibilidad backward */}
+                                  {form.watch('presentacion') && !field.value && (
+                                    <div className="text-xs text-yellow-600 bg-yellow-50 p-2 rounded border border-yellow-200">
+                                      ⚠️ Modo compatibilidad: usando presentación de texto. Seleccione una presentación de la lista para mejor experiencia.
+                                    </div>
+                                  )}
                                 </FormItem>
                               )}
                             />
 
                             <FormField
                               control={form.control}
-                              name="categoria"
+                              name="categoria_id"
                               render={({ field }) => (
-                                <FormItem className="sm:col-span-2 lg:col-span-1 xl:col-span-1 2xl:col-span-2">
-                                  <FormLabel>Categoría</FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Seleccionar categoría" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {categorias.map(cat => (
-                                        <SelectItem key={cat} value={cat}>
-                                          {cat}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
+                                <FormItem className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
+                                  <FormLabel className="flex items-center gap-2">
+                                  Categoría
+                                  <span className="text-destructive">*</span>
+                                  <FieldTooltip content="Clasificación principal para organización, reportes y análisis" />
+                                </FormLabel>
+                                  <FormControl>
+                                    <MemoizedDynamicSelect
+                                      control={form.control}
+                                      name="categoria_id"
+                                      label=""
+                                      type="categoria"
+                                      placeholder="Seleccionar categoría..."
+                                      creatable={true}
+                                      allowEdit={true}
+                                      disabled={loadingReferencias}
+                                      onEdit={(categoria) => {
+                                        handleEditarCategoria(categoria)
+                                      }}
+                                      onMove={async (idCategoria, nuevoPadreId) => {
+                                        const result = await handleMoverCategoria(idCategoria, nuevoPadreId)
+                                        if (result.success) {
+                                          // Mostrar toast de éxito
+                                          console.log('Categoría movida exitosamente')
+                                        } else {
+                                          console.error('Error al mover categoría:', result.error)
+                                        }
+                                      }}
+                                    />
+                                  </FormControl>
                                   <FormMessage />
+                                  {/* Advertencia de compatibilidad backward */}
+                                  {form.watch('categoria') && !field.value && (
+                                    <div className="text-xs text-yellow-600 bg-yellow-50 p-2 rounded border border-yellow-200">
+                                      ⚠️ Modo compatibilidad: usando categoría de texto. Seleccione una categoría de la lista para mejor experiencia.
+                                    </div>
+                                  )}
                                 </FormItem>
                               )}
                             />
@@ -544,7 +796,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                         <FieldDescription className="text-base text-muted-foreground leading-relaxed">
                           Configure los niveles de inventario y costos del material. Mantenga el control sobre el flujo de productos.
                         </FieldDescription>
-                        <FieldGroup className="grid-cols-1 xs:grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-6 lg:gap-8">
+                        <FieldGroup className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
                             <FormField
                               control={form.control}
                               name="stock_actual"
@@ -571,7 +823,10 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                               name="stock_minimo"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Stock Mínimo</FormLabel>
+                                  <FormLabel className="flex items-center gap-2">
+                                  Stock Mínimo
+                                  <FieldTooltip content="Nivel mínimo para activar alertas de reposición automática" />
+                                </FormLabel>
                                   <FormControl>
                                     <Input
                                       type="number"
@@ -592,7 +847,10 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                               name="costo_unitario"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Costo Unitario</FormLabel>
+                                  <FormLabel className="flex items-center gap-2">
+                                  Costo Unitario
+                                  <FieldTooltip content="Costo por unidad sin incluir impuestos ni gastos de envío" />
+                                </FormLabel>
                                   <FormControl>
                                     <MaskInput
                                       mask="currency"
@@ -614,7 +872,10 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                               name="fecha_caducidad"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Fecha de Caducidad</FormLabel>
+                                  <FormLabel className="flex items-center gap-2">
+                                  Fecha de Caducidad
+                                  <FieldTooltip content="Fecha en que el producto pierde su validez (aplicable solo para perecederos)" />
+                                </FormLabel>
                                   <FormControl>
                                     <Input
                                       type="date"
@@ -640,7 +901,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                         <FieldDescription className="text-base text-muted-foreground leading-relaxed">
                           Información complementaria y detalles extra del material. Agregue contexto para mejorar la gestión.
                         </FieldDescription>
-                        <FieldGroup className="grid-cols-1 xs:grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+                        <FieldGroup className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
                             <FormField
                               control={form.control}
                               name="proveedor_id"
@@ -759,8 +1020,11 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                               control={form.control}
                               name="descripcion"
                               render={({ field }) => (
-                                <FormItem className="xs:col-span-1 sm:col-span-1 md:col-span-2 lg:col-span-2 xl:col-span-3 2xl:col-span-4">
-                                  <FormLabel>Descripción</FormLabel>
+                                <FormItem className="col-span-1 sm:col-span-2 lg:col-span-3">
+                                  <FormLabel className="flex items-center gap-2">
+                                  Descripción
+                                  <FieldTooltip content="Detalles adicionales, especificaciones técnicas o notas importantes del material" />
+                                </FormLabel>
                                   <FormControl>
                                     <Textarea
                                       placeholder="Descripción detallada del material..."
@@ -782,14 +1046,14 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                   <div className="flex flex-col xs:flex-row gap-3 xs:gap-4 pt-8 border-t bg-muted/20 -mx-10 px-10 py-6 rounded-b-xl">
                     <Button
                       type="submit"
-                      disabled={form.formState.isSubmitting || success}
+                      disabled={form.formState.isSubmitting || loading || success}
                       className="w-full xs:w-auto min-w-[140px] h-12 text-base font-medium shadow-lg hover:shadow-xl transition-all duration-200 order-2 xs:order-1"
                       size="lg"
                     >
-                      {form.formState.isSubmitting ? (
+                      {form.formState.isSubmitting || loading ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                          Guardando...
+                          {loading ? 'Procesando...' : 'Guardando...'}
                         </>
                       ) : (
                         <>
@@ -809,6 +1073,35 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                     </Button>
                   </div>
                 </Tabs>
+
+                {/* Modales de edición inline */}
+                {showPresentacionModal && presentacionEditando && (
+                  <InlineEditModal
+                    isOpen={showPresentacionModal}
+                    onClose={() => {
+                      setShowPresentacionModal(false)
+                      setPresentacionEditando(null)
+                      setIsEditingReference(false)
+                    }}
+                    item={presentacionEditando}
+                    type="presentacion"
+                    onSave={handleGuardarPresentacion}
+                  />
+                )}
+
+                {showCategoriaModal && categoriaEditando && (
+                  <InlineEditModal
+                    isOpen={showCategoriaModal}
+                    onClose={() => {
+                      setShowCategoriaModal(false)
+                      setCategoriaEditando(null)
+                      setIsEditingReference(false)
+                    }}
+                    item={categoriaEditando}
+                    type="categoria"
+                    onSave={handleGuardarCategoria}
+                  />
+                )}
                 </form>
               </Form>
             </Scroller>
@@ -816,6 +1109,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
         </Card>
       </div>
     </div>
+    </TooltipProvider>
   )
 }
 

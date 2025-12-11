@@ -171,15 +171,18 @@ const createColumns = (
   },
   {
     id: 'categoria',
-    accessorKey: 'categoria',
+    accessorKey: 'categoria_nombre',
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Categoría" />
     ),
-    cell: ({ row }) => (
-      <div>
-        {row.getValue('categoria') || '-'}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const categoria = row.original.categoria_nombre || row.original.categoria;
+      return (
+        <div>
+          {categoria || '-'}
+        </div>
+      );
+    },
     enableColumnFilter: true,
     meta: {
       label: 'Categoría',
@@ -392,7 +395,7 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
       const nombre = safeGet(material, 'nombre', '')
       const codigoBarras = safeGet(material, 'codigo_barras', '')
       const marca = safeGet(material, 'marca', '')
-      const categoria = safeGet(material, 'categoria', '')
+      const categoria = safeGet(material, 'categoria_nombre', '') || safeGet(material, 'categoria', '') // Priorizar categoria_nombre
       const stockActual = safeGet(material, 'stock_actual', 0)
       const stockMinimo = safeGet(material, 'stock_minimo', 0)
       const estatus = safeGet(material, 'estatus', 'ACTIVO')
@@ -426,7 +429,7 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
       ...(categoriaFilter && { categoria: categoriaFilter }),
       ...(stockFilter === 'low' && { bajoStock: true })
     }, { includeInactive })
-  }, [categoriaFilter, stockFilter, statusFilter]) // ✅ AÑADIR: statusFilter dependency
+  }, [categoriaFilter, stockFilter, statusFilter])
 
   const handleEdit = (material: MateriaPrima) => {
     if (material?.id) {
@@ -856,6 +859,9 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
             <DialogTitle className="flex items-center gap-2">
               📦 Ajustar Stock
             </DialogTitle>
+            <DialogDescription>
+              Ajusta la cantidad de stock para este material. Usa números positivos para agregar o negativos para restar unidades.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2 text-sm">
@@ -909,6 +915,12 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
             <DialogTitle className="flex items-center gap-2">
               {selectedMaterial?.estatus === 'ACTIVO' ? '🔒 Deshabilitar Material' : '✅ Habilitar Material'}
             </DialogTitle>
+            <DialogDescription>
+              {selectedMaterial?.estatus === 'ACTIVO'
+                ? 'El material deshabilitado no aparecerá en las búsquedas normales y no podrá ser utilizado en movimientos.'
+                : 'El material habilitado volverá a aparecer en las búsquedas y podrá ser utilizado normalmente.'
+              }
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <p>
@@ -961,6 +973,9 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
             <DialogTitle className="flex items-center gap-2">
               📋 Detalles del Material
             </DialogTitle>
+            <DialogDescription>
+              Visualiza toda la información detallada del material seleccionado, incluyendo datos de stock, costos y auditoría.
+            </DialogDescription>
           </DialogHeader>
           <div>
             {loadingDetalle ? (
@@ -1031,7 +1046,7 @@ export const GestionMateriaPrimaResponsive: React.FC<GestionMateriaPrimaResponsi
                     </div>
                     <div>
                       <span className="font-semibold">Categoría:</span><br />
-                      {materialDetalle.categoria || 'N/A'}
+                      {materialDetalle.categoria_nombre || materialDetalle.categoria || 'N/A'}
                     </div>
                     <div>
                       <span className="font-semibold">Presentación:</span><br />

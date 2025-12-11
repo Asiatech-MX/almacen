@@ -11,6 +11,20 @@ export type {
   ProveedorSearch as ProveedorSearchType
 } from './proveedores'
 
+export type {
+  Categoria,
+  NewCategoria,
+  CategoriaUpdate,
+  CategoriaArbol,
+  OperacionMoverCategoria,
+  OperacionReordenarCategorias,
+  Presentacion,
+  NewPresentacion,
+  PresentacionUpdate
+} from './referenceData'
+
+export type { ElectronAPI } from './preload'
+
 // Tipos comunes globales
 export interface User {
   id: string

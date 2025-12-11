@@ -16,9 +16,14 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 
 // Icons
-import { Save, X, Package, AlertTriangle, Check, Camera } from 'lucide-react'
+import { Save, X, Package, AlertTriangle, Check, Camera, Plus } from 'lucide-react'
+
+// Hooks
+import { useCategorias, useCrearCategoria } from '@/hooks/useCategoria'
+import { usePresentaciones, useCrearPresentacion } from '@/hooks/usePresentacion'
 
 // Types
 import type { MateriaPrima, MateriaPrimaFormData, NewMateriaPrima, MateriaPrimaUpdate } from '@/shared/types/materiaPrima'
@@ -129,18 +134,6 @@ export interface MaterialFormProps {
   className?: string
 }
 
-// Categorías predefinidas
-const CATEGORIAS_PREDEFINIDAS = [
-  'Materiales de construcción',
-  'Herramientas',
-  'Equipos',
-  'Suministros de oficina',
-  'Limpiadores',
-  'Seguridad',
-  'Electricidad',
-  'Plomería',
-  'Otros'
-]
 
 export const MaterialForm: React.FC<MaterialFormProps> = ({
   material,
@@ -151,6 +144,23 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
   error = null,
   className,
 }) => {
+  // Estado para ID de institución (debería venir del contexto/auth)
+  const [idInstitucion] = React.useState(1) // Obtener del contexto en implementación real
+
+  // Fetch categorías y presentaciones
+  const { data: categorias = [], isLoading: cargandoCategorias } = useCategorias(idInstitucion)
+  const { data: presentaciones = [], isLoading: cargandoPresentaciones } = usePresentaciones(idInstitucion)
+
+  // Mutaciones para crear nuevos elementos
+  const crearCategoria = useCrearCategoria()
+  const crearPresentacion = useCrearPresentacion()
+
+  // Estado para modales de creación
+  const [mostrarModalCategoria, setMostrarModalCategoria] = React.useState(false)
+  const [mostrarModalPresentacion, setMostrarModalPresentacion] = React.useState(false)
+  const [nuevaCategoria, setNuevaCategoria] = React.useState('')
+  const [nuevaPresentacion, setNuevaPresentacion] = React.useState('')
+
   // Configuración del formulario con React Hook Form
   const form = useForm<MaterialFormValues>({
     resolver: zodResolver(materialFormSchema),
@@ -188,6 +198,61 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
     if (watchedStockActual <= watchedStockMinimo) return { status: 'low', label: 'Stock bajo', color: 'secondary' }
     return { status: 'normal', label: 'Stock normal', color: 'default' }
   }, [watchedStockActual, watchedStockMinimo])
+
+  // Funciones para manejar creación de categorías y presentaciones
+  const handleCrearCategoria = useCallback(async () => {
+    if (!nuevaCategoria.trim()) return
+
+    try {
+      const result = await crearCategoria.mutateAsync({
+        categoria: {
+          nombre: nuevaCategoria.trim(),
+          descripcion: '',
+          nivel: 1,
+          orden: 0,
+          activo: true,
+          id_institucion: idInstitucion
+        }
+      })
+
+      // Seleccionar automáticamente la nueva categoría creada
+      if (result) {
+        form.setValue('categoria', result.nombre)
+      }
+
+      setNuevaCategoria('')
+      setMostrarModalCategoria(false)
+    } catch (error) {
+      console.error('Error creating category:', error)
+    }
+  }, [nuevaCategoria, crearCategoria, idInstitucion, form])
+
+  const handleCrearPresentacion = useCallback(async () => {
+    if (!nuevaPresentacion.trim()) return
+
+    try {
+      const result = await crearPresentacion.mutateAsync({
+        presentacion: {
+          nombre: nuevaPresentacion.trim(),
+          descripcion: '',
+          abreviatura: '',
+          es_predeterminada: false,
+          activo: true,
+          id_institucion: idInstitucion
+        }
+      })
+
+      // Seleccionar automáticamente la nueva presentación creada
+      if (result) {
+        form.setValue('presentacion', result.nombre)
+      }
+
+      setNuevaPresentacion('')
+      setMostrarModalPresentacion(false)
+    } catch (error) {
+      console.error('Error creating presentation:', error)
+    }
+  }, [nuevaPresentacion, crearPresentacion, idInstitucion, form])
 
   // Submit handler
   const handleSubmit = useCallback(async (values: MaterialFormValues) => {
@@ -369,14 +434,42 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Presentación *</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            placeholder="Ej: Saco 50kg"
-                            aria-invalid={!!formErrors.presentacion}
-                            disabled={loading}
-                          />
-                        </FormControl>
+                        <Select
+                          onValueChange={(value) => {
+                            if (value === '__ADD_NEW__') {
+                              setMostrarModalPresentacion(true)
+                            } else {
+                              field.onChange(value)
+                            }
+                          }}
+                          defaultValue={field.value || ''}
+                          disabled={loading || cargandoPresentaciones}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona una presentación" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {cargandoPresentaciones ? (
+                              <div className="p-2">
+                                <Skeleton className="h-4 w-full" />
+                              </div>
+                            ) : (
+                              <>
+                                {presentaciones.map((pres) => (
+                                  <SelectItem key={pres.id} value={pres.nombre}>
+                                    {pres.nombre} {pres.es_predeterminada && '⭐'}
+                                  </SelectItem>
+                                ))}
+                                <SelectItem value="__ADD_NEW__" className="text-blue-600">
+                                  <Plus className="inline w-4 h-4 mr-2" />
+                                  Agregar nueva presentación
+                                </SelectItem>
+                              </>
+                            )}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -390,9 +483,15 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
                       <FormItem>
                         <FormLabel>Categoría</FormLabel>
                         <Select
-                          onValueChange={field.onChange}
+                          onValueChange={(value) => {
+                            if (value === '__ADD_NEW__') {
+                              setMostrarModalCategoria(true)
+                            } else {
+                              field.onChange(value)
+                            }
+                          }}
                           defaultValue={field.value || ''}
-                          disabled={loading}
+                          disabled={loading || cargandoCategorias}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -400,11 +499,23 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {CATEGORIAS_PREDEFINIDAS.map((cat) => (
-                              <SelectItem key={cat} value={cat}>
-                                {cat}
-                              </SelectItem>
-                            ))}
+                            {cargandoCategorias ? (
+                              <div className="p-2">
+                                <Skeleton className="h-4 w-full" />
+                              </div>
+                            ) : (
+                              <>
+                                {categorias.map((cat) => (
+                                  <SelectItem key={cat.id} value={cat.nombre}>
+                                    {cat.nombre}
+                                  </SelectItem>
+                                ))}
+                                <SelectItem value="__ADD_NEW__" className="text-blue-600">
+                                  <Plus className="inline w-4 h-4 mr-2" />
+                                  Agregar nueva categoría
+                                </SelectItem>
+                              </>
+                            )}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -692,6 +803,102 @@ export const MaterialForm: React.FC<MaterialFormProps> = ({
           </form>
         </Form>
       </CardContent>
+
+      {/* Modal para crear nueva categoría */}
+      <Dialog open={mostrarModalCategoria} onOpenChange={setMostrarModalCategoria}>
+        <DialogContent>
+          <DialogTitle>Agrear Nueva Categoría</DialogTitle>
+          <DialogDescription>
+            Crea una nueva categoría para organizar tus materiales.
+          </DialogDescription>
+          <div className="py-4">
+            <Label htmlFor="nueva-categoria">Nombre de la categoría</Label>
+            <Input
+              id="nueva-categoria"
+              value={nuevaCategoria}
+              onChange={(e) => setNuevaCategoria(e.target.value)}
+              placeholder="Ej: Electricidad, Plomería, etc."
+              className="mt-1"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setMostrarModalCategoria(false)
+                setNuevaCategoria('')
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCrearCategoria}
+              disabled={!nuevaCategoria.trim() || crearCategoria.isPending}
+            >
+              {crearCategoria.isPending ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  Creando...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Agregar Categoría
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal para crear nueva presentación */}
+      <Dialog open={mostrarModalPresentacion} onOpenChange={setMostrarModalPresentacion}>
+        <DialogContent>
+          <DialogTitle>Agrear Nueva Presentación</DialogTitle>
+          <DialogDescription>
+            Crea una nueva presentación para tus materiales (ej: Saco 50kg, Litro, Unidad, etc.).
+          </DialogDescription>
+          <div className="py-4">
+            <Label htmlFor="nueva-presentacion">Nombre de la presentación</Label>
+            <Input
+              id="nueva-presentacion"
+              value={nuevaPresentacion}
+              onChange={(e) => setNuevaPresentacion(e.target.value)}
+              placeholder="Ej: Saco 50kg, Litro, Unidad, etc."
+              className="mt-1"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setMostrarModalPresentacion(false)
+                setNuevaPresentacion('')
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCrearPresentacion}
+              disabled={!nuevaPresentacion.trim() || crearPresentacion.isPending}
+            >
+              {crearPresentacion.isPending ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  Creando...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Agregar Presentación
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

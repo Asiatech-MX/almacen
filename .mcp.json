@@ -1,0 +1,36 @@
+{
+  "mcpServers": {
+    "zai-mcp-server": {
+      "type": "stdio",
+      "command": "bunx",
+      "args": ["-y", "@z_ai/mcp-server"],
+      "env": {
+        "Z_AI_API_KEY": "bc13d639e6c3419eab5458d48b70e63c.jbdjZAPfHJVKci8T",
+        "Z_AI_MODE": "ZAI"
+      }
+    },
+    "web-search-prime": {
+      "type": "http",
+      "url": "https://api.z.ai/api/mcp/web_search_prime/mcp",
+      "headers": {
+        "Authorization": "Bearer bc13d639e6c3419eab5458d48b70e63c.jbdjZAPfHJVKci8T"
+      }
+    },
+    "web-reader": {
+      "type": "http",
+      "url": "https://api.z.ai/api/mcp/web_reader/mcp",
+      "headers": {
+        "Authorization": "Bearer bc13d639e6c3419eab5458d48b70e63c.jbdjZAPfHJVKci8T"
+      }
+    },
+    "gh_rep": {
+      "type": "http",
+      "url": "https://mcp.grep.app"
+    },
+    "docker-mcp": {
+      "type": "stdio",
+      "command": "docker",
+      "args": ["mcp", "gateway", "run"]
+    }
+  }
+}

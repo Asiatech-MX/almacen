@@ -10,7 +10,7 @@ This is an Electron-based desktop application for warehouse/material management 
 - **TypeScript** for type safety
 - **PostgreSQL** as the primary database
 - **Kysely** as the query builder
-- **pnpm** as package manager
+- **Bun** as package manager
 - **Tailwind CSS v4** with @tailwindcss/vite plugin for styling
 - **shadcn/ui** components adapted for Tailwind v4
 - **Monorepo structure** with workspace configuration
@@ -89,28 +89,28 @@ export default defineConfig({
 ### Application Development
 ```bash
 # Start development with hot reload
-pnpm dev
+bun dev
 
 # Build for production
-pnpm build
+bun build
 
 # Package application for distribution
-pnpm pack
+bun pack
 
 # Build and package (full distribution)
-pnpm dist
+bun dist
 ```
 
 ### Database Operations
 ```bash
 # Generate TypeScript types from database schema
-pnpm db:codegen
+bun db:codegen
 
 # Generate types from SQL queries (PGTyped)
-pnpm db:generate-types
+bun db:generate-types
 
 # Run database migrations
-pnpm db:migrate
+bun db:migrate
 ```
 
 ### Database Setup
@@ -197,7 +197,7 @@ The application uses a secure IPC pattern with contextBridge:
 
 ### Adding New Features
 1. **Database First**: Start with schema changes in `db/schema_postgres.sql`
-2. **Type Generation**: Run `pnpm db:generate-types` to update TypeScript types
+2. **Type Generation**: Run `bun db:generate-types` to update TypeScript types
 3. **Repository Layer**: Create repository in `backend/repositories/`
 4. **IPC Handler**: Add handler in `apps/electron-main/src/main/ipc/`
 5. **Preload API**: Expose via contextBridge in preload script
@@ -243,8 +243,8 @@ DATABASE_URL=postgresql://user:password@localhost:5432/database_name
 ## Deployment
 
 ### Build Process
-1. `pnpm build`: Compiles TypeScript and bundles frontend
-2. `pnpm pack`: Creates Electron installer/executable
+1. `bun build`: Compiles TypeScript and bundles frontend
+2. `bun pack`: Creates Electron installer/executable
 3. Supports Windows, macOS, and Linux distributions
 
 ### Production Considerations

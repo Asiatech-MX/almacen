@@ -347,7 +347,7 @@ export function setupMateriaPrimaHandlers(): void {
     try {
       console.log('📡 materiaPrima:crear handled')
       // Validación básica
-      if (!data.codigo_barras || !data.nombre || !data.presentacion) {
+      if (!data.codigo_barras || !data.nombre || !data.presentacion_id) {
         throw new Error('Datos incompletos: código de barras, nombre y presentación son requeridos')
       }
 

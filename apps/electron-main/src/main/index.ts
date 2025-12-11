@@ -5,7 +5,12 @@ import { promises as fs } from 'node:fs'
 import { setupMateriaPrimaHandlers } from './ipc/materiaPrima'
 import { setupFileSystemHandlers } from './ipc/fs'
 import { registerProveedorHandlers } from './ipc/proveedor'
+import { setupCategoriaHandlers } from './ipc/categoria'
+import { setupPresentacionHandlers } from './ipc/presentacion'
+import { setupFeatureFlagsHandlers } from './ipc/featureFlags'
+import { setupMonitoringHandlers } from './ipc/monitoring'
 import { validateDatabaseConnection } from '@backend/db/pool'
+import { monitoring } from './monitoring'
 
 // Cargar variables de entorno desde .env
 config()
@@ -172,6 +177,7 @@ async function setupWithRetry(maxRetries = 3): Promise<boolean> {
 
       const dbConnected = await validateDatabaseConnection()
       startupMetrics.dbConnectionTime = Date.now() - startTime
+      monitoring.recordStartupMetric('dbConnectionTime', startupMetrics.dbConnectionTime)
 
       if (dbConnected) {
         console.log(`✅ Database connection verified in ${startupMetrics.dbConnectionTime}ms`)
@@ -200,6 +206,7 @@ const createWindow = (): void => {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    show: false, // Iniciar oculta para controlar cuándo se muestra
     webPreferences: {
       preload: join(__dirname, '../preload/index.cjs'),
       nodeIntegration: false,
@@ -220,6 +227,7 @@ const createWindow = (): void => {
   })
 
   startupMetrics.windowCreationTime = Date.now() - startTime
+  monitoring.recordStartupMetric('windowCreationTime', startupMetrics.windowCreationTime)
   console.log(`🪟 Window created in ${startupMetrics.windowCreationTime}ms`)
 
   // HMR para desarrollo
@@ -233,14 +241,45 @@ const createWindow = (): void => {
   if (!app.isPackaged) {
     mainWindow.webContents.openDevTools()
   }
+
+  // Mostrar la ventana y asegurar que esté en primer plano
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show()
+    mainWindow.focus()
+    mainWindow.setAlwaysOnTop(true, 'screen-saver')
+    mainWindow.setAlwaysOnTop(false)
+  })
+
+  // Forzar mostrar después de un pequeño retraso como fallback
+  setTimeout(() => {
+    if (!mainWindow.isVisible()) {
+      mainWindow.show()
+      mainWindow.focus()
+      mainWindow.setAlwaysOnTop(true)
+      setTimeout(() => {
+        mainWindow.setAlwaysOnTop(false)
+      }, 1000)
+    }
+  }, 1000)
 }
 
 const setupIPC = (): void => {
   const startTime = Date.now()
 
+  // Handlers existentes
   setupMateriaPrimaHandlers()
   setupFileSystemHandlers()
   registerProveedorHandlers()
+
+  // Nuevos handlers para reference data
+  setupCategoriaHandlers()
+  setupPresentacionHandlers()
+
+  // Feature flags handlers
+  setupFeatureFlagsHandlers()
+
+  // Monitoring handlers
+  setupMonitoringHandlers()
 
   // Ping para testing
   ipcMain.handle('ping', async () => {
@@ -248,6 +287,7 @@ const setupIPC = (): void => {
   })
 
   startupMetrics.ipcSetupTime = Date.now() - startTime
+  monitoring.recordStartupMetric('startupTime', Date.now() - startupMetrics.startTime)
   console.log(`📡 IPC handlers configured in ${startupMetrics.ipcSetupTime}ms`)
 }
 

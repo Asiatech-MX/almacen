@@ -58,24 +58,14 @@ async function runMigration(fileName: string, sql: string) {
   console.log(`Running migration: ${fileName}`)
 
   try {
-    // Begin transaction
-    await db.transaction().execute(async (trx) => {
-      // Split SQL into individual statements
-      const statements = sql
-        .split(';')
-        .map(stmt => stmt.trim())
-        .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'))
-
-      for (const statement of statements) {
-        await trx.executeQuery({
-          sql: statement,
-          parameters: [],
-          query: {
-            kind: 'RawQuery',
-            sql: statement,
-            parameters: []
-          }
-        })
+    // Execute SQL as a single batch
+    await db.executeQuery({
+      sql: sql,
+      parameters: [],
+      query: {
+        kind: 'RawQuery',
+        sql: sql,
+        parameters: []
       }
     })
 
@@ -84,6 +74,7 @@ async function runMigration(fileName: string, sql: string) {
     console.log(`✓ Migration ${fileName} executed successfully`)
   } catch (error) {
     console.error(`✗ Error executing migration ${fileName}:`, error)
+    console.error(`SQL preview:`, sql.substring(0, 200) + '...')
     throw error
   }
 }
@@ -125,9 +116,7 @@ async function migrate() {
   }
 }
 
-// Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  migrate()
-}
+// Run if called directly (always execute when script is run)
+migrate()
 
 export { migrate }

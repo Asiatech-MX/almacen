@@ -32,9 +32,24 @@
       "Bash(npx shadcn@latest add:*)",
       "WebFetch(domain:www.diceui.com)",
       "WebFetch(domain:dev.to)",
-      "Bash(gh issue create:*)"
+      "Bash(gh issue create:*)",
+      "Bash(dir C:Usersfelipilloproyectosalmacen)",
+      "Bash(findstr:*)",
+      "Bash(bun:*)",
+      "mcp__docker-mcp__sequentialthinking",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "mcp__docker-mcp__resolve-library-id",
+      "mcp__docker-mcp__get-library-docs"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "zai-mcp-server",
+    "web-search-prime",
+    "web-reader",
+    "docker-mcp"
+  ]
 }

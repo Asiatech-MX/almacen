@@ -1,0 +1,28 @@
+{
+  "dynamicReferenceData": {
+    "enabled": false,
+    "rolloutPercentage": 0,
+    "allowAdminOverride": true,
+    "migrationCompleted": false
+  },
+  "remoteLogging": {
+    "enabled": false,
+    "rolloutPercentage": 0,
+    "allowAdminOverride": true
+  },
+  "performanceMonitoring": {
+    "enabled": false,
+    "rolloutPercentage": 30,
+    "allowAdminOverride": true
+  },
+  "advancedAnalytics": {
+    "enabled": false,
+    "rolloutPercentage": 0,
+    "allowAdminOverride": true
+  },
+  "experimentalUI": {
+    "enabled": false,
+    "rolloutPercentage": 0,
+    "allowAdminOverride": true
+  }
+}
