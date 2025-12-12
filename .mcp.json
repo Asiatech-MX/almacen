@@ -36,6 +36,11 @@
       "type": "stdio",
       "command": "docker",
       "args": ["mcp", "gateway", "run"]
+    },
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "bunx",
+      "args": ["-y", "chrome-devtools-mcp@latest"]
     }
   }
 }
