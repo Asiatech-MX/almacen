@@ -3,7 +3,11 @@ export type {
   Proveedor as MateriaPrimaProveedor,
   ProveedorSearch as MateriaPrimaProveedorSearch,
   MateriaPrima,
-  MateriaPrimaSearch
+  MateriaPrimaSearch,
+  MateriaPrimaDetail,
+  MateriaPrimaStats,
+  MateriaPrimaEstatusUpdate,
+  AuditTrail
 } from './materiaPrima'
 
 export type {
@@ -24,6 +28,25 @@ export type {
 } from './referenceData'
 
 export type { ElectronAPI } from './preload'
+
+export type {
+  BarcodeFormat,
+  BarcodeOptions,
+  LabelTemplate,
+  LabelLayout,
+  PrintJob,
+  MaterialLabelData,
+  PrinterConfig,
+  PrintOptions,
+  BarcodeValidation,
+  BarcodeIPCEevents
+} from './barcode'
+
+export {
+  BARCODE_VALIDATIONS,
+  BROTHER_QL810W_TEMPLATES,
+  BROTHER_PRINTER_CONFIGS
+} from './barcode'
 
 // Tipos comunes globales
 export interface User {

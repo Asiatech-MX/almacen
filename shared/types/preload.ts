@@ -23,7 +23,12 @@ import type {
   OperacionReordenarCategorias,
   Presentacion,
   NewPresentacion,
-  PresentacionUpdate
+  PresentacionUpdate,
+  BarcodeOptions,
+  BarcodeFormat,
+  PrintJob,
+  PrinterConfig,
+  MaterialLabelData
 } from './index'
 
 // Interfaces para upload de imágenes
@@ -138,7 +143,7 @@ export interface ElectronAPI {
 
     // Operaciones de consulta
     verificarDependencias: (id: string) => Promise<{ tiene_materiales: boolean }>
-    buscar: (idInstitucion: number, termino: string, soloActivas?: boolean) => Promise<Presentacion[]>
+    buscarConFiltros: (idInstitucion: number, termino: string, soloActivas?: boolean) => Promise<Presentacion[]>
     obtenerPorNombre: (idInstitucion: number, nombre: string, includeInactive?: boolean) => Promise<Presentacion | null>
     listarTodas: (idInstitucion: number) => Promise<Presentacion[]>
 
@@ -154,6 +159,39 @@ export interface ElectronAPI {
   sistema: {
     leerArchivo: (ruta: string) => Promise<string>
     guardarArchivo: (ruta: string, contenido: string) => Promise<boolean>
+  }
+
+  // ==================== SISTEMA DE CÓDIGOS DE BARRAS ====================
+  barcode: {
+    // Generar código de barras como base64
+    generate: (options: BarcodeOptions) => Promise<{ success: boolean; data?: string; error?: string }>
+
+    // Validar formato de código de barras
+    validate: (format: BarcodeFormat, value: string) => Promise<{ valid: boolean; error?: string }>
+
+    // Imprimir etiqueta individual
+    print: (job: PrintJob) => Promise<{ success: boolean; message?: string; jobId?: string }>
+
+    // Imprimir lote de etiquetas
+    printBatch: (jobs: PrintJob[]) => Promise<{ success: boolean; message?: string; results?: any[] }>
+
+    // Descubrir impresoras disponibles
+    discover: () => Promise<PrinterConfig[]>
+
+    // Verificar estado de impresora
+    status: (printerId: string) => Promise<{ connected: boolean; status: string; error?: string }>
+
+    // Obtener configuración de impresora
+    getConfig: (printerId: string) => Promise<PrinterConfig | null>
+
+    // Establecer configuración de impresora
+    setConfig: (config: PrinterConfig) => Promise<boolean>
+
+    // Obtener historial de impresión
+    getHistory: () => Promise<PrintJob[]>
+
+    // Limpiar historial de impresión
+    clearHistory: () => Promise<boolean>
   }
 
   // ==================== FEATURE FLAGS ====================

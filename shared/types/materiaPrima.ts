@@ -16,6 +16,7 @@ export type MateriaPrima = KyselyMateriaPrima & {
   stock_actual: KyselyMateriaPrima['stockActual']
   stock_minimo: KyselyMateriaPrima['stockMinimo']
   codigo_barras: KyselyMateriaPrima['codigoBarras']
+  codigo_barras_formato: string | null // Manually added field (Kysely types not yet generated)
   costo_unitario: KyselyMateriaPrima['costoUnitario']
   fecha_caducidad: KyselyMateriaPrima['fechaCaducidad']
   imagen_url: KyselyMateriaPrima['imagenUrl']
@@ -62,9 +63,10 @@ export type CategoriaStats = {
 export type Proveedor = FindAllProveedoresResult
 export type ProveedorSearch = SearchProveedoresResult
 
-// Para operaciones de escritura (Kysely types) - Actualizado para sistema de referencias
+// Para operaciones de escritura (Kysely types) - Actualizado para sistema de referencias y códigos de barras
 export interface NewMateriaPrima {
   codigo_barras: string
+  codigo_barras_formato?: string // New field for barcode format
   nombre: string
   marca?: string | null
   modelo?: string | null
@@ -84,6 +86,7 @@ export interface NewMateriaPrima {
 
 export interface MateriaPrimaUpdate {
   codigo_barras?: string
+  codigo_barras_formato?: string // New field for barcode format
   nombre?: string
   marca?: string | null
   modelo?: string | null
