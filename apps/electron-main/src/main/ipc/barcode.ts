@@ -19,12 +19,21 @@ let isPrinting = false
 // Función para generar código de barras como base64
 async function generateBarcodePNG(options: BarcodeOptions): Promise<string> {
   const JsBarcode = require('jsbarcode')
-  
+
   try {
+    console.log('🔧 [Main] Generating barcode with options:', {
+      format: options.format,
+      value: options.value,
+      width: options.width,
+      height: options.height
+    })
+
     // Crear canvas temporal
     const canvas = require('canvas').createCanvas(720, 300) // 720px width para óptima impresión
     const ctx = canvas.getContext('2d')
-    
+
+    console.log('✅ [Main] Canvas created successfully, size:', canvas.width, 'x', canvas.height)
+
     // Generar código de barras con JsBarcode
     JsBarcode(canvas, options.value, {
       format: options.format,
@@ -46,72 +55,42 @@ async function generateBarcodePNG(options: BarcodeOptions): Promise<string> {
       ean128: options.ean128,
       valid: options.valid
     })
-    
+
+    console.log('✅ [Main] JsBarcode rendered successfully')
+
     // Convertir a base64
     const dataUrl = canvas.toDataURL('image/png')
+    console.log('✅ [Main] Canvas converted to data URL, length:', dataUrl.length)
+    console.log('🔍 [Main] Data URL prefix:', dataUrl.substring(0, 50))
+
     return dataUrl
   } catch (error) {
-    console.error('❌ Error generando código de barras:', error)
+    console.error('❌ [Main] Error generando código de barras:', error)
+    console.error('❌ [Main] Error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    })
     throw new Error(`Error generando código de barras: ${error.message}`)
   }
 }
 
-// Función para crear etiqueta completa con material
-async function createLabelPNG(job: PrintJob): Promise<Buffer> {
-  const JsBarcode = require('jsbarcode')
-  const { createCanvas } = require('canvas')
-  
+// Función para crear etiqueta completa con material (ahora usa imagen pre-generada)
+async function createLabelPNG(job: PrintJob & { imageData?: number[] }): Promise<Buffer> {
+  const fs = require('fs')
+
   try {
-    const template = job.labelTemplate
-    const data = job.materialData
-    
-    // Crear canvas con dimensiones de la etiqueta
-    const canvas = createCanvas(
-      Math.round(template.width * template.dpi / 25.4), // Convertir mm a px
-      Math.round(template.height * template.dpi / 25.4)
-    )
-    const ctx = canvas.getContext('2d')
-    
-    // Limpiar fondo
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    
-    // Dibujar código de barras
-    const barcodeCanvas = createCanvas(720, 300)
-    JsBarcode(barcodeCanvas, job.barcodeData.value, {
-      format: job.barcodeData.format,
-      width: 2,
-      height: 80,
-      displayValue: false, // No mostrar valor en el barcode
-      background: '#ffffff',
-      lineColor: '#000000'
-    })
-    
-    // Calcular posición y tamaño del barcode
-    const barcodeX = Math.round(template.layout.barcode.x * template.dpi / 25.4)
-    const barcodeY = Math.round(template.layout.barcode.y * template.dpi / 25.4)
-    const barcodeWidth = Math.round(template.layout.barcode.width * template.dpi / 25.4)
-    const barcodeHeight = Math.round(template.layout.barcode.height * template.dpi / 25.4)
-    
-    // Dibujar barcode escalado
-    ctx.drawImage(barcodeCanvas, barcodeX, barcodeY, barcodeWidth, barcodeHeight)
-    
-    // Dibujar textos
-    ctx.fillStyle = '#000000'
-    ctx.textAlign = 'center'
-    
-    template.layout.text.forEach((textItem, index) => {
-      const textX = Math.round(textItem.x * template.dpi / 25.4 + (textItem.width * template.dpi / 50.8))
-      const textY = Math.round(textItem.y * template.dpi / 25.4 + textItem.height)
-      
-      ctx.font = `${Math.round(textItem.fontSize * template.dpi / 72)}px Arial`
-      ctx.fillText(getTextForPosition(textItem, data), textX, textY)
-    })
-    
-    // Convertir a buffer
-    return canvas.toBuffer('image/png')
+    // Si se proporciona imageData, convertirlo directamente a Buffer
+    if (job.imageData && job.imageData.length > 0) {
+      console.log('✅ [Main] Using pre-generated image data, size:', job.imageData.length)
+      return Buffer.from(job.imageData)
+    }
+
+    // Fallback: generar en el main process (solo si no hay imageData)
+    console.log('⚠️ [Main] No image data provided, generating in main process (fallback)')
+    throw new Error('No se proporcionó imagen pre-generada. La generación debe ocurrir en el renderer.')
   } catch (error) {
-    console.error('❌ Error creando etiqueta:', error)
+    console.error('❌ [Main] Error creando etiqueta:', error)
     throw new Error(`Error creando etiqueta: ${error.message}`)
   }
 }
@@ -230,10 +209,20 @@ export function registerBarcodeHandlers() {
   
   // Generar código de barras
   ipcMain.handle('barcode:generate', async (_, options: BarcodeOptions) => {
+    console.log('📡 [Main] IPC barcode:generate called with:', options)
+
     try {
       const base64 = await generateBarcodePNG(options)
-      return { success: true, data: base64 }
+
+      if (base64 && base64.startsWith('data:image/png;base64,')) {
+        console.log('✅ [Main] IPC barcode generation successful')
+        return { success: true, data: base64 }
+      } else {
+        console.error('❌ [Main] Invalid data URL returned from generateBarcodePNG')
+        return { success: false, error: 'Formato de imagen inválido' }
+      }
     } catch (error) {
+      console.error('❌ [Main] IPC barcode generation failed:', error)
       return { success: false, error: error.message }
     }
   })

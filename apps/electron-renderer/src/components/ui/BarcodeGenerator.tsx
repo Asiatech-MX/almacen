@@ -146,13 +146,28 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
   // Generar preview del código de barras
   const generatePreview = useCallback(async (value: string, fmt: BarcodeFormat) => {
     if (!value.trim() || !validation.valid) return
-    
+
     setIsGenerating(true)
-    
+
     try {
-      const options: BarcodeOptions = {
+      console.log('🔧 [Renderer] Generating barcode locally with options:', {
         format: fmt,
         value: value,
+        width: 2,
+        height: 80
+      })
+
+      // Generate barcode in renderer process to avoid canvas native dependency
+      const { default: JsBarcode } = await import('jsbarcode')
+
+      // Create canvas element in renderer
+      const canvas = document.createElement('canvas')
+      canvas.width = 720
+      canvas.height = 300
+
+      // Generate barcode
+      JsBarcode(canvas, value, {
+        format: fmt,
         width: 2,
         height: 80,
         displayValue: true,
@@ -161,17 +176,20 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
         margin: 10,
         background: '#ffffff',
         lineColor: '#000000'
-      }
-      
-      const result = await window.electronAPI.barcode.generate(options)
-      if (result.success) {
-        setPreviewUrl(result.data)
-      }
-    } catch (_error) {
-      console.error('Error generando preview:', error)
+      })
+
+      console.log('✅ [Renderer] Barcode generated successfully')
+
+      // Convert to data URL
+      const dataUrl = canvas.toDataURL('image/png')
+      console.log('✅ [Renderer] Canvas converted to data URL, length:', dataUrl.length)
+
+      setPreviewUrl(dataUrl)
+    } catch (error) {
+      console.error('❌ [Renderer] Error generando preview:', error)
       toast({
         title: "Error",
-        description: "No se pudo generar la vista previa del código de barras",
+        description: error instanceof Error ? error.message : "No se pudo generar la vista previa del código de barras",
         variant: "destructive",
       })
     } finally {
@@ -189,17 +207,95 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
       })
       return
     }
-    
+
+    if (!previewUrl) {
+      toast({
+        title: "Error",
+        description: "No hay vista previa del código de barras para imprimir",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsPrinting(true)
-    
+
     try {
       // Obtener plantilla seleccionada
       const template = BROTHER_QL810W_TEMPLATES.find(t => t.id === selectedTemplate)
       if (!template) {
         throw new Error('Plantilla no encontrada')
       }
-      
-      // Crear trabajo de impresión
+
+      // Generate label in renderer
+      const { default: JsBarcode } = await import('jsbarcode')
+      const canvas = document.createElement('canvas')
+
+      // Calculate canvas size based on template
+      const canvasWidth = Math.round(template.width * template.dpi / 25.4)
+      const canvasHeight = Math.round(template.height * template.dpi / 25.4)
+      canvas.width = canvasWidth
+      canvas.height = canvasHeight
+
+      const ctx = canvas.getContext('2d')
+
+      // Fill background
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+      // Draw barcode
+      const barcodeCanvas = document.createElement('canvas')
+      barcodeCanvas.width = 720
+      barcodeCanvas.height = 300
+
+      JsBarcode(barcodeCanvas, barcodeValue, {
+        format: format,
+        width: 2,
+        height: 80,
+        displayValue: false,
+        background: '#ffffff',
+        lineColor: '#000000'
+      })
+
+      // Calculate position and size for barcode
+      const barcodeX = Math.round(template.layout.barcode.x * template.dpi / 25.4)
+      const barcodeY = Math.round(template.layout.barcode.y * template.dpi / 25.4)
+      const barcodeWidth = Math.round(template.layout.barcode.width * template.dpi / 25.4)
+      const barcodeHeight = Math.round(template.layout.barcode.height * template.dpi / 25.4)
+
+      ctx.drawImage(barcodeCanvas, barcodeX, barcodeY, barcodeWidth, barcodeHeight)
+
+      // Draw texts
+      ctx.fillStyle = '#000000'
+      ctx.textAlign = 'center'
+
+      template.layout.text.forEach((textItem, index) => {
+        const textX = Math.round(textItem.x * template.dpi / 25.4 + (textItem.width * template.dpi / 50.8))
+        const textY = Math.round(textItem.y * template.dpi / 25.4 + textItem.height)
+
+        ctx.font = `${Math.round(textItem.fontSize * template.dpi / 72)}px Arial`
+
+        let textContent = ''
+        switch (index) {
+          case 0: textContent = materialData.nombre; break
+          case 1: textContent = `Código: ${barcodeValue}`; break
+          case 2: textContent = `Stock: ${materialData.stock || 0}`; break
+        }
+
+        ctx.fillText(textContent, textX, textY)
+      })
+
+      // Convert to base64
+      const labelDataUrl = canvas.toDataURL('image/png')
+
+      // Convert data URL to buffer for printing
+      const base64Data = labelDataUrl.replace('data:image/png;base64,', '')
+      const binaryString = atob(base64Data)
+      const bytes = new Uint8Array(binaryString.length)
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+      }
+
+      // Create job with pre-generated barcode
       const job: PrintJob = {
         id: `job_${Date.now()}`,
         barcodeData: {
@@ -216,31 +312,35 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
         status: 'pending',
         createdAt: new Date()
       }
-      
-      const result = await window.electronAPI.barcode.print(job)
-      
+
+      // Send to main process for printing
+      const result = await window.electronAPI.barcode.print({
+        ...job,
+        imageData: Array.from(bytes) // Convert Uint8Array to regular array for IPC
+      })
+
       if (result.success) {
         toast({
           title: "Impresión exitosa",
           description: "La etiqueta se ha enviado a la impresora",
         })
-        
+
         if (onPrint) {
           onPrint(job)
         }
       } else {
         throw new Error(result.message)
       }
-    } catch (_error) {
+    } catch (error) {
       toast({
         title: "Error de impresión",
-        description: error.message || "No se pudo imprimir la etiqueta",
+        description: error instanceof Error ? error.message : "No se pudo imprimir la etiqueta",
         variant: "destructive",
       })
     } finally {
       setIsPrinting(false)
     }
-  }, [validation.valid, barcodeValue, format, selectedTemplate, selectedPrinter, materialData, onPrint, toast])
+  }, [validation.valid, barcodeValue, format, selectedTemplate, selectedPrinter, materialData, onPrint, toast, previewUrl])
 
   // Efectos
   useEffect(() => {
@@ -433,10 +533,18 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
                   </div>
                 ) : previewUrl ? (
                   <div className="flex justify-center">
-                    <img 
-                      src={previewUrl} 
+                    <img
+                      src={previewUrl}
                       alt="Vista previa del código de barras"
                       className="max-w-full h-auto border border-gray-200 rounded"
+                      onLoad={() => {
+                        console.log('✅ Barcode image loaded successfully')
+                      }}
+                      onError={(e) => {
+                        console.error('❌ Failed to load barcode image:', e)
+                        console.error('🔍 Preview URL length:', previewUrl.length)
+                        console.error('🔍 Preview URL prefix:', previewUrl.substring(0, 50))
+                      }}
                     />
                   </div>
                 ) : (
