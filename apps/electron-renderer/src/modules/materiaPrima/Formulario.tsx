@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -11,30 +11,36 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { MaskInput } from '@/components/ui/mask-input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { FieldSet, FieldLegend, FieldGroup, FieldContent, FieldTitle, FieldDescription, FieldError, Field, FieldSeparator } from '@/components/ui/fieldset'
+import { FieldSet, FieldLegend, FieldGroup, FieldDescription } from '@/components/ui/fieldset'
 import { Scroller } from '@/components/ui/scroller'
 import { FileUpload } from '@/components/ui/file-upload'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import { HelpCircle } from 'lucide-react'
+import { BarcodeGenerator } from '@/components/ui/BarcodeGenerator'
 
-import useMateriaPrima, { UseMateriaPrimaOptions } from '../../hooks/useMateriaPrima'
+import useMateriaPrima from '../../hooks/useMateriaPrima'
 import materiaPrimaService from '../../services/materiaPrimaService'
 import { useReferenceDataQuery, useEditarPresentacionMutation, useEditarCategoriaMutation, useMoverCategoriaMutation } from '../../hooks/useReferenceDataQuery'
+import { useDebounce } from '@/hooks/useDebounce'
 import { MemoizedDynamicSelect } from '@/components/ui/DynamicSelect'
 import { InlineEditModal } from '@/components/ui/InlineEditModal'
 import type {
-  MateriaPrima,
   NewMateriaPrima,
   MateriaPrimaUpdate
 } from '../../../../shared/types/materiaPrima'
+import type { MateriaPrimaDetail } from '../../../../shared/types'
 
 import {
-  prepareFormDataForSubmission,
   extractValidationErrors
 } from '../../utils/formDataNormalizer'
+
+// Declaraciones para variables globales del navegador
+declare global {
+  var URL: typeof globalThis.URL;
+  var File: typeof globalThis.File;
+}
 
 // Componente reutilizable para tooltips consistentes
 const FieldTooltip: React.FC<{ content: string }> = ({ content }) => (
@@ -106,12 +112,14 @@ const validateEAN13 = (barcode: string): boolean => {
   return checksum === parseInt(digits[12]);
 };
 
-// Schema Zod mejorado - maneja correctamente los IDs de referencia del DynamicSelect
+// Schema Zod mejorado - maneja correctamente los IDs de referencia del DynamicSelect y códigos de barras flexibles
 const materiaPrimaSchema = z.object({
+  // Código de barras flexible - soporta múltiples formatos
   codigo_barras: z.string()
-    .length(13, 'El código de barras debe tener exactamente 13 dígitos')
-    .regex(/^\d{13}$/, 'El código de barras debe contener solo números')
-    .refine((barcode) => validateEAN13(barcode), 'Código de barras EAN-13 inválido'),
+    .min(1, 'El código de barras no puede estar vacío')
+    .max(50, 'El código de barras es demasiado largo'),
+  // Metadatos del código de barras (opcional para compatibilidad)
+  codigo_barras_formato: z.enum(['EAN13', 'UPC', 'CODE128', 'CODE39', 'SKU']).optional(),
   nombre: z.string().min(1, 'El nombre es requerido'),
   marca: z.string().optional(),
   modelo: z.string().optional(),
@@ -181,6 +189,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     resolver: zodResolver(materiaPrimaSchema),
     defaultValues: {
       codigo_barras: '',
+      codigo_barras_formato: 'CODE128',
       nombre: '',
       marca: '',
       modelo: '',
@@ -195,7 +204,8 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
       descripcion: '',
       proveedor_id: null
     },
-    mode: isEditingReference ? 'onSubmit' : 'onBlur'  // Evitar validación durante edición de referencias
+    mode: isEditingReference ? 'onSubmit' : 'onBlur',  // Evitar validación durante edición de referencias
+    reValidateMode: 'onBlur'  // Re-validar solo al perder focus para mejor UX
   })
 
   // Hook para datos de referencia con TanStack Query
@@ -211,6 +221,46 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
   const editarPresentacionMutation = useEditarPresentacionMutation();
   const editarCategoriaMutation = useEditarCategoriaMutation();
   const moverCategoriaMutation = useMoverCategoriaMutation();
+
+  // Validación debounced para el código de barras (evita bucles infinitos)
+  // Se usa debounce de 500ms para prevenir re-validaciones excesivas mientras el usuario escribe
+  // Esto resuelve el problema de "Maximum update depth exceeded" caused by shouldValidate: true
+  const debouncedBarcodeValue = useDebounce(form.watch('codigo_barras'), 500);
+
+  // Función de validación para el código de barras con debounce
+  // Se usa getValues() en lugar de watch() para evitar re-renders innecesarios
+  // La validación se dispara manualmente con form.trigger() en lugar de shouldValidate: true
+  const handleBarcodeValidation = useCallback(() => {
+    const barcodeValue = form.getValues('codigo_barras');
+    if (barcodeValue && barcodeValue.trim()) {
+      form.trigger('codigo_barras');
+    }
+  }, [form.trigger]);
+
+  // Validar el código de barras cuando el valor debounced cambia
+  // Este efecto se dispara solo cuando el valor debounced cambia, no en cada render
+  // Previene bucles infinitos al usar dependencias específicas en lugar de form completo
+  useEffect(() => {
+    if (debouncedBarcodeValue && debouncedBarcodeValue.trim()) {
+      form.trigger('codigo_barras');
+    }
+  }, [debouncedBarcodeValue, form.trigger]);
+
+  // Memoizar el callback onBarcodeChange para evitar re-renders
+  // Este callback sigue el patrón establecido en DynamicSelect.tsx del proyecto
+  // CLAVE: shouldValidate: false previene el bucle infinito que ocurría con shouldValidate: true
+  const handleBarcodeChange = useCallback((barcode: string) => {
+    const currentValue = form.getValues('codigo_barras');
+    if (barcode !== currentValue) {  // Solo actualiza si el valor cambió
+      form.setValue('codigo_barras', barcode, {
+        shouldValidate: false,   // 🔑 CLAVE: Previene bucle infinito (ver DynamicSelect.tsx línea 84)
+        shouldDirty: true,       // Marcar como sucio para reflejar cambios del usuario
+        shouldTouch: true        // Marcar como touched para UX
+      });
+      // Validar después de un breve delay para simular onBlur behavior sin causar bucles
+      setTimeout(handleBarcodeValidation, 150);
+    }
+  }, [form.setValue, handleBarcodeValidation]);
 
   useEffect(() => {
     if (esEdicion && finalId && !loadingReferencias) {
@@ -244,6 +294,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
 
       form.reset({
         codigo_barras: data.codigo_barras || '',
+        codigo_barras_formato: data.codigo_barras_formato || 'CODE128',
         nombre: data.nombre || '',
         marca: data.marca || '',
         modelo: data.modelo || '',
@@ -279,6 +330,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
       // Pipeline de datos simplificado y directo (sin conversión manual gracias a z.coerce)
       const submissionData = {
         codigo_barras: data.codigo_barras,
+        codigo_barras_formato: data.codigo_barras_formato,
         nombre: data.nombre,
         marca: data.marca || null,
         modelo: data.modelo || null,
@@ -386,13 +438,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
     }
   }
 
-  const handleRemoveFile = () => {
-    setSelectedFiles([])
-    form.setValue('imagen_url', '')
-    setUploadError(null)
-    setImagePreviewError(false)
-  }
-
+  
   // Funciones para manejar edición inline
   const handleEditarPresentacion = (presentacion: any) => {
     setPresentacionEditando(presentacion)
@@ -632,29 +678,72 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                           Datos principales del material para identificación en el sistema. Los campos marcados con <span className="text-destructive">*</span> son obligatorios.
                         </FieldDescription>
                         <FieldGroup className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+                            {/* Hidden field for barcode value to integrate with form */}
                             <FormField
                               control={form.control}
                               name="codigo_barras"
-                              render={({ field, fieldState }) => (
-                                <FormItem className="space-y-2">
-                                  <FormLabel className="font-medium flex items-center gap-2">
-                                    Código de Barras
-                                    <span className="text-destructive">*</span>
-                                    <FieldTooltip content="Código EAN-13 de 13 dígitos para identificación única del producto en el sistema" />
-                                  </FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="text"
-                                      placeholder="Ej: 7501234567890"
-                                      maxLength={13}
-                                      className={`transition-colors focus:ring-2 focus:ring-primary/20 ${fieldState.invalid ? "border-destructive" : ""}`}
-                                      {...field}
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
+                              render={({ field }) => (
+                                <input
+                                  type="hidden"
+                                  {...field}
+                                />
                               )}
                             />
+                            
+                            {/* Barcode Generator Component */}
+                            <FormField
+                              control={form.control}
+                              name="codigo_barras_formato"
+                              render={({ field }) => (
+                                <input
+                                  type="hidden"
+                                  {...field}
+                                />
+                              )}
+                            />
+
+                            {/* Barcode Generator - spans full width */}
+                            <div className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4">
+                              <FormItem className="space-y-2">
+                                <FormLabel className="font-medium flex items-center gap-2">
+                                  Código de Barras
+                                  <span className="text-destructive">*</span>
+                                  <FieldTooltip content="Genere códigos de barras en múltiples formatos (EAN-13, UPC, CODE128, SKU) para identificación única del producto en el sistema" />
+                                </FormLabel>
+                                <FormControl>
+                                  <div className="w-full">
+                                    <BarcodeGenerator
+                                      materialData={{
+                                        id: finalId || '',
+                                        codigo: form.getValues('codigo_barras') || '',
+                                        nombre: form.getValues('nombre') || '',
+                                        descripcion: form.getValues('descripcion') || '',
+                                        stock: form.getValues('stock_actual'),
+                                        ubicacion: '', // Could be added later
+                                        institucion: 'Institución', // Could come from context
+                                        categoria: form.getValues('categoria_id')
+                                          ? categorias.find(c => c.id === form.getValues('categoria_id'))?.nombre || ''
+                                          : form.getValues('categoria') || '',
+                                        presentacion: form.getValues('presentacion_id')
+                                          ? presentaciones.find(p => p.id === form.getValues('presentacion_id'))?.nombre || ''
+                                          : form.getValues('presentacion') || ''
+                                      }}
+                                      initialBarcode={form.getValues('codigo_barras') || ''}
+                                      initialFormat={form.getValues('codigo_barras_formato') as any || 'CODE128'}
+                                      // Usar el callback memoizado que previene bucles infinitos
+                                      onBarcodeChange={handleBarcodeChange}
+                                      onPrint={(job) => {
+                                        console.log('Print job created:', job)
+                                      }}
+                                      showPreview={true}
+                                      showPrint={true}
+                                      disabled={form.formState.isSubmitting}
+                                    />
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            </div>
 
                             <FormField
                               control={form.control}
@@ -704,7 +793,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                             <FormField
                               control={form.control}
                               name="presentacion_id"
-                              render={({ field, fieldState }) => (
+                              render={({ field }) => (
                                 <FormItem>
                                   <FormLabel className="flex items-center gap-2">
                                     Presentación
@@ -930,7 +1019,7 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                                     <Controller
                                       name="imagen_url"
                                       control={form.control}
-                                      render={({ field: controllerField }) => (
+                                      render={({ field }) => (
                                         <div className="space-y-3">
                                           <FileUpload
                                             value={selectedFiles}
