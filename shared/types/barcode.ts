@@ -238,7 +238,7 @@ export const BARCODE_VALIDATIONS: Record<Exclude<BarcodeFormat, 'SKU' | 'QR'>, B
   }
 }
 
-// Configuraciones predefinidas para tamaños de etiqueta
+// Configuraciones predefinidas para tamaños de etiqueta - MEJORADAS
 export const LABEL_SIZE_CONFIGS: Record<LabelSize, LabelSizeConfig> = {
   '29x90': {
     size: '29x90',
@@ -247,12 +247,12 @@ export const LABEL_SIZE_CONFIGS: Record<LabelSize, LabelSizeConfig> = {
     rotation: 90, // Rotar 90 grados para que el barcode vaya a lo largo del lado corto
     transformOrigin: 'center',
     layout: {
-      barcodeScale: 1.0, // Máxima prioridad - el barcode debe ser lo más grande posible
-      codeScale: 0.8,   // Segunda prioridad - visible pero más pequeño
-      nameScale: 0.6,   // Última prioridad - texto pequeño
+      barcodeScale: 1.3, // Aumentado para usar más espacio
+      codeScale: 1.2,   // Aumentado para mejor legibilidad
+      nameScale: 1.0,   // Aumentado para ser legible
       spacing: {
-        barcodeToCode: 2, // 2mm entre barcode y código
-        codeToName: 1     // 1mm entre código y nombre
+        barcodeToCode: 3, // 3mm entre barcode y código
+        codeToName: 2     // 2mm entre código y nombre
       }
     }
   },
@@ -263,12 +263,12 @@ export const LABEL_SIZE_CONFIGS: Record<LabelSize, LabelSizeConfig> = {
     rotation: 0, // Sin rotación - landscape estándar
     transformOrigin: 'center',
     layout: {
-      barcodeScale: 1.0, // Máxima prioridad
-      codeScale: 0.9,   // Alta visibilidad
-      nameScale: 0.7,   // Más pequeño pero legible
+      barcodeScale: 1.4, // Aumentado para máximo aprovechamiento
+      codeScale: 1.3,   // Alta visibilidad
+      nameScale: 1.1,   // Legible pero más pequeño que el código
       spacing: {
-        barcodeToCode: 3, // Más espacio en etiqueta más ancha
-        codeToName: 2
+        barcodeToCode: 4, // Más espacio en etiqueta más ancha
+        codeToName: 3
       }
     }
   },
@@ -279,12 +279,12 @@ export const LABEL_SIZE_CONFIGS: Record<LabelSize, LabelSizeConfig> = {
     rotation: 0, // Sin rotación - portrait/landscape según uso
     transformOrigin: 'center',
     layout: {
-      barcodeScale: 1.2, // Más grande en etiqueta grande
-      codeScale: 1.0,   // Tamaño estándar
-      nameScale: 0.8,   // Proporcionado al tamaño
+      barcodeScale: 1.6, // Máximo tamaño posible en etiqueta grande
+      codeScale: 1.4,   // Grande y legible
+      nameScale: 1.2,   // Proporcionado y legible
       spacing: {
-        barcodeToCode: 4, // Más espacio para etiqueta grande
-        codeToName: 3
+        barcodeToCode: 5, // Más espacio para etiqueta grande
+        codeToName: 4
       }
     }
   }

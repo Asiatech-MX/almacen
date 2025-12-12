@@ -71,21 +71,24 @@ const LabelPreview: React.FC<{
     }
   }
 
-  // Calcular tamaños relativos basados en la configuración
+  // Calcular tamaños relativos basados en la configuración - MEJORADO
   const getBarcodeSize = () => {
-    const baseSize = Math.min(width, height) * 0.6 // 60% del lado más pequeño
-    const scaledSize = baseSize * layout.barcodeScale
-    return { width: scaledSize, height: scaledSize * 0.4 } // Barcode es más alto que ancho
+    // El barcode debe ser el elemento dominante - 70% del ancho de la etiqueta
+    const barcodeWidth = width * 0.7 * layout.barcodeScale
+    const barcodeHeight = height * 0.35 * layout.barcodeScale // Altura proporcional
+    return { width: barcodeWidth, height: barcodeHeight }
   }
 
   const getCodeFontSize = () => {
-    const baseSize = Math.min(width, height) * 0.08 // 8% del lado más pequeño
-    return baseSize * layout.codeScale
+    // Texto del código debe ser legible - mínimo 14px
+    const baseSize = Math.max(width, height) * 0.15 // 15% del lado más grande
+    return Math.max(14, baseSize * layout.codeScale) // Mínimo 14px para legibilidad
   }
 
   const getNameFontSize = () => {
-    const baseSize = Math.min(width, height) * 0.06 // 6% del lado más pequeño
-    return baseSize * layout.nameScale
+    // Texto del nombre debe ser legible - mínimo 10px
+    const baseSize = Math.max(width, height) * 0.10 // 10% del lado más grande
+    return Math.max(10, baseSize * layout.nameScale) // Mínimo 10px para legibilidad
   }
 
   // Determinar la posición del nombre según el espacio disponible
@@ -279,39 +282,48 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     setIsGenerating(true)
 
     try {
-      console.log('🔧 [Renderer] Generating barcode locally with options:', {
-        format: fmt,
-        value: value,
-        width: 2,
-        height: 80
-      })
+      console.log('🔧 [Renderer] Generating barcode locally with improved sizing')
 
       // Generate barcode in renderer process to avoid canvas native dependency
       const { default: JsBarcode } = await import('jsbarcode')
 
-      // Create canvas element in renderer
-      const canvas = document.createElement('canvas')
-      canvas.width = 720
-      canvas.height = 300
+      // Create canvas element in renderer - TAMAÑO DINÁMICO BASADO EN LA ETIQUETA
+      const template = BROTHER_QL810W_TEMPLATES.find(t => t.id === selectedTemplate)
+      const dpi = template?.dpi || 300
 
-      // Generate barcode
+      // Usar un factor de escala para el preview (más grande para mejor visualización)
+      const previewScale = 2
+      const canvasWidth = Math.round((template?.width || 29) * dpi / 25.4 * previewScale)
+      const canvasHeight = Math.round((template?.height || 90) * dpi / 25.4 * previewScale)
+
+      const canvas = document.createElement('canvas')
+      canvas.width = canvasWidth
+      canvas.height = canvasHeight
+
+      // Calcular dimensiones optimizadas para el barcode
+      const barcodeWidth = Math.round(canvasWidth * 0.7) // 70% del ancho
+      const barcodeHeight = Math.round(canvasHeight * 0.35) // 35% del alto
+
+      // Calcular el ancho de las barras para asegurar que sean escaneables
+      // Mínimo 3 píxeles por barra a 300 DPI
+      const barWidth = Math.max(3, Math.min(5, Math.round(barcodeWidth / (value.length * 1.5))))
+
+      // Generate barcode con opciones mejoradas
       JsBarcode(canvas, value, {
         format: fmt,
-        width: 2,
-        height: 80,
-        displayValue: true,
-        fontSize: 14,
-        textMargin: 2,
-        margin: 10,
+        width: barWidth, // Ancho de barra calculado dinámicamente
+        height: barcodeHeight, // Altura proporcional
+        displayValue: false, // No mostrar texto, lo manejamos manualmente
         background: '#ffffff',
-        lineColor: '#000000'
+        lineColor: '#000000',
+        margin: 5 // Márgen reducido para usar más espacio
       })
 
-      console.log('✅ [Renderer] Barcode generated successfully')
+      console.log('✅ [Renderer] Barcode generated successfully with barWidth:', barWidth)
 
       // Convert to data URL
       const dataUrl = canvas.toDataURL('image/png')
-      console.log('✅ [Renderer] Canvas converted to data URL, length:', dataUrl.length)
+      console.log('✅ [Renderer] Canvas converted to data URL, dimensions:', canvasWidth, 'x', canvasHeight)
 
       setPreviewUrl(dataUrl)
     } catch (error) {
@@ -324,7 +336,7 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     } finally {
       setIsGenerating(false)
     }
-  }, [validation.valid, toast])
+  }, [validation.valid, toast, selectedTemplate])
 
   // Función auxiliar para truncar texto
   const truncateText = (context: CanvasRenderingContext2D, text: string, maxWidth: number): string => {
@@ -389,24 +401,28 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
       const { layout } = labelSizeConfig
       const mmToPx = dpi / 25.4 // Convertir mm a píxeles
 
-      // Calcular el tamaño del código de barras basado en la configuración
-      const barcodeBaseSize = Math.min(template.width, template.height) * 0.6 * layout.barcodeScale
-      const barcodeWidth = Math.round(barcodeBaseSize * mmToPx)
-      const barcodeHeight = Math.round(barcodeBaseSize * 0.4 * mmToPx)
+      // Calcular el tamaño del código de barras - MEJORADO
+      // El barcode debe ocupar el 70% del ancho de la etiqueta
+      const barcodeWidth = Math.round(template.width * mmToPx * 0.7 * layout.barcodeScale)
+      const barcodeHeight = Math.round(template.height * mmToPx * 0.35 * layout.barcodeScale)
 
       // Generar el código de barras sin texto
       const barcodeCanvas = document.createElement('canvas')
       barcodeCanvas.width = barcodeWidth
       barcodeCanvas.height = barcodeHeight
 
+      // Calcular el ancho de las barras para asegurar escaneabilidad
+      // Mínimo 3 píxeles por barra a 300 DPI para garantizar escaneo
+      const barWidth = Math.max(3, Math.min(6, Math.round(barcodeWidth / (barcodeValue.length * 1.2))))
+
       JsBarcode(barcodeCanvas, barcodeValue, {
         format: format,
-        width: Math.max(1, Math.round(barcodeWidth / 100)), // Ancho de barras proporcional
-        height: barcodeHeight - 20, // Dejar espacio para el texto numérico
+        width: barWidth, // Ancho de barra optimizado para escaneo
+        height: barcodeHeight, // Usar altura completa
         displayValue: false, // No mostrar texto, lo manejamos manualmente
         background: '#ffffff',
         lineColor: '#000000',
-        margin: 5
+        margin: 3 // Márgen reducido para maximize el espacio
       })
 
       // Posicionar elementos según la jerarquía visual
@@ -421,16 +437,20 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
 
       currentY += barcodeHeight + Math.round(layout.spacing.barcodeToCode * mmToPx)
 
-      // Dibujar el código numérico (segunda prioridad)
+      // Dibujar el código numérico (segunda prioridad) - FUENTES MÁS GRANDES
       ctx.fillStyle = '#000000'
       ctx.textAlign = 'center'
-      ctx.font = `bold ${Math.round(14 * layout.codeScale)}px monospace`
+      // Tamaño mínimo de 16px para el código numérico
+      const codeFontSize = Math.max(16, Math.round(18 * layout.codeScale))
+      ctx.font = `bold ${codeFontSize}px monospace`
       ctx.fillText(barcodeValue, canvasWidth / 2, currentY)
 
       // Dibujar el nombre del producto (última prioridad)
       if (materialData.nombre) {
-        currentY += Math.round(15 * layout.codeScale) + Math.round(layout.spacing.codeToName * mmToPx)
-        ctx.font = `${Math.round(12 * layout.nameScale)}px Arial`
+        currentY += Math.round(codeFontSize * 0.8) + Math.round(layout.spacing.codeToName * mmToPx)
+        // Tamaño mínimo de 12px para el nombre del producto
+        const nameFontSize = Math.max(12, Math.round(14 * layout.nameScale))
+        ctx.font = `${nameFontSize}px Arial, sans-serif`
 
         // Truncar si el texto es muy largo
         const maxTextWidth = canvasWidth - 20
