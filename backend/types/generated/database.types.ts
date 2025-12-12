@@ -40,6 +40,34 @@ export interface Auditoria {
   valorNuevo: Json | null;
 }
 
+export interface BarcodeTemplates {
+  barcodeFormat: string;
+  createdAt: Generated<Timestamp | null>;
+  createdBy: number | null;
+  elements: Json;
+  height: Numeric;
+  id: Generated<string>;
+  idInstitucion: number;
+  isActive: Generated<boolean>;
+  isDefault: Generated<boolean>;
+  name: string;
+  updatedAt: Generated<Timestamp | null>;
+  updatedBy: number | null;
+  width: Numeric;
+}
+
+export interface BarcodeValidations {
+  checksum: Generated<boolean | null>;
+  creadoEn: Generated<Timestamp | null>;
+  descripcion: string | null;
+  ejemplos: string[] | null;
+  formato: string;
+  longitudMaxima: number | null;
+  longitudMinima: number | null;
+  nombre: string;
+  patron: string | null;
+}
+
 export interface Categoria {
   activo: Generated<boolean | null>;
   actualizadoEn: Generated<Timestamp | null>;
@@ -134,10 +162,15 @@ export interface MateriaPrima {
   categoria: string | null;
   categoriaId: number | null;
   codigoBarras: string;
+  /**
+   * Formato del código de barras (EAN13, UPC, CODE128, CODE39, SKU, QR)
+   */
+  codigoBarrasFormato: Generated<string | null>;
   costoUnitario: Numeric | null;
   creadoEn: Generated<Timestamp | null>;
   descripcion: string | null;
   eliminadoEn: Timestamp | null;
+  estatus: Generated<string>;
   fechaCaducidad: Timestamp | null;
   id: Generated<string>;
   imagenUrl: string | null;
@@ -400,6 +433,8 @@ export interface VwStockMateriaPrima {
 
 export interface DB {
   auditoria: Auditoria;
+  barcodeTemplates: BarcodeTemplates;
+  barcodeValidations: BarcodeValidations;
   categoria: Categoria;
   empresaProveedora: EmpresaProveedora;
   entradaMaterial: EntradaMaterial;
