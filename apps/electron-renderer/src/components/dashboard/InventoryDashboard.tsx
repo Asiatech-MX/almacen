@@ -2,7 +2,7 @@ import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { AlertTriangle, Package, TrendingUp, Activity } from 'lucide-react'
-import type { MateriaPrima } from '../../../../shared/types/materiaPrima'
+import type { MateriaPrima } from '@shared/materiaPrima'
 
 interface InventoryDashboardProps {
   materials: MateriaPrima[]

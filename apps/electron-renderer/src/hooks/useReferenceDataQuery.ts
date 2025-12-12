@@ -9,7 +9,7 @@ import {
   NewPresentacion,
   CategoriaUpdate,
   PresentacionUpdate
-} from '../../../../packages/shared-types/src/referenceData'
+} from '../../../../shared/types/referenceData'
 
 // Declaración temporal de window.electronAPI para TypeScript
 declare global {

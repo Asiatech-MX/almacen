@@ -16,7 +16,7 @@ import {
   AlertTriangle,
   CheckCircle
 } from 'lucide-react'
-import type { MateriaPrima } from '../../../../shared/types/materiaPrima'
+import type { MateriaPrima } from '@shared/materiaPrima'
 
 interface WarehouseTabsProps {
   materials: MateriaPrima[]
