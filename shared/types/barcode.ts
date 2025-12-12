@@ -2,6 +2,28 @@
 
 export type BarcodeFormat = 'EAN13' | 'EAN8' | 'UPC' | 'UPCE' | 'CODE128' | 'CODE128A' | 'CODE128B' | 'CODE128C' | 'CODE39' | 'CODE39EXT' | 'ITF14' | 'SKU' | 'QR' | 'PHARMACODE'
 
+// Tipos de etiquetas soportados con dimensiones específicas
+export type LabelSize = '29x90' | '62x40' | '62x100'
+
+// Configuración específica para cada tamaño de etiqueta
+export interface LabelSizeConfig {
+  size: LabelSize
+  width: number // en milímetros
+  height: number // en milímetros
+  rotation: number // grados de rotación (0, 90, -90)
+  transformOrigin: 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  layout: {
+    // Visual hierarchy: Barcode > Numeric Code > Product Name
+    barcodeScale: number // escala relativa del código de barras (1.0 = base)
+    codeScale: number // escala relativa del código numérico
+    nameScale: number // escala relativa del nombre (menor prioridad)
+    spacing: {
+      barcodeToCode: number // espacio entre barcode y código numérico (mm)
+      codeToName: number // espacio entre código y nombre (mm)
+    }
+  }
+}
+
 export interface BarcodeOptions {
   format: BarcodeFormat
   value: string
@@ -213,6 +235,72 @@ export const BARCODE_VALIDATIONS: Record<Exclude<BarcodeFormat, 'SKU' | 'QR'>, B
     checkDigit: false,
     examples: ['1234', '56789'],
     description: 'Código especializado para la industria farmacéutica'
+  }
+}
+
+// Configuraciones predefinidas para tamaños de etiqueta
+export const LABEL_SIZE_CONFIGS: Record<LabelSize, LabelSizeConfig> = {
+  '29x90': {
+    size: '29x90',
+    width: 29,
+    height: 90,
+    rotation: 90, // Rotar 90 grados para que el barcode vaya a lo largo del lado corto
+    transformOrigin: 'center',
+    layout: {
+      barcodeScale: 1.0, // Máxima prioridad - el barcode debe ser lo más grande posible
+      codeScale: 0.8,   // Segunda prioridad - visible pero más pequeño
+      nameScale: 0.6,   // Última prioridad - texto pequeño
+      spacing: {
+        barcodeToCode: 2, // 2mm entre barcode y código
+        codeToName: 1     // 1mm entre código y nombre
+      }
+    }
+  },
+  '62x40': {
+    size: '62x40',
+    width: 62,
+    height: 40,
+    rotation: 0, // Sin rotación - landscape estándar
+    transformOrigin: 'center',
+    layout: {
+      barcodeScale: 1.0, // Máxima prioridad
+      codeScale: 0.9,   // Alta visibilidad
+      nameScale: 0.7,   // Más pequeño pero legible
+      spacing: {
+        barcodeToCode: 3, // Más espacio en etiqueta más ancha
+        codeToName: 2
+      }
+    }
+  },
+  '62x100': {
+    size: '62x100',
+    width: 62,
+    height: 100,
+    rotation: 0, // Sin rotación - portrait/landscape según uso
+    transformOrigin: 'center',
+    layout: {
+      barcodeScale: 1.2, // Más grande en etiqueta grande
+      codeScale: 1.0,   // Tamaño estándar
+      nameScale: 0.8,   // Proporcionado al tamaño
+      spacing: {
+        barcodeToCode: 4, // Más espacio para etiqueta grande
+        codeToName: 3
+      }
+    }
+  }
+}
+
+// Función auxiliar para obtener el tamaño de etiqueta desde una plantilla
+export const getLabelSizeFromTemplate = (templateId: string): LabelSize => {
+  switch (templateId) {
+    case 'dk-11201':
+      return '29x90'
+    case 'dk-11202':
+      return '62x100'
+    case 'continuous-62mm':
+      return '62x40'
+    default:
+      return '29x90' // Valor por defecto
   }
 }
 

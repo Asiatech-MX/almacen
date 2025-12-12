@@ -39,13 +39,17 @@ export type {
   PrinterConfig,
   PrintOptions,
   BarcodeValidation,
-  BarcodeIPCEevents
+  BarcodeIPCEevents,
+  LabelSize,
+  LabelSizeConfig
 } from './barcode'
 
 export {
   BARCODE_VALIDATIONS,
   BROTHER_QL810W_TEMPLATES,
-  BROTHER_PRINTER_CONFIGS
+  BROTHER_PRINTER_CONFIGS,
+  LABEL_SIZE_CONFIGS,
+  getLabelSizeFromTemplate
 } from './barcode'
 
 // Tipos comunes globales

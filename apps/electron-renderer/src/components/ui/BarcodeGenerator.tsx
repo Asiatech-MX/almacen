@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,13 +17,17 @@ import type {
   BarcodeFormat,
   BarcodeOptions,
   PrintJob,
-  MaterialLabelData
-} from '@/types'
+  MaterialLabelData,
+  LabelSize,
+  LabelSizeConfig
+} from '@shared-types'
 import {
   BARCODE_VALIDATIONS,
   BROTHER_QL810W_TEMPLATES,
-  BROTHER_PRINTER_CONFIGS
-} from '@/types'
+  BROTHER_PRINTER_CONFIGS,
+  LABEL_SIZE_CONFIGS,
+  getLabelSizeFromTemplate
+} from '@shared-types'
 import { useToast } from '@/hooks/use-toast'
 import { Loader2, Barcode, Printer, Check, X } from 'lucide-react'
 
@@ -36,6 +40,127 @@ interface BarcodeGeneratorProps {
   showPreview?: boolean
   showPrint?: boolean
   disabled?: boolean
+}
+
+// Componente para renderizar la etiqueta con la jerarquía visual correcta
+const LabelPreview: React.FC<{
+  materialData: MaterialLabelData
+  barcodeValue: string
+  barcodeUrl?: string
+  sizeConfig: LabelSizeConfig
+  isGenerating?: boolean
+}> = ({ materialData, barcodeValue, barcodeUrl, sizeConfig, isGenerating = false }) => {
+  const { width, height, rotation, transformOrigin, layout } = sizeConfig
+
+  // Estilos CSS para la transformación según la configuración
+  const getTransformStyles = () => {
+    const transformOriginMap = {
+      'center': 'center',
+      'top-left': '0 0',
+      'top-right': '100% 0',
+      'bottom-left': '0 100%',
+      'bottom-right': '100% 100%'
+    }
+
+    return {
+      width: `${width * 3.78}px`, // Convert mm to px (1mm ≈ 3.78px at 96dpi)
+      height: `${height * 3.78}px`,
+      transform: rotation !== 0 ? `rotate(${rotation}deg)` : undefined,
+      transformOrigin: transformOriginMap[transformOrigin],
+      transition: 'transform 0.2s ease-in-out'
+    }
+  }
+
+  // Calcular tamaños relativos basados en la configuración
+  const getBarcodeSize = () => {
+    const baseSize = Math.min(width, height) * 0.6 // 60% del lado más pequeño
+    const scaledSize = baseSize * layout.barcodeScale
+    return { width: scaledSize, height: scaledSize * 0.4 } // Barcode es más alto que ancho
+  }
+
+  const getCodeFontSize = () => {
+    const baseSize = Math.min(width, height) * 0.08 // 8% del lado más pequeño
+    return baseSize * layout.codeScale
+  }
+
+  const getNameFontSize = () => {
+    const baseSize = Math.min(width, height) * 0.06 // 6% del lado más pequeño
+    return baseSize * layout.nameScale
+  }
+
+  // Determinar la posición del nombre según el espacio disponible
+  const shouldShowNameOnTop = height > (width * 1.5) // Si es mucho más alto que ancho
+
+  return (
+    <div className="flex justify-center items-center p-8 bg-gray-100 rounded-lg">
+      <div
+        className="bg-white border border-gray-300 shadow-md overflow-visible"
+        style={getTransformStyles()}
+      >
+        <div className="flex flex-col h-full p-2" style={{ gap: `${layout.spacing.barcodeToCode * 3.78}px` }}>
+          {/* Nombre del producto (arriba si hay espacio) */}
+          {shouldShowNameOnTop && materialData.nombre && (
+            <div
+              className="text-black text-center font-medium truncate"
+              style={{ fontSize: `${getNameFontSize()}px` }}
+            >
+              {materialData.nombre}
+            </div>
+          )}
+
+          {/* Código de barras - Siempre el elemento más grande */}
+          {isGenerating ? (
+            <div className="flex justify-center items-center" style={{ height: `${getBarcodeSize().height * 3.78}px` }}>
+              <Loader2 className="w-8 h-8 animate-spin" />
+            </div>
+          ) : barcodeUrl ? (
+            <div className="flex justify-center">
+              <img
+                src={barcodeUrl}
+                alt="Código de barras"
+                className="object-contain"
+                style={{
+                  width: `${getBarcodeSize().width * 3.78}px`,
+                  height: `${getBarcodeSize().height * 3.78}px`
+                }}
+              />
+            </div>
+          ) : (
+            <div
+              className="flex justify-center items-center bg-gray-200"
+              style={{
+                width: `${getBarcodeSize().width * 3.78}px`,
+                height: `${getBarcodeSize().height * 3.78}px`
+              }}
+            >
+              <span className="text-gray-500 text-xs">Sin código</span>
+            </div>
+          )}
+
+          {/* Código numérico - Segundo en jerarquía */}
+          <div
+            className="text-black text-center font-mono font-bold"
+            style={{ fontSize: `${getCodeFontSize()}px` }}
+          >
+            {barcodeValue}
+          </div>
+
+          {/* Nombre del producto (abajo si no hay espacio arriba) */}
+          {!shouldShowNameOnTop && materialData.nombre && (
+            <div
+              className="text-black text-center font-medium truncate"
+              style={{
+                fontSize: `${getNameFontSize()}px`,
+                marginTop: `${layout.spacing.codeToName * 3.78}px`
+              }}
+            >
+              {materialData.nombre}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
@@ -58,6 +183,10 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
   const [isGenerating, setIsGenerating] = useState(false)
   const [isPrinting, setIsPrinting] = useState(false)
   const [isGeneratingFromMaterial, setIsGeneratingFromMaterial] = useState(false)
+
+  // Obtener la configuración del tamaño de etiqueta actual
+  const currentLabelSize: LabelSize = getLabelSizeFromTemplate(selectedTemplate)
+  const labelSizeConfig: LabelSizeConfig = LABEL_SIZE_CONFIGS[currentLabelSize]
 
   // Auto-genera código de barras desde datos del material
   const generateFromMaterial = useCallback(async () => {
@@ -197,7 +326,19 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     }
   }, [validation.valid, toast])
 
-  // Imprimir etiqueta
+  // Función auxiliar para truncar texto
+  const truncateText = (context: CanvasRenderingContext2D, text: string, maxWidth: number): string => {
+    const ellipsis = '...'
+    let truncated = text
+
+    while (context.measureText(truncated + ellipsis).width > maxWidth && truncated.length > 0) {
+      truncated = truncated.slice(0, -1)
+    }
+
+    return truncated.length === text.length ? text : truncated + ellipsis
+  }
+
+  // Imprimir etiqueta con el nuevo layout consciente del tamaño
   const printLabel = useCallback(async () => {
     if (!validation.valid || !barcodeValue.trim()) {
       toast({
@@ -226,63 +367,76 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
         throw new Error('Plantilla no encontrada')
       }
 
-      // Generate label in renderer
+      // Generate label in renderer with size-aware layout
       const { default: JsBarcode } = await import('jsbarcode')
       const canvas = document.createElement('canvas')
 
-      // Calculate canvas size based on template
-      const canvasWidth = Math.round(template.width * template.dpi / 25.4)
-      const canvasHeight = Math.round(template.height * template.dpi / 25.4)
+      // Calculate canvas size based on template with DPI
+      const dpi = template.dpi || 300
+      const canvasWidth = Math.round(template.width * dpi / 25.4)
+      const canvasHeight = Math.round(template.height * dpi / 25.4)
       canvas.width = canvasWidth
       canvas.height = canvasHeight
 
       const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('No se pudo obtener el contexto del canvas')
 
-      // Fill background
+      // Fill background - white for thermal printing
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-      // Draw barcode
+      // Usar la configuración del tamaño de etiqueta actual
+      const { layout } = labelSizeConfig
+      const mmToPx = dpi / 25.4 // Convertir mm a píxeles
+
+      // Calcular el tamaño del código de barras basado en la configuración
+      const barcodeBaseSize = Math.min(template.width, template.height) * 0.6 * layout.barcodeScale
+      const barcodeWidth = Math.round(barcodeBaseSize * mmToPx)
+      const barcodeHeight = Math.round(barcodeBaseSize * 0.4 * mmToPx)
+
+      // Generar el código de barras sin texto
       const barcodeCanvas = document.createElement('canvas')
-      barcodeCanvas.width = 720
-      barcodeCanvas.height = 300
+      barcodeCanvas.width = barcodeWidth
+      barcodeCanvas.height = barcodeHeight
 
       JsBarcode(barcodeCanvas, barcodeValue, {
         format: format,
-        width: 2,
-        height: 80,
-        displayValue: false,
+        width: Math.max(1, Math.round(barcodeWidth / 100)), // Ancho de barras proporcional
+        height: barcodeHeight - 20, // Dejar espacio para el texto numérico
+        displayValue: false, // No mostrar texto, lo manejamos manualmente
         background: '#ffffff',
-        lineColor: '#000000'
+        lineColor: '#000000',
+        margin: 5
       })
 
-      // Calculate position and size for barcode
-      const barcodeX = Math.round(template.layout.barcode.x * template.dpi / 25.4)
-      const barcodeY = Math.round(template.layout.barcode.y * template.dpi / 25.4)
-      const barcodeWidth = Math.round(template.layout.barcode.width * template.dpi / 25.4)
-      const barcodeHeight = Math.round(template.layout.barcode.height * template.dpi / 25.4)
+      // Posicionar elementos según la jerarquía visual
+      let currentY = Math.round((template.height * mmToPx - barcodeHeight -
+        Math.round(layout.spacing.barcodeToCode * mmToPx) -
+        Math.round(20 * layout.codeScale) -
+        (materialData.nombre ? Math.round(15 * layout.nameScale + layout.spacing.codeToName * mmToPx) : 0)) / 2)
 
-      ctx.drawImage(barcodeCanvas, barcodeX, barcodeY, barcodeWidth, barcodeHeight)
+      // Dibujar el código de barras centrado
+      const barcodeX = Math.round((canvasWidth - barcodeWidth) / 2)
+      ctx.drawImage(barcodeCanvas, barcodeX, currentY)
 
-      // Draw texts
+      currentY += barcodeHeight + Math.round(layout.spacing.barcodeToCode * mmToPx)
+
+      // Dibujar el código numérico (segunda prioridad)
       ctx.fillStyle = '#000000'
       ctx.textAlign = 'center'
+      ctx.font = `bold ${Math.round(14 * layout.codeScale)}px monospace`
+      ctx.fillText(barcodeValue, canvasWidth / 2, currentY)
 
-      template.layout.text.forEach((textItem, index) => {
-        const textX = Math.round(textItem.x * template.dpi / 25.4 + (textItem.width * template.dpi / 50.8))
-        const textY = Math.round(textItem.y * template.dpi / 25.4 + textItem.height)
+      // Dibujar el nombre del producto (última prioridad)
+      if (materialData.nombre) {
+        currentY += Math.round(15 * layout.codeScale) + Math.round(layout.spacing.codeToName * mmToPx)
+        ctx.font = `${Math.round(12 * layout.nameScale)}px Arial`
 
-        ctx.font = `${Math.round(textItem.fontSize * template.dpi / 72)}px Arial`
-
-        let textContent = ''
-        switch (index) {
-          case 0: textContent = materialData.nombre; break
-          case 1: textContent = `Código: ${barcodeValue}`; break
-          case 2: textContent = `Stock: ${materialData.stock || 0}`; break
-        }
-
-        ctx.fillText(textContent, textX, textY)
-      })
+        // Truncar si el texto es muy largo
+        const maxTextWidth = canvasWidth - 20
+        const truncatedText = truncateText(ctx, materialData.nombre, maxTextWidth)
+        ctx.fillText(truncatedText, canvasWidth / 2, currentY)
+      }
 
       // Convert to base64
       const labelDataUrl = canvas.toDataURL('image/png')
@@ -322,7 +476,7 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
       if (result.success) {
         toast({
           title: "Impresión exitosa",
-          description: "La etiqueta se ha enviado a la impresora",
+          description: `La etiqueta ${labelSizeConfig.width}x${labelSizeConfig.height}mm se ha enviado a la impresora`,
         })
 
         if (onPrint) {
@@ -332,6 +486,7 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
         throw new Error(result.message)
       }
     } catch (error) {
+      console.error('❌ Error printing label:', error)
       toast({
         title: "Error de impresión",
         description: error instanceof Error ? error.message : "No se pudo imprimir la etiqueta",
@@ -340,7 +495,7 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     } finally {
       setIsPrinting(false)
     }
-  }, [validation.valid, barcodeValue, format, selectedTemplate, selectedPrinter, materialData, onPrint, toast, previewUrl])
+  }, [validation.valid, barcodeValue, format, selectedTemplate, selectedPrinter, materialData, onPrint, toast, previewUrl, labelSizeConfig])
 
   // Efectos
   useEffect(() => {
@@ -383,8 +538,6 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     { value: 'UPC', label: 'UPC', description: 'Retail EE.UU./Canadá' },
     { value: 'SKU', label: 'SKU', description: 'Personalizado para inventario' }
   ]
-
-  const selectedTemplateConfig = BROTHER_QL810W_TEMPLATES.find(t => t.id === selectedTemplate)
 
   return (
     <div className="space-y-6">
@@ -527,106 +680,73 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
               </TabsList>
 
               <TabsContent value="preview" className="mt-4">
-                {isGenerating ? (
-                  <div className="flex justify-center items-center h-64">
-                    <Loader2 className="w-8 h-8 animate-spin" />
+                <div className="space-y-6">
+                  {/* Información del tamaño actual */}
+                  <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
+                    <Badge variant="outline" className="px-3 py-1">
+                      Tamaño: {labelSizeConfig.width}x{labelSizeConfig.height}mm
+                    </Badge>
+                    {labelSizeConfig.rotation !== 0 && (
+                      <Badge variant="outline" className="px-3 py-1">
+                        Rotación: {labelSizeConfig.rotation}°
+                      </Badge>
+                    )}
                   </div>
-                ) : previewUrl ? (
-                  <div className="flex justify-center">
-                    <img
-                      src={previewUrl}
-                      alt="Vista previa del código de barras"
-                      className="max-w-full h-auto border border-gray-200 rounded"
-                      onLoad={() => {
-                        console.log('✅ Barcode image loaded successfully')
-                      }}
-                      onError={(e) => {
-                        console.error('❌ Failed to load barcode image:', e)
-                        console.error('🔍 Preview URL length:', previewUrl.length)
-                        console.error('🔍 Preview URL prefix:', previewUrl.substring(0, 50))
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex justify-center items-center h-64 text-muted-foreground">
-                    Ingrese un código válido para generar la vista previa
-                  </div>
-                )}
+
+                  {/* Preview con jerarquía visual correcta */}
+                  <LabelPreview
+                    materialData={materialData}
+                    barcodeValue={barcodeValue}
+                    barcodeUrl={previewUrl}
+                    sizeConfig={labelSizeConfig}
+                    isGenerating={isGenerating}
+                  />
+                </div>
               </TabsContent>
 
               {showPrint && (
                 <TabsContent value="label" className="mt-4">
-                  {selectedTemplateConfig ? (
-                    <div className="space-y-4">
-                      {/* Preview de la etiqueta completa */}
-                      <div 
-                        className="mx-auto border-2 border-gray-300 bg-white p-4"
-                        style={{
-                          width: `${selectedTemplateConfig.width * 3}px`, // Zoom x3 para visualización
-                          height: `${selectedTemplateConfig.height * 3}px`,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between'
-                        }}
-                      >
-                        {previewUrl && (
-                          <div 
-                            className="flex justify-center"
-                            style={{
-                              width: `${selectedTemplateConfig.layout.barcode.width * 3}px`,
-                              height: `${selectedTemplateConfig.layout.barcode.height * 3}px`
-                            }}
-                          >
-                            <img 
-                              src={previewUrl} 
-                              alt="Código de barras"
-                              className="w-full h-full object-contain"
-                            />
-                          </div>
-                        )}
-                        
-                        {selectedTemplateConfig.layout.text.map((textItem, index) => (
-                          <div
-                            key={index}
-                            className="text-black"
-                            style={{
-                              fontSize: `${textItem.fontSize * 3}px`,
-                              textAlign: textItem.align as 'left' | 'center' | 'right'
-                            }}
-                          >
-                            {index === 0 && materialData.nombre}
-                            {index === 1 && `Código: ${barcodeValue}`}
-                            {index === 2 && `Stock: ${materialData.stock || 0}`}
-                          </div>
-                        ))}
-                      </div>
+                  <div className="space-y-6">
+                    {/* Título e información */}
+                    <div className="text-center space-y-2">
+                      <h3 className="text-lg font-semibold">Vista Previa de Impresión</h3>
+                      <p className="text-sm text-muted-foreground">
+                        La etiqueta se imprimirá con las dimensiones exactas de {labelSizeConfig.width}x{labelSizeConfig.height}mm
+                      </p>
+                    </div>
 
-                      {/* Botón de impresión */}
-                      <div className="flex justify-center">
-                        <Button
-                          onClick={printLabel}
-                          disabled={!validation.valid || isPrinting || disabled}
-                          className="w-full max-w-md"
-                        >
-                          {isPrinting ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Imprimiendo...
-                            </>
-                          ) : (
-                            <>
-                              <Printer className="w-4 h-4 mr-2" />
-                              Imprimir Etiqueta
-                            </>
-                          )}
-                        </Button>
-                      </div>
+                    {/* Preview de la etiqueta a tamaño real */}
+                    <div className="flex justify-center overflow-auto">
+                      <LabelPreview
+                        materialData={materialData}
+                        barcodeValue={barcodeValue}
+                        barcodeUrl={previewUrl}
+                        sizeConfig={labelSizeConfig}
+                        isGenerating={isGenerating}
+                      />
                     </div>
-                  ) : (
-                    <div className="flex justify-center items-center h-64 text-muted-foreground">
-                      Seleccione una plantilla de etiqueta
+
+                    {/* Botón de impresión */}
+                    <div className="flex justify-center">
+                      <Button
+                        onClick={printLabel}
+                        disabled={!validation.valid || isPrinting || disabled || !previewUrl}
+                        className="w-full max-w-md"
+                      >
+                        {isPrinting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Imprimiendo...
+                          </>
+                        ) : (
+                          <>
+                            <Printer className="w-4 h-4 mr-2" />
+                            Imprimir Etiqueta
+                          </>
+                        )}
+                      </Button>
                     </div>
-                  )}
+                  </div>
                 </TabsContent>
               )}
             </Tabs>
