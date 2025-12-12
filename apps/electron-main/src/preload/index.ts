@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { ElectronAPI } from '@shared-types/preload'
+import type { BarcodeIPCEvents } from '@shared/types/barcode'
 
 /**
  * API segura para el renderer process utilizando contextBridge
@@ -273,6 +274,49 @@ const electronAPI: ElectronAPI = {
   // Event listeners
   onActualizacionInventario: (callback: (data: any) => void) => {
     ipcRenderer.on('inventario:actualizado', (_, data) => callback(data))
+  },
+
+  // ==================== SISTEMA DE CÓDIGOS DE BARRAS ====================
+  barcode: {
+    // Generar código de barras como base64
+    generate: (options: import('@shared/types/barcode').BarcodeOptions) => 
+      ipcRenderer.invoke('barcode:generate', options) as Promise<{ success: boolean; data?: string; error?: string }>,
+
+    // Validar formato de código de barras
+    validate: (format: import('@shared/types/barcode').BarcodeFormat, value: string) =>
+      ipcRenderer.invoke('barcode:validate', format, value) as Promise<{ valid: boolean; error?: string }>,
+
+    // Imprimir etiqueta individual
+    print: (job: import('@shared/types/barcode').PrintJob) =>
+      ipcRenderer.invoke('barcode:print', job) as Promise<{ success: boolean; message?: string; jobId?: string }>,
+
+    // Imprimir lote de etiquetas
+    printBatch: (jobs: import('@shared/types/barcode').PrintJob[]) =>
+      ipcRenderer.invoke('barcode:printBatch', jobs) as Promise<{ success: boolean; message?: string; results?: any[] }>,
+
+    // Descubrir impresoras disponibles
+    discover: () => 
+      ipcRenderer.invoke('printer:discover') as Promise<import('@shared/types/barcode').PrinterConfig[]>,
+
+    // Verificar estado de impresora
+    status: (printerId: string) =>
+      ipcRenderer.invoke('printer:status', printerId) as Promise<{ connected: boolean; status: string; error?: string }>,
+
+    // Obtener configuración de impresora
+    getConfig: (printerId: string) =>
+      ipcRenderer.invoke('printer:getConfig', printerId) as Promise<import('@shared/types/barcode').PrinterConfig | null>,
+
+    // Establecer configuración de impresora
+    setConfig: (config: import('@shared/types/barcode').PrinterConfig) =>
+      ipcRenderer.invoke('printer:setConfig', config) as Promise<boolean>,
+
+    // Obtener historial de impresión
+    getHistory: () =>
+      ipcRenderer.invoke('print:getHistory') as Promise<import('@shared/types/barcode').PrintJob[]>,
+
+    // Limpiar historial de impresión
+    clearHistory: () =>
+      ipcRenderer.invoke('print:clearHistory') as Promise<boolean>
   },
 
   // Métodos genéricos de IPC

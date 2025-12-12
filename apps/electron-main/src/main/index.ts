@@ -9,6 +9,7 @@ import { setupCategoriaHandlers } from './ipc/categoria'
 import { setupPresentacionHandlers } from './ipc/presentacion'
 import { setupFeatureFlagsHandlers } from './ipc/featureFlags'
 import { setupMonitoringHandlers } from './ipc/monitoring'
+import { registerBarcodeHandlers } from './ipc/barcode'
 import { validateDatabaseConnection } from '@backend/db/pool'
 import { monitoring } from './monitoring'
 
@@ -280,6 +281,9 @@ const setupIPC = (): void => {
 
   // Monitoring handlers
   setupMonitoringHandlers()
+
+  // Barcode handlers
+  registerBarcodeHandlers()
 
   // Ping para testing
   ipcMain.handle('ping', async () => {
