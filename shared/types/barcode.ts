@@ -84,6 +84,7 @@ export interface PrintJob {
   barcodeData: BarcodeOptions
   labelTemplate: LabelTemplate
   materialData: MaterialLabelData
+  imageData?: Buffer | string // Datos de imagen para impresión (opcional)
   copies: number
   status: 'pending' | 'printing' | 'completed' | 'error'
   error?: string
@@ -106,16 +107,23 @@ export interface MaterialLabelData {
 export interface PrinterConfig {
   id: string
   name: string
+  displayName?: string // Nombre visible para el usuario
   model: string // ej: 'QL-810W'
-  vendorId: number // VID
-  productId: number // PID
-  connection: 'usb' | 'network'
+  vendorId?: number // VID (para conexión USB directa)
+  productId?: number // PID (para conexión USB directa)
+  connection: 'usb' | 'network' | 'printer' | 'directUsb'
+  interface?: string // Interface string para node-thermal-printer
   address?: string // dirección IP si es red
   port?: number // puerto si es red
   supportedSizes: string[] // tamaños de etiqueta soportados
   resolution: { dpi: number }
   speed: number // etiquetas por minuto
   default?: boolean
+  driverType?: 'star' | 'epson' | 'auto' // Para node-thermal-printer
+  priority?: number // Prioridad para método de impresión (1 = más alta)
+  connected?: boolean // Estado de conexión
+  status?: string // Estado detallado
+  error?: string // Error si está desconectado
 }
 
 export interface PrintOptions {
@@ -419,29 +427,46 @@ export const BROTHER_QL810W_TEMPLATES: LabelTemplate[] = [
 // Configuraciones de impresora predefinidas
 export const BROTHER_PRINTER_CONFIGS: PrinterConfig[] = [
   {
-    id: 'ql-810w-usb',
-    name: 'Brother QL-810W (USB)',
+    id: 'ql-810w-direct-usb',
+    name: 'Brother QL-810W Direct',
+    displayName: 'Brother QL-810W (Direct USB)',
     model: 'QL-810W',
     vendorId: 0x04f9,
-    productId: 0x209d,
-    connection: 'usb',
+    productId: 0x209c,
+    connection: 'directUsb',
     supportedSizes: ['DK-11201', 'DK-11202', 'Continuous 62mm'],
     resolution: { dpi: 300 },
     speed: 110,
-    default: true
+    default: true,
+    priority: 1
   },
   {
-    id: 'ql-810w-network',
-    name: 'Brother QL-810W (Network)',
+    id: 'ql-810w-usb',
+    name: 'BRW4CD577EBB8F3',
+    displayName: 'Brother QL-810W', // Nombre real en Windows para USB
     model: 'QL-810W',
-    vendorId: 0x04f9,
-    productId: 0x209d,
-    connection: 'network',
-    address: '192.168.1.100', // Default - configurable
-    port: 9100,
+    connection: 'printer',
+    interface: 'printer:BRW4CD577EBB8F3',
+    driverType: 'auto', // node-thermal-printer detectará automáticamente
     supportedSizes: ['DK-11201', 'DK-11202', 'Continuous 62mm'],
     resolution: { dpi: 300 },
-    speed: 110
+    speed: 110,
+    priority: 2
+  },
+  {
+    id: 'ql-810w-wifi',
+    name: 'BRW4CD577EBB8F3',
+    displayName: 'Brother QL-810W Red', // Nombre real en Windows para WiFi
+    model: 'QL-810W',
+    connection: 'network',
+    interface: 'tcp://192.168.0.86:9100',
+    address: '192.168.0.86',
+    port: 9100,
+    driverType: 'auto', // node-thermal-printer detectará automáticamente
+    supportedSizes: ['DK-11201', 'DK-11202', 'Continuous 62mm'],
+    resolution: { dpi: 300 },
+    speed: 110,
+    priority: 3
   }
 ]
 
@@ -452,9 +477,15 @@ export interface BarcodeIPCEevents {
   'barcode:print': (job: PrintJob) => Promise<{ success: boolean; message?: string }>
   'barcode:printBatch': (jobs: PrintJob[]) => Promise<{ success: boolean; message?: string; results?: any[] }>
   'printer:discover': () => Promise<PrinterConfig[]>
+  'printer:discoverDirect': () => Promise<PrinterConfig[]>
   'printer:status': (printerId: string) => Promise<{ connected: boolean; status: string; error?: string }>
   'printer:getConfig': (printerId: string) => Promise<PrinterConfig>
   'printer:setConfig': (config: PrinterConfig) => Promise<boolean>
+  'printer:getDefault': () => Promise<{ success: boolean; printer?: PrinterConfig }>
+  'printer:isAvailable': (printerName: string) => Promise<{ success: boolean; available: boolean; error?: string }>
+  'printer:listNative': () => Promise<any>
+  'print:testNative': (options: { printerName?: string; pdfPath?: string }) => Promise<any>
+  'print:testDirect': (printerId: string) => Promise<{ success: boolean; message?: string; error?: string }>
   'print:getHistory': () => Promise<PrintJob[]>
   'print:clearHistory': () => Promise<boolean>
 }

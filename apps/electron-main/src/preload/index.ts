@@ -316,7 +316,31 @@ const electronAPI: ElectronAPI = {
 
     // Limpiar historial de impresión
     clearHistory: () =>
-      ipcRenderer.invoke('print:clearHistory') as Promise<boolean>
+      ipcRenderer.invoke('print:clearHistory') as Promise<boolean>,
+
+    // Listar impresoras con módulo Windows mejorado
+    listNative: () =>
+      ipcRenderer.invoke('printer:listNative') as Promise<{ success: boolean; printers?: any[]; error?: string }>,
+
+    // Probar impresión con módulo Windows mejorado
+    testNative: (options: { printerName?: string; pdfPath?: string }) =>
+      ipcRenderer.invoke('print:testNative', options) as Promise<{ success: boolean; message?: string; error?: string }>,
+
+    // Obtener impresora predeterminada
+    getDefault: () =>
+      ipcRenderer.invoke('printer:getDefault') as Promise<{ success: boolean; printer?: string; error?: string }>,
+
+    // Verificar si impresora está disponible
+    isAvailable: (printerName: string) =>
+      ipcRenderer.invoke('printer:isAvailable', printerName) as Promise<{ success: boolean; available: boolean; error?: string }>,
+
+    // Descubrir impresoras USB directas (nuevo)
+    discoverDirect: () =>
+      ipcRenderer.invoke('printer:discoverDirect') as Promise<import('@shared-types/barcode').PrinterConfig[]>,
+
+    // Probar impresión directa USB (nuevo)
+    testDirect: (printerId: string) =>
+      ipcRenderer.invoke('print:testDirect', printerId) as Promise<{ success: boolean; message?: string; error?: string }>
   },
 
   // Métodos genéricos de IPC
