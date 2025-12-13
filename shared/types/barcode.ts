@@ -20,6 +20,8 @@ export interface LabelSizeConfig {
     spacing: {
       barcodeToCode: number // espacio entre barcode y código numérico (mm)
       codeToName: number // espacio entre código y nombre (mm)
+      columnGap?: number // espacio entre columnas de texto y barcode (mm)
+      textLineHeight?: number // espaciado entre líneas de texto (ratio)
     }
   }
 }
@@ -102,6 +104,7 @@ export interface MaterialLabelData {
   institucion: string // para multi-tenant
   categoria?: string // categoría del material
   presentacion?: string // presentación
+  precio?: string | number // precio del material
 }
 
 export interface PrinterConfig {
@@ -250,17 +253,19 @@ export const BARCODE_VALIDATIONS: Record<Exclude<BarcodeFormat, 'SKU' | 'QR'>, B
 export const LABEL_SIZE_CONFIGS: Record<LabelSize, LabelSizeConfig> = {
   '29x90': {
     size: '29x90',
-    width: 29,
-    height: 90,
-    rotation: 90, // Rotar 90 grados para que el barcode vaya a lo largo del lado corto
+    width: 90, // DK-1201 es 90mm de ancho
+    height: 29, // DK-1201 es 29mm de alto
+    rotation: 0, // Sin rotación - orientación horizontal estándar
     transformOrigin: 'center',
     layout: {
-      barcodeScale: 1.3, // Aumentado para usar más espacio
-      codeScale: 1.2,   // Aumentado para mejor legibilidad
-      nameScale: 1.0,   // Aumentado para ser legible
+      barcodeScale: 1.2, // Aumentado para mejor escaneabilidad en layout horizontal
+      codeScale: 1.1,   // Escala para legibilidad del SKU
+      nameScale: 1.0,   // Escala base para el nombre
       spacing: {
-        barcodeToCode: 3, // 3mm entre barcode y código
-        codeToName: 2     // 2mm entre código y nombre
+        barcodeToCode: 2, // 2mm entre barcode y código (vertical, si se necesitara)
+        codeToName: 1.5, // 1.5mm entre código y nombre (vertical, si se necesitara)
+        columnGap: 4,    // 4mm entre columnas de texto y barcode
+        textLineHeight: 1.4 // Espaciado entre líneas de texto
       }
     }
   },
@@ -316,32 +321,32 @@ export const getLabelSizeFromTemplate = (templateId: string): LabelSize => {
 export const BROTHER_QL810W_TEMPLATES: LabelTemplate[] = [
   {
     id: 'dk-11201',
-    name: 'DK-11201 (29x90mm)',
-    width: 29,
-    height: 90,
+    name: 'DK-11201 (90x29mm)',
+    width: 90, // Correcto: 90mm de ancho
+    height: 29, // Correcto: 29mm de alto
     dpi: 300,
     default: true,
     layout: {
       barcode: {
-        x: 5,
-        y: 10,
-        width: 19,
-        height: 5
+        x: 3,  // 3mm margen de seguridad
+        y: 5,
+        width: 84, // Área imprimible: 84mm
+        height: 10
       },
       text: [
         {
-          x: 5,
+          x: 3,
           y: 16,
-          width: 19,
-          height: 8,
+          width: 84,
+          height: 6,
           fontSize: 8,
           align: 'center'
         },
         {
-          x: 5,
-          y: 25,
-          width: 19,
-          height: 6,
+          x: 3,
+          y: 23,
+          width: 84,
+          height: 3,
           fontSize: 6,
           align: 'center'
         }

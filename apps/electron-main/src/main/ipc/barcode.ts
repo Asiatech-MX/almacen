@@ -67,33 +67,54 @@ async function generateBarcodePNG(options: BarcodeOptions): Promise<string> {
 
     while (attempts < maxAttempts) {
       try {
-        // Crear canvas temporal - MAX 720px width para node-brother-label-printer
-        const canvasWidth = 720 // Máximo permitido por la librería
-        const canvasHeight = 300
-        const canvas = require('canvas').createCanvas(canvasWidth, canvasHeight)
+        // Crear canvas con dimensiones basadas en el tamaño de etiqueta DK-1201
+        // DK-1201: 90mm x 29mm a 300 DPI = 1063px x 342px
+        const dpi = 300
+        const mmToPx = dpi / 25.4
+        const labelWidthMm = 90  // DK-1201 width
+        const labelHeightMm = 29 // DK-1201 height
+
+        // Calcular dimensiones del canvas
+        const canvasWidth = Math.round(labelWidthMm * mmToPx)
+        const canvasHeight = Math.round(labelHeightMm * mmToPx)
+
+        // Limitar a máximo 720px para node-brother-label-printer si es necesario
+        const finalWidth = Math.min(canvasWidth, 720)
+        const scaleRatio = finalWidth / canvasWidth
+        const finalHeight = Math.round(canvasHeight * scaleRatio)
+
+        const canvas = require('canvas').createCanvas(finalWidth, finalHeight)
         const ctx = canvas.getContext('2d')
 
         console.log(`✅ [Main] Canvas created successfully (attempt ${attempts + 1}), size:`, canvas.width, 'x', canvas.height)
 
-        // Ajustar el width del barcode para que quepa en el canvas
-        // Margin: 20px cada lado = 40px total,剩下 680px para el barcode
-        const maxWidth = 680
-        const barcodeWidth = Math.min(options.width || 1, 1) // Forzar width=1 para no exceder
+        // Rellenar fondo blanco
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, finalWidth, finalHeight)
+
+        // Calcular márgenes de seguridad (3mm)
+        const marginPx = Math.round(3 * mmToPx * scaleRatio)
+        const printableWidth = finalWidth - (2 * marginPx)
+        const printableHeight = finalHeight - (2 * marginPx)
+
+        // Ajustar el width del barcode para el área imprimible
+        const maxWidth = printableWidth
+        const barcodeWidth = Math.min(options.width || 2, 3) // Limitar width para no exceder
 
         // Calcular el width óptimo basado en la longitud del código
         const codeLength = options.value.length
-        const optimalWidth = Math.max(1, Math.floor(maxWidth / codeLength))
+        const optimalWidth = Math.max(1, Math.floor(maxWidth / (codeLength * 1.5)))
 
-        // Generar código de barras con JsBarcode
+        // Generar código de barras centrado con JsBarcode
         JsBarcode(canvas, options.value, {
           format: options.format,
-          width: Math.min(optimalWidth, 2), // Máximo 2, pero ajustado al código
-          height: Math.min(options.height || 100, 150), // Limitar altura también
+          width: Math.min(optimalWidth, barcodeWidth),
+          height: Math.min(Math.round(options.height || 100), Math.round(printableHeight * 0.4)),
           displayValue: options.displayValue !== false,
-          fontSize: Math.min(options.fontSize || 16, 16), // Fuente más pequeña
+          fontSize: Math.min(options.fontSize || 14, 14),
           textMargin: options.textMargin || 2,
-          margin: options.margin || 10, // Reducir margen
-          background: options.background || '#ffffff',
+          margin: 0, // Sin margen - controlamos posición manualmente
+          background: '#ffffff',
           lineColor: options.lineColor || '#000000',
           font: options.font || 'monospace',
           fontOptions: options.fontOptions || '',
@@ -119,18 +140,20 @@ async function generateBarcodePNG(options: BarcodeOptions): Promise<string> {
 
           // Validar PNG header
           if (isValidPNG(buffer)) {
-            // Validar tamaño máximo para node-brother-label-printer
+            // Validar dimensiones para node-brother-label-printer
             const sharp = require('sharp')
             try {
               const metadata = await sharp(buffer).metadata()
               console.log(`📏 [Main] Image dimensions: ${metadata.width}x${metadata.height}`)
 
+              // La imagen ya debería tener las dimensiones correctas gracias a nuestro cálculo
               if (metadata.width > 720) {
-                console.warn(`⚠️ [Main] Image too wide (${metadata.width}px), resizing...`)
+                console.warn(`⚠️ [Main] Image too wide (${metadata.width}px), resizing to fit printer limits...`)
                 const resizedBuffer = await sharp(buffer)
                   .resize(720, null, {
-                    withoutEnlargement: true,
-                    fit: 'inside'
+                    withoutEnlargement: false,
+                    fit: 'inside',
+                    preserveAspectRatio: true
                   })
                   .png({ compressionLevel: 9, force: true })
                   .toBuffer()
@@ -140,7 +163,7 @@ async function generateBarcodePNG(options: BarcodeOptions): Promise<string> {
                 return resizedDataUrl
               }
 
-              console.log('✅ [Main] PNG validation passed - size OK')
+              console.log('✅ [Main] PNG validation passed - dimensions correct for DK-1201 label')
               return dataUrl
             } catch (sharpError) {
               console.warn('⚠️ [Main] Sharp not available for size validation, using original PNG')
@@ -180,7 +203,7 @@ async function createLabelPDF(job: PrintJob & { imageData?: number[] }): Promise
       // Obtener configuración del tamaño
       const labelSize = job.labelTemplate.id || 'continuous-62mm'
       const sizeConfig = {
-        'dk-11201': { width: 29, height: 90 }, // 29x90mm
+        'dk-11201': { width: 90, height: 29 }, // DK-1201 es 90x29mm (corregido)
         'dk-11202': { width: 62, height: 100 }, // 62x100mm
         'continuous-62mm': { width: 62, height: 40 } // 62mm continuo
       }
@@ -193,14 +216,17 @@ async function createLabelPDF(job: PrintJob & { imageData?: number[] }): Promise
 
       console.log(`📐 Creando PDF con tamaño: ${config.width}x${config.height}mm (${width.toFixed(1)}x${height.toFixed(1)}pt)`)
 
-      // Crear documento PDF
+      // Crear documento PDF con márgenes de seguridad de 3mm
+      const marginMm = 3
+      const marginPt = marginMm * 2.834645669
+
       const doc = new PDFDocument({
         size: [width, height],
         margins: {
-          top: 2,
-          bottom: 2,
-          left: 2,
-          right: 2
+          top: marginPt,
+          bottom: marginPt,
+          left: marginPt,
+          right: marginPt
         }
       })
 
@@ -222,11 +248,12 @@ async function createLabelPDF(job: PrintJob & { imageData?: number[] }): Promise
         // Convertir el buffer de imagen a base64 para PDFKit
         const imageBuffer = Buffer.from(job.imageData)
 
-        // Centrar la imagen en el PDF
-        const imgWidth = width - 8 // 4mm márgenes totales
-        const imgHeight = height - 8 // 4mm márgenes totales
+        // La imagen ya incluye los márgenes de seguridad, así que la colocamos en (0,0)
+        // PDFKit respeta los márgenes configurados en el documento
+        const imgWidth = width - (2 * marginPt)
+        const imgHeight = height - (2 * marginPt)
 
-        doc.image(imageBuffer, 4, 4, { width: imgWidth, height: imgHeight, align: 'center' })
+        doc.image(imageBuffer, 0, 0, { width: imgWidth, height: imgHeight, align: 'center' })
       } else {
         // Fallback: generar un PDF simple con texto
         doc.fontSize(12)

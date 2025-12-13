@@ -42,7 +42,7 @@ interface BarcodeGeneratorProps {
   disabled?: boolean
 }
 
-// Componente para renderizar la etiqueta con la jerarquía visual correcta
+// Componente para renderizar la etiqueta con layout horizontal de dos columnas
 const LabelPreview: React.FC<{
   materialData: MaterialLabelData
   barcodeValue: string
@@ -62,37 +62,49 @@ const LabelPreview: React.FC<{
       'bottom-right': '100% 100%'
     }
 
+    // Para preview, usar 96 DPI estándar del navegador
+    const previewDPI = 96
+    const mmToPx = previewDPI / 25.4
+
     return {
-      width: `${width * 3.78}px`, // Convert mm to px (1mm ≈ 3.78px at 96dpi)
-      height: `${height * 3.78}px`,
+      width: `${width * mmToPx}px`, // Convert mm to px usando DPI correcto
+      height: `${height * mmToPx}px`,
       transform: rotation !== 0 ? `rotate(${rotation}deg)` : undefined,
       transformOrigin: transformOriginMap[transformOrigin],
       transition: 'transform 0.2s ease-in-out'
     }
   }
 
-  // Calcular tamaños relativos basados en la configuración - MEJORADO
+  // Calcular tamaños relativos para layout horizontal
   const getBarcodeSize = () => {
-    // El barcode debe ser el elemento dominante - 70% del ancho de la etiqueta
-    const barcodeWidth = width * 0.7 * layout.barcodeScale
-    const barcodeHeight = height * 0.35 * layout.barcodeScale // Altura proporcional
+    // Barcode ocupa 40% del ancho del área imprimible
+    const printableWidth = width - 6 // Restar 3mm de margen cada lado
+    const printableHeight = height - 6 // Restar 3mm de margen cada lado
+    const barcodeWidth = printableWidth * 0.4 * layout.barcodeScale // 40% del ancho imprimible
+    const barcodeHeight = printableHeight * 0.8 * layout.barcodeScale // 80% de la altura imprimible para máxima escaneabilidad
     return { width: barcodeWidth, height: barcodeHeight }
   }
 
-  const getCodeFontSize = () => {
-    // Texto del código debe ser legible - mínimo 14px
-    const baseSize = Math.max(width, height) * 0.15 // 15% del lado más grande
-    return Math.max(14, baseSize * layout.codeScale) // Mínimo 14px para legibilidad
-  }
-
   const getNameFontSize = () => {
-    // Texto del nombre debe ser legible - mínimo 10px
-    const baseSize = Math.max(width, height) * 0.10 // 10% del lado más grande
-    return Math.max(10, baseSize * layout.nameScale) // Mínimo 10px para legibilidad
+    // Nombre del producto - fuente más grande para visibilidad
+    const baseSize = height * 0.25 // 25% de la altura total
+    return Math.max(12, Math.min(16, baseSize * layout.nameScale)) // Entre 12-16px
   }
 
-  // Determinar la posición del nombre según el espacio disponible
-  const shouldShowNameOnTop = height > (width * 1.5) // Si es mucho más alto que ancho
+  const getCodeFontSize = () => {
+    // SKU - fuente monospace para claridad
+    const baseSize = height * 0.18 // 18% de la altura total
+    return Math.max(10, Math.min(12, baseSize * layout.codeScale)) // Entre 10-12px
+  }
+
+  const getPriceFontSize = () => {
+    // Precio - fuente destacada pero más pequeña que el nombre
+    const baseSize = height * 0.20 // 20% de la altura total
+    return Math.max(11, Math.min(14, baseSize * layout.codeScale)) // Entre 11-14px
+  }
+
+  // Calcular el espaciado entre columnas (si no está definido, usar 4mm por defecto)
+  const columnGap = layout.spacing.columnGap || 4
 
   return (
     <div className="flex justify-center items-center p-8 bg-gray-100 rounded-lg">
@@ -100,24 +112,54 @@ const LabelPreview: React.FC<{
         className="bg-white border border-gray-300 shadow-md overflow-visible"
         style={getTransformStyles()}
       >
-        <div className="flex flex-col h-full p-2" style={{ gap: `${layout.spacing.barcodeToCode * 3.78}px` }}>
-          {/* Nombre del producto (arriba si hay espacio) */}
-          {shouldShowNameOnTop && materialData.nombre && (
-            <div
-              className="text-black text-center font-medium truncate"
-              style={{ fontSize: `${getNameFontSize()}px` }}
-            >
-              {materialData.nombre}
-            </div>
-          )}
+        <div className="flex h-full p-2" style={{ gap: `${columnGap * 3.78}px` }}>
+          {/* Columna Izquierda - Texto (60% del ancho) */}
+          <div className="flex flex-col justify-center" style={{ width: '60%' }}>
+            {/* Nombre del producto - Prioridad principal */}
+            {materialData.nombre && (
+              <div
+                className="text-black font-medium truncate"
+                style={{ fontSize: `${getNameFontSize()}px`, lineHeight: layout.spacing.textLineHeight || 1.4 }}
+                title={materialData.nombre} // Tooltip para nombre completo
+              >
+                {materialData.nombre}
+              </div>
+            )}
 
-          {/* Código de barras - Siempre el elemento más grande */}
-          {isGenerating ? (
-            <div className="flex justify-center items-center" style={{ height: `${getBarcodeSize().height * 3.78}px` }}>
-              <Loader2 className="w-8 h-8 animate-spin" />
+            {/* SKU - Siempre mostrar */}
+            <div
+              className="text-black font-mono"
+              style={{
+                fontSize: `${getCodeFontSize()}px`,
+                marginTop: materialData.nombre ? '2px' : '0',
+                lineHeight: layout.spacing.textLineHeight || 1.4
+              }}
+            >
+              SKU: {materialData.codigo}
             </div>
-          ) : barcodeUrl ? (
-            <div className="flex justify-center">
+
+            {/* Precio - Si está disponible */}
+            {materialData.precio && (
+              <div
+                className="text-black font-bold"
+                style={{
+                  fontSize: `${getPriceFontSize()}px`,
+                  marginTop: '2px',
+                  lineHeight: layout.spacing.textLineHeight || 1.4
+                }}
+              >
+                ${materialData.precio}
+              </div>
+            )}
+          </div>
+
+          {/* Columna Derecha - Código de Barras (40% del ancho) */}
+          <div className="flex justify-end items-center" style={{ width: '40%' }}>
+            {isGenerating ? (
+              <div className="flex justify-center items-center" style={{ width: `${getBarcodeSize().width * 3.78}px`, height: `${getBarcodeSize().height * 3.78}px` }}>
+                <Loader2 className="w-6 h-6 animate-spin" />
+              </div>
+            ) : barcodeUrl ? (
               <img
                 src={barcodeUrl}
                 alt="Código de barras"
@@ -127,39 +169,18 @@ const LabelPreview: React.FC<{
                   height: `${getBarcodeSize().height * 3.78}px`
                 }}
               />
-            </div>
-          ) : (
-            <div
-              className="flex justify-center items-center bg-gray-200"
-              style={{
-                width: `${getBarcodeSize().width * 3.78}px`,
-                height: `${getBarcodeSize().height * 3.78}px`
-              }}
-            >
-              <span className="text-gray-500 text-xs">Sin código</span>
-            </div>
-          )}
-
-          {/* Código numérico - Segundo en jerarquía */}
-          <div
-            className="text-black text-center font-mono font-bold"
-            style={{ fontSize: `${getCodeFontSize()}px` }}
-          >
-            {barcodeValue}
+            ) : (
+              <div
+                className="flex justify-center items-center bg-gray-200"
+                style={{
+                  width: `${getBarcodeSize().width * 3.78}px`,
+                  height: `${getBarcodeSize().height * 3.78}px`
+                }}
+              >
+                <span className="text-gray-500 text-xs">Sin código</span>
+              </div>
+            )}
           </div>
-
-          {/* Nombre del producto (abajo si no hay espacio arriba) */}
-          {!shouldShowNameOnTop && materialData.nombre && (
-            <div
-              className="text-black text-center font-medium truncate"
-              style={{
-                fontSize: `${getNameFontSize()}px`,
-                marginTop: `${layout.spacing.codeToName * 3.78}px`
-              }}
-            >
-              {materialData.nombre}
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -275,55 +296,125 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     }
   }, [])
 
-  // Generar preview del código de barras
+  // Generar preview del código de barras con layout horizontal
   const generatePreview = useCallback(async (value: string, fmt: BarcodeFormat) => {
     if (!value.trim() || !validation.valid) return
 
     setIsGenerating(true)
 
     try {
-      console.log('🔧 [Renderer] Generating barcode locally with improved sizing')
+      console.log('🔧 [Renderer] Generating barcode with horizontal layout')
 
       // Generate barcode in renderer process to avoid canvas native dependency
       const { default: JsBarcode } = await import('jsbarcode')
 
-      // Create canvas element in renderer - TAMAÑO DINÁMICO BASADO EN LA ETIQUETA
+      // Get template and calculate dimensions
       const template = BROTHER_QL810W_TEMPLATES.find(t => t.id === selectedTemplate)
       const dpi = template?.dpi || 300
 
-      // Usar un factor de escala para el preview (más grande para mejor visualización)
-      const previewScale = 2
-      const canvasWidth = Math.round((template?.width || 29) * dpi / 25.4 * previewScale)
-      const canvasHeight = Math.round((template?.height || 90) * dpi / 25.4 * previewScale)
+      // Calculate actual label dimensions in pixels
+      const mmToPx = dpi / 25.4
+      const labelWidthPx = Math.round(template.width * mmToPx)
+      const labelHeightPx = Math.round(template.height * mmToPx)
 
+      // Calculate safety margins (3mm on each side)
+      const marginPx = Math.round(3 * mmToPx)
+      const printableWidth = labelWidthPx - (2 * marginPx)
+      const printableHeight = labelHeightPx - (2 * marginPx)
+
+      // Calculate column widths for horizontal layout
+      const textColumnWidth = Math.round(printableWidth * 0.6) // 60% for text
+      const barcodeColumnWidth = Math.round(printableWidth * 0.4) // 40% for barcode
+      const columnGap = Math.round((labelSizeConfig.layout.spacing.columnGap || 4) * mmToPx)
+
+      // Create canvas with actual label dimensions
       const canvas = document.createElement('canvas')
-      canvas.width = canvasWidth
-      canvas.height = canvasHeight
+      canvas.width = labelWidthPx
+      canvas.height = labelHeightPx
 
-      // Calcular dimensiones optimizadas para el barcode
-      const barcodeWidth = Math.round(canvasWidth * 0.7) // 70% del ancho
-      const barcodeHeight = Math.round(canvasHeight * 0.35) // 35% del alto
+      // Clear canvas with white background
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('No se pudo obtener el contexto del canvas')
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, labelWidthPx, labelHeightPx)
 
-      // Calcular el ancho de las barras para asegurar que sean escaneables
-      // Mínimo 3 píxeles por barra a 300 DPI
-      const barWidth = Math.max(3, Math.min(5, Math.round(barcodeWidth / (value.length * 1.5))))
+      // ======== DIBUJAR COLUMNA IZQUIERDA (TEXTO) ========
+      ctx.fillStyle = '#000000'
+      ctx.textAlign = 'left'
 
-      // Generate barcode con opciones mejoradas
+      // Configurar fuentes
+      const nameFontSize = Math.round(16 * labelSizeConfig.layout.nameScale) // 16px base
+      const codeFontSize = Math.round(12 * labelSizeConfig.layout.codeScale) // 12px base
+      const priceFontSize = Math.round(14 * labelSizeConfig.layout.codeScale) // 14px base
+      const lineHeight = labelSizeConfig.layout.spacing.textLineHeight || 1.4
+
+      let currentY = marginPx + Math.round((printableHeight - (
+        (materialData.nombre ? nameFontSize * lineHeight : 0) +
+        codeFontSize * lineHeight +
+        (materialData.precio ? priceFontSize * lineHeight : 0)
+      )) / 2)
+
+      // Nombre del producto
+      if (materialData.nombre) {
+        ctx.font = `${nameFontSize}px Arial, sans-serif`
+        const truncatedText = truncateText(ctx, materialData.nombre, textColumnWidth - 10)
+        ctx.fillText(truncatedText, marginPx, currentY)
+        currentY += Math.round(nameFontSize * lineHeight)
+      }
+
+      // SKU
+      ctx.font = `${codeFontSize}px monospace`
+      ctx.fillText(`SKU: ${materialData.codigo}`, marginPx, currentY)
+      currentY += Math.round(codeFontSize * lineHeight)
+
+      // Precio
+      if (materialData.precio) {
+        ctx.font = `bold ${priceFontSize}px Arial, sans-serif`
+        ctx.fillText(`$${materialData.precio}`, marginPx, currentY)
+      }
+
+      // ======== DIBUJAR COLUMNA DERECHA (CÓDIGO DE BARRAS) ========
+      // Calcular dimensiones del barcode
+      const barcodeWidth = Math.min(
+        barcodeColumnWidth - 10,
+        Math.round(barcodeColumnWidth * 0.9)
+      )
+      const barcodeHeight = Math.round(printableHeight * 0.8) // 80% de altura disponible
+      const barcodeX = marginPx + textColumnWidth + columnGap + (barcodeColumnWidth - barcodeWidth)
+      const barcodeY = marginPx + Math.round((printableHeight - barcodeHeight) / 2)
+
+      // Calcular ancho de barras para escaneabilidad
+      const minBarWidth = Math.max(2, Math.round(dpi / 150)) // Mínimo 2px a 300 DPI
+      const maxBarWidth = Math.min(3, Math.round(barcodeWidth / (value.length * 1.5)))
+      const barWidth = Math.max(minBarWidth, maxBarWidth)
+
+      // Generar barcode con displayValue: false
       JsBarcode(canvas, value, {
         format: fmt,
-        width: barWidth, // Ancho de barra calculado dinámicamente
-        height: barcodeHeight, // Altura proporcional
-        displayValue: false, // No mostrar texto, lo manejamos manualmente
+        width: barWidth,
+        height: barcodeHeight,
+        displayValue: false, // No mostrar texto bajo el barcode
         background: '#ffffff',
         lineColor: '#000000',
-        margin: 5 // Márgen reducido para usar más espacio
+        margin: 0,
+        marginTop: barcodeY,
+        marginLeft: barcodeX
       })
 
-      console.log('✅ [Renderer] Barcode generated successfully with barWidth:', barWidth)
+      console.log('✅ [Renderer] Horizontal barcode generated:', {
+        dimensions: `${labelWidthPx}x${labelHeightPx}px`,
+        columns: {
+          text: `${textColumnWidth}px wide`,
+          barcode: `${barcodeWidth}x${barcodeHeight}px`,
+          gap: `${columnGap}px`
+        },
+        position: `barcode at (${barcodeX}, ${barcodeY})`,
+        barWidth
+      })
 
       // Convert to data URL
       const dataUrl = canvas.toDataURL('image/png')
-      console.log('✅ [Renderer] Canvas converted to data URL, dimensions:', canvasWidth, 'x', canvasHeight)
+      console.log('✅ [Renderer] Canvas converted to data URL')
 
       setPreviewUrl(dataUrl)
     } catch (error) {
@@ -336,7 +427,7 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     } finally {
       setIsGenerating(false)
     }
-  }, [validation.valid, toast, selectedTemplate])
+  }, [validation.valid, toast, selectedTemplate, materialData, labelSizeConfig])
 
   // Función auxiliar para truncar texto
   const truncateText = (context: CanvasRenderingContext2D, text: string, maxWidth: number): string => {
@@ -350,21 +441,12 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     return truncated.length === text.length ? text : truncated + ellipsis
   }
 
-  // Imprimir etiqueta con el nuevo layout consciente del tamaño
+  // Imprimir etiqueta con layout horizontal de dos columnas
   const printLabel = useCallback(async () => {
     if (!validation.valid || !barcodeValue.trim()) {
       toast({
         title: "Error",
         description: "Por favor genere un código de barras válido antes de imprimir",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (!previewUrl) {
-      toast({
-        title: "Error",
-        description: "No hay vista previa del código de barras para imprimir",
         variant: "destructive",
       })
       return
@@ -379,14 +461,17 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
         throw new Error('Plantilla no encontrada')
       }
 
-      // Generate label in renderer with size-aware layout
+      // Generate label in renderer with horizontal layout
       const { default: JsBarcode } = await import('jsbarcode')
       const canvas = document.createElement('canvas')
 
       // Calculate canvas size based on template with DPI
       const dpi = template.dpi || 300
-      const canvasWidth = Math.round(template.width * dpi / 25.4)
-      const canvasHeight = Math.round(template.height * dpi / 25.4)
+      const mmToPx = dpi / 25.4 // Convertir mm a píxeles
+
+      // Label dimensions in pixels
+      const canvasWidth = Math.round(template.width * mmToPx)
+      const canvasHeight = Math.round(template.height * mmToPx)
       canvas.width = canvasWidth
       canvas.height = canvasHeight
 
@@ -397,66 +482,108 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
 
+      // Calculate safety margins (3mm on each side)
+      const marginPx = Math.round(3 * mmToPx)
+      const printableWidth = canvasWidth - (2 * marginPx)
+      const printableHeight = canvasHeight - (2 * marginPx)
+
       // Usar la configuración del tamaño de etiqueta actual
       const { layout } = labelSizeConfig
-      const mmToPx = dpi / 25.4 // Convertir mm a píxeles
 
-      // Calcular el tamaño del código de barras - MEJORADO
-      // El barcode debe ocupar el 70% del ancho de la etiqueta
-      const barcodeWidth = Math.round(template.width * mmToPx * 0.7 * layout.barcodeScale)
-      const barcodeHeight = Math.round(template.height * mmToPx * 0.35 * layout.barcodeScale)
+      // ======== LAYOUT HORIZONTAL: DOS COLUMNAS ========
+      // Calcular dimensiones de columnas
+      const textColumnWidth = Math.round(printableWidth * 0.6) // 60% para texto
+      const barcodeColumnWidth = Math.round(printableWidth * 0.4) // 40% para barcode
+      const columnGap = Math.round((layout.spacing.columnGap || 4) * mmToPx)
 
-      // Generar el código de barras sin texto
+      // ======== DIBUJAR COLUMNA IZQUIERDA (TEXTO) ========
+      ctx.fillStyle = '#000000'
+      ctx.textAlign = 'left'
+
+      // Configurar fuentes
+      const nameFontSize = Math.max(16, Math.round(18 * layout.nameScale))
+      const codeFontSize = Math.max(12, Math.round(14 * layout.codeScale))
+      const priceFontSize = Math.max(14, Math.round(16 * layout.codeScale))
+      const lineHeight = layout.spacing.textLineHeight || 1.4
+
+      // Calcular posición Y inicial para centrar verticalmente
+      let currentY = marginPx + Math.round((printableHeight - (
+        (materialData.nombre ? nameFontSize * lineHeight : 0) +
+        codeFontSize * lineHeight +
+        (materialData.precio ? priceFontSize * lineHeight : 0)
+      )) / 2)
+
+      // Nombre del producto
+      if (materialData.nombre) {
+        ctx.font = `${nameFontSize}px Arial, sans-serif`
+        const truncatedText = truncateText(ctx, materialData.nombre, textColumnWidth - 10)
+        ctx.fillText(truncatedText, marginPx, currentY)
+        currentY += Math.round(nameFontSize * lineHeight)
+      }
+
+      // SKU
+      ctx.font = `${codeFontSize}px monospace`
+      ctx.fillText(`SKU: ${materialData.codigo}`, marginPx, currentY)
+      currentY += Math.round(codeFontSize * lineHeight)
+
+      // Precio
+      if (materialData.precio) {
+        ctx.font = `bold ${priceFontSize}px Arial, sans-serif`
+        ctx.fillText(`$${materialData.precio}`, marginPx, currentY)
+      }
+
+      // ======== DIBUJAR COLUMNA DERECHA (CÓDIGO DE BARRAS) ========
+      // Calcular dimensiones del barcode
+      const barcodeWidth = Math.min(
+        barcodeColumnWidth - 10,
+        Math.round(barcodeColumnWidth * 0.9)
+      )
+      const barcodeHeight = Math.round(printableHeight * 0.8) // 80% de altura para máxima escaneabilidad
+      const barcodeX = marginPx + textColumnWidth + columnGap + (barcodeColumnWidth - barcodeWidth)
+      const barcodeY = marginPx + Math.round((printableHeight - barcodeHeight) / 2)
+
+      // Generar el código de barras sin texto (displayValue: false)
       const barcodeCanvas = document.createElement('canvas')
       barcodeCanvas.width = barcodeWidth
       barcodeCanvas.height = barcodeHeight
 
       // Calcular el ancho de las barras para asegurar escaneabilidad
-      // Mínimo 3 píxeles por barra a 300 DPI para garantizar escaneo
-      const barWidth = Math.max(3, Math.min(6, Math.round(barcodeWidth / (barcodeValue.length * 1.2))))
+      // Mínimo 2 píxeles por barra a 300 DPI, óptimo 2-3px
+      const minBarWidth = Math.max(2, Math.round(dpi / 150))
+      const maxBarWidth = Math.min(3, Math.round(barcodeWidth / (barcodeValue.length * 1.5)))
+      const barWidth = Math.max(minBarWidth, maxBarWidth)
 
       JsBarcode(barcodeCanvas, barcodeValue, {
         format: format,
         width: barWidth, // Ancho de barra optimizado para escaneo
-        height: barcodeHeight, // Usar altura completa
-        displayValue: false, // No mostrar texto, lo manejamos manualmente
+        height: barcodeHeight, // Máxima altura posible
+        displayValue: false, // No mostrar texto bajo el barcode
         background: '#ffffff',
         lineColor: '#000000',
-        margin: 3 // Márgen reducido para maximize el espacio
+        margin: 0 // Sin margen - controlamos posición manualmente
       })
 
-      // Posicionar elementos según la jerarquía visual
-      let currentY = Math.round((template.height * mmToPx - barcodeHeight -
-        Math.round(layout.spacing.barcodeToCode * mmToPx) -
-        Math.round(20 * layout.codeScale) -
-        (materialData.nombre ? Math.round(15 * layout.nameScale + layout.spacing.codeToName * mmToPx) : 0)) / 2)
+      // Dibujar el código de barras en su columna
+      ctx.drawImage(barcodeCanvas, barcodeX, barcodeY)
 
-      // Dibujar el código de barras centrado
-      const barcodeX = Math.round((canvasWidth - barcodeWidth) / 2)
-      ctx.drawImage(barcodeCanvas, barcodeX, currentY)
-
-      currentY += barcodeHeight + Math.round(layout.spacing.barcodeToCode * mmToPx)
-
-      // Dibujar el código numérico (segunda prioridad) - FUENTES MÁS GRANDES
-      ctx.fillStyle = '#000000'
-      ctx.textAlign = 'center'
-      // Tamaño mínimo de 16px para el código numérico
-      const codeFontSize = Math.max(16, Math.round(18 * layout.codeScale))
-      ctx.font = `bold ${codeFontSize}px monospace`
-      ctx.fillText(barcodeValue, canvasWidth / 2, currentY)
-
-      // Dibujar el nombre del producto (última prioridad)
-      if (materialData.nombre) {
-        currentY += Math.round(codeFontSize * 0.8) + Math.round(layout.spacing.codeToName * mmToPx)
-        // Tamaño mínimo de 12px para el nombre del producto
-        const nameFontSize = Math.max(12, Math.round(14 * layout.nameScale))
-        ctx.font = `${nameFontSize}px Arial, sans-serif`
-
-        // Truncar si el texto es muy largo
-        const maxTextWidth = canvasWidth - 20
-        const truncatedText = truncateText(ctx, materialData.nombre, maxTextWidth)
-        ctx.fillText(truncatedText, canvasWidth / 2, currentY)
-      }
+      console.log('✅ [Renderer] Horizontal label generated:', {
+        dimensions: `${canvasWidth}x${canvasHeight}px (${template.width}x${template.height}mm)`,
+        columns: {
+          text: `${textColumnWidth}px wide at x=${marginPx}`,
+          barcode: `${barcodeWidth}x${barcodeHeight}px at x=${barcodeX}`,
+          gap: `${columnGap}px`
+        },
+        fonts: {
+          name: `${nameFontSize}px`,
+          code: `${codeFontSize}px`,
+          price: `${priceFontSize}px`
+        },
+        barcode: {
+          barWidth,
+          format,
+          value: barcodeValue
+        }
+      })
 
       // Convert to base64
       const labelDataUrl = canvas.toDataURL('image/png')
@@ -515,7 +642,7 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     } finally {
       setIsPrinting(false)
     }
-  }, [validation.valid, barcodeValue, format, selectedTemplate, selectedPrinter, materialData, onPrint, toast, previewUrl, labelSizeConfig])
+  }, [validation.valid, barcodeValue, format, selectedTemplate, selectedPrinter, materialData, onPrint, toast, labelSizeConfig])
 
   // Efectos
   useEffect(() => {
