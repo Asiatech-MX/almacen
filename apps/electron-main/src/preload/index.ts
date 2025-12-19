@@ -279,8 +279,16 @@ const electronAPI: ElectronAPI = {
   // ==================== SISTEMA DE CÓDIGOS DE BARRAS ====================
   barcode: {
     // Generar código de barras como base64
-    generate: (options: import('@shared/types/barcode').BarcodeOptions) => 
+    generate: (options: import('@shared/types/barcode').BarcodeOptions) =>
       ipcRenderer.invoke('barcode:generate', options) as Promise<{ success: boolean; data?: string; error?: string }>,
+
+    // Generar etiqueta completa con layout horizontal
+    generateLabel: (data: {
+      materialData: any;
+      templateId: string;
+      barcodeOptions: import('@shared/types/barcode').BarcodeOptions
+    }) =>
+      ipcRenderer.invoke('barcode:generateLabel', data) as Promise<{ success: boolean; data?: string; error?: string }>,
 
     // Validar formato de código de barras
     validate: (format: import('@shared/types/barcode').BarcodeFormat, value: string) =>

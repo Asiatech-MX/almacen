@@ -296,127 +296,38 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     }
   }, [])
 
-  // Generar preview del código de barras con layout horizontal
+  // Generar preview del código de barras usando el main process
   const generatePreview = useCallback(async (value: string, fmt: BarcodeFormat) => {
     if (!value.trim() || !validation.valid) return
 
     setIsGenerating(true)
 
     try {
-      console.log('🔧 [Renderer] Generating barcode with horizontal layout')
+      console.log('🔧 [Renderer] Requesting label generation from main process')
 
-      // Generate barcode in renderer process to avoid canvas native dependency
-      const { default: JsBarcode } = await import('jsbarcode')
-
-      // Get template and calculate dimensions
-      const template = BROTHER_QL810W_TEMPLATES.find(t => t.id === selectedTemplate)
-      const dpi = template?.dpi || 300
-
-      // Calculate actual label dimensions in pixels
-      const mmToPx = dpi / 25.4
-      const labelWidthPx = Math.round(template.width * mmToPx)
-      const labelHeightPx = Math.round(template.height * mmToPx)
-
-      // Calculate safety margins (3mm on each side)
-      const marginPx = Math.round(3 * mmToPx)
-      const printableWidth = labelWidthPx - (2 * marginPx)
-      const printableHeight = labelHeightPx - (2 * marginPx)
-
-      // Calculate column widths for horizontal layout
-      const textColumnWidth = Math.round(printableWidth * 0.6) // 60% for text
-      const barcodeColumnWidth = Math.round(printableWidth * 0.4) // 40% for barcode
-      const columnGap = Math.round((labelSizeConfig.layout.spacing.columnGap || 4) * mmToPx)
-
-      // Create canvas with actual label dimensions
-      const canvas = document.createElement('canvas')
-      canvas.width = labelWidthPx
-      canvas.height = labelHeightPx
-
-      // Clear canvas with white background
-      const ctx = canvas.getContext('2d')
-      if (!ctx) throw new Error('No se pudo obtener el contexto del canvas')
-      ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, labelWidthPx, labelHeightPx)
-
-      // ======== DIBUJAR COLUMNA IZQUIERDA (TEXTO) ========
-      ctx.fillStyle = '#000000'
-      ctx.textAlign = 'left'
-
-      // Configurar fuentes
-      const nameFontSize = Math.round(16 * labelSizeConfig.layout.nameScale) // 16px base
-      const codeFontSize = Math.round(12 * labelSizeConfig.layout.codeScale) // 12px base
-      const priceFontSize = Math.round(14 * labelSizeConfig.layout.codeScale) // 14px base
-      const lineHeight = labelSizeConfig.layout.spacing.textLineHeight || 1.4
-
-      let currentY = marginPx + Math.round((printableHeight - (
-        (materialData.nombre ? nameFontSize * lineHeight : 0) +
-        codeFontSize * lineHeight +
-        (materialData.precio ? priceFontSize * lineHeight : 0)
-      )) / 2)
-
-      // Nombre del producto
-      if (materialData.nombre) {
-        ctx.font = `${nameFontSize}px Arial, sans-serif`
-        const truncatedText = truncateText(ctx, materialData.nombre, textColumnWidth - 10)
-        ctx.fillText(truncatedText, marginPx, currentY)
-        currentY += Math.round(nameFontSize * lineHeight)
-      }
-
-      // SKU
-      ctx.font = `${codeFontSize}px monospace`
-      ctx.fillText(`SKU: ${materialData.codigo}`, marginPx, currentY)
-      currentY += Math.round(codeFontSize * lineHeight)
-
-      // Precio
-      if (materialData.precio) {
-        ctx.font = `bold ${priceFontSize}px Arial, sans-serif`
-        ctx.fillText(`$${materialData.precio}`, marginPx, currentY)
-      }
-
-      // ======== DIBUJAR COLUMNA DERECHA (CÓDIGO DE BARRAS) ========
-      // Calcular dimensiones del barcode
-      const barcodeWidth = Math.min(
-        barcodeColumnWidth - 10,
-        Math.round(barcodeColumnWidth * 0.9)
-      )
-      const barcodeHeight = Math.round(printableHeight * 0.8) // 80% de altura disponible
-      const barcodeX = marginPx + textColumnWidth + columnGap + (barcodeColumnWidth - barcodeWidth)
-      const barcodeY = marginPx + Math.round((printableHeight - barcodeHeight) / 2)
-
-      // Calcular ancho de barras para escaneabilidad
-      const minBarWidth = Math.max(2, Math.round(dpi / 150)) // Mínimo 2px a 300 DPI
-      const maxBarWidth = Math.min(3, Math.round(barcodeWidth / (value.length * 1.5)))
-      const barWidth = Math.max(minBarWidth, maxBarWidth)
-
-      // Generar barcode con displayValue: false
-      JsBarcode(canvas, value, {
-        format: fmt,
-        width: barWidth,
-        height: barcodeHeight,
-        displayValue: false, // No mostrar texto bajo el barcode
-        background: '#ffffff',
-        lineColor: '#000000',
-        margin: 0,
-        marginTop: barcodeY,
-        marginLeft: barcodeX
-      })
-
-      console.log('✅ [Renderer] Horizontal barcode generated:', {
-        dimensions: `${labelWidthPx}x${labelHeightPx}px`,
-        columns: {
-          text: `${textColumnWidth}px wide`,
-          barcode: `${barcodeWidth}x${barcodeHeight}px`,
-          gap: `${columnGap}px`
+      // Usar la nueva función del main process para generar la etiqueta completa
+      const result = await window.electronAPI.barcode.generateLabel({
+        materialData: {
+          ...materialData,
+          // El preview usa el precio si existe
+          precio: materialData.costo_unitario || materialData.precio
         },
-        position: `barcode at (${barcodeX}, ${barcodeY})`,
-        barWidth
+        templateId: selectedTemplate,
+        barcodeOptions: {
+          format: fmt,
+          value: value,
+          displayValue: true,
+          width: 2,
+          height: 100
+        }
       })
 
-      // Convert to data URL
-      const dataUrl = canvas.toDataURL('image/png')
-      console.log('✅ [Renderer] Canvas converted to data URL')
-
-      setPreviewUrl(dataUrl)
+      if (result.success && result.data) {
+        console.log('✅ [Renderer] Label generated successfully from main process')
+        setPreviewUrl(result.data)
+      } else {
+        throw new Error(result.error || 'Failed to generate label')
+      }
     } catch (error) {
       console.error('❌ [Renderer] Error generando preview:', error)
       toast({
@@ -427,7 +338,7 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     } finally {
       setIsGenerating(false)
     }
-  }, [validation.valid, toast, selectedTemplate, materialData, labelSizeConfig])
+  }, [validation.valid, toast, selectedTemplate, materialData])
 
   // Función auxiliar para truncar texto
   const truncateText = (context: CanvasRenderingContext2D, text: string, maxWidth: number): string => {
@@ -441,7 +352,7 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     return truncated.length === text.length ? text : truncated + ellipsis
   }
 
-  // Imprimir etiqueta con layout horizontal de dos columnas
+  // Imprimir etiqueta usando el main process
   const printLabel = useCallback(async () => {
     if (!validation.valid || !barcodeValue.trim()) {
       toast({
@@ -455,148 +366,45 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     setIsPrinting(true)
 
     try {
-      // Obtener plantilla seleccionada
-      const template = BROTHER_QL810W_TEMPLATES.find(t => t.id === selectedTemplate)
-      if (!template) {
-        throw new Error('Plantilla no encontrada')
-      }
+      console.log('🔧 [Renderer] Requesting label printing from main process')
 
-      // Generate label in renderer with horizontal layout
-      const { default: JsBarcode } = await import('jsbarcode')
-      const canvas = document.createElement('canvas')
-
-      // Calculate canvas size based on template with DPI
-      const dpi = template.dpi || 300
-      const mmToPx = dpi / 25.4 // Convertir mm a píxeles
-
-      // Label dimensions in pixels
-      const canvasWidth = Math.round(template.width * mmToPx)
-      const canvasHeight = Math.round(template.height * mmToPx)
-      canvas.width = canvasWidth
-      canvas.height = canvasHeight
-
-      const ctx = canvas.getContext('2d')
-      if (!ctx) throw new Error('No se pudo obtener el contexto del canvas')
-
-      // Fill background - white for thermal printing
-      ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-      // Calculate safety margins (3mm on each side)
-      const marginPx = Math.round(3 * mmToPx)
-      const printableWidth = canvasWidth - (2 * marginPx)
-      const printableHeight = canvasHeight - (2 * marginPx)
-
-      // Usar la configuración del tamaño de etiqueta actual
-      const { layout } = labelSizeConfig
-
-      // ======== LAYOUT HORIZONTAL: DOS COLUMNAS ========
-      // Calcular dimensiones de columnas
-      const textColumnWidth = Math.round(printableWidth * 0.6) // 60% para texto
-      const barcodeColumnWidth = Math.round(printableWidth * 0.4) // 40% para barcode
-      const columnGap = Math.round((layout.spacing.columnGap || 4) * mmToPx)
-
-      // ======== DIBUJAR COLUMNA IZQUIERDA (TEXTO) ========
-      ctx.fillStyle = '#000000'
-      ctx.textAlign = 'left'
-
-      // Configurar fuentes
-      const nameFontSize = Math.max(16, Math.round(18 * layout.nameScale))
-      const codeFontSize = Math.max(12, Math.round(14 * layout.codeScale))
-      const priceFontSize = Math.max(14, Math.round(16 * layout.codeScale))
-      const lineHeight = layout.spacing.textLineHeight || 1.4
-
-      // Calcular posición Y inicial para centrar verticalmente
-      let currentY = marginPx + Math.round((printableHeight - (
-        (materialData.nombre ? nameFontSize * lineHeight : 0) +
-        codeFontSize * lineHeight +
-        (materialData.precio ? priceFontSize * lineHeight : 0)
-      )) / 2)
-
-      // Nombre del producto
-      if (materialData.nombre) {
-        ctx.font = `${nameFontSize}px Arial, sans-serif`
-        const truncatedText = truncateText(ctx, materialData.nombre, textColumnWidth - 10)
-        ctx.fillText(truncatedText, marginPx, currentY)
-        currentY += Math.round(nameFontSize * lineHeight)
-      }
-
-      // SKU
-      ctx.font = `${codeFontSize}px monospace`
-      ctx.fillText(`SKU: ${materialData.codigo}`, marginPx, currentY)
-      currentY += Math.round(codeFontSize * lineHeight)
-
-      // Precio
-      if (materialData.precio) {
-        ctx.font = `bold ${priceFontSize}px Arial, sans-serif`
-        ctx.fillText(`$${materialData.precio}`, marginPx, currentY)
-      }
-
-      // ======== DIBUJAR COLUMNA DERECHA (CÓDIGO DE BARRAS) ========
-      // Calcular dimensiones del barcode
-      const barcodeWidth = Math.min(
-        barcodeColumnWidth - 10,
-        Math.round(barcodeColumnWidth * 0.9)
-      )
-      const barcodeHeight = Math.round(printableHeight * 0.8) // 80% de altura para máxima escaneabilidad
-      const barcodeX = marginPx + textColumnWidth + columnGap + (barcodeColumnWidth - barcodeWidth)
-      const barcodeY = marginPx + Math.round((printableHeight - barcodeHeight) / 2)
-
-      // Generar el código de barras sin texto (displayValue: false)
-      const barcodeCanvas = document.createElement('canvas')
-      barcodeCanvas.width = barcodeWidth
-      barcodeCanvas.height = barcodeHeight
-
-      // Calcular el ancho de las barras para asegurar escaneabilidad
-      // Mínimo 2 píxeles por barra a 300 DPI, óptimo 2-3px
-      const minBarWidth = Math.max(2, Math.round(dpi / 150))
-      const maxBarWidth = Math.min(3, Math.round(barcodeWidth / (barcodeValue.length * 1.5)))
-      const barWidth = Math.max(minBarWidth, maxBarWidth)
-
-      JsBarcode(barcodeCanvas, barcodeValue, {
-        format: format,
-        width: barWidth, // Ancho de barra optimizado para escaneo
-        height: barcodeHeight, // Máxima altura posible
-        displayValue: false, // No mostrar texto bajo el barcode
-        background: '#ffffff',
-        lineColor: '#000000',
-        margin: 0 // Sin margen - controlamos posición manualmente
-      })
-
-      // Dibujar el código de barras en su columna
-      ctx.drawImage(barcodeCanvas, barcodeX, barcodeY)
-
-      console.log('✅ [Renderer] Horizontal label generated:', {
-        dimensions: `${canvasWidth}x${canvasHeight}px (${template.width}x${template.height}mm)`,
-        columns: {
-          text: `${textColumnWidth}px wide at x=${marginPx}`,
-          barcode: `${barcodeWidth}x${barcodeHeight}px at x=${barcodeX}`,
-          gap: `${columnGap}px`
+      // Generar la etiqueta en el main process
+      const result = await window.electronAPI.barcode.generateLabel({
+        materialData: {
+          ...materialData,
+          // Usar costo_unitario si existe, sino precio
+          precio: materialData.costo_unitario || materialData.precio
         },
-        fonts: {
-          name: `${nameFontSize}px`,
-          code: `${codeFontSize}px`,
-          price: `${priceFontSize}px`
-        },
-        barcode: {
-          barWidth,
-          format,
-          value: barcodeValue
+        templateId: selectedTemplate,
+        barcodeOptions: {
+          format: format,
+          value: barcodeValue,
+          displayValue: true,
+          width: 2,
+          height: 100,
+          printerId: selectedPrinter
         }
       })
 
-      // Convert to base64
-      const labelDataUrl = canvas.toDataURL('image/png')
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Failed to generate label for printing')
+      }
 
-      // Convert data URL to buffer for printing
-      const base64Data = labelDataUrl.replace('data:image/png;base64,', '')
+      // Convertir data URL a buffer para impresión
+      const base64Data = result.data.replace('data:image/png;base64,', '')
       const binaryString = atob(base64Data)
       const bytes = new Uint8Array(binaryString.length)
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i)
       }
 
-      // Create job with pre-generated barcode
+      // Obtener plantilla para el job de impresión
+      const template = BROTHER_QL810W_TEMPLATES.find(t => t.id === selectedTemplate)
+      if (!template) {
+        throw new Error('Plantilla no encontrada')
+      }
+
+      // Crear job de impresión
       const job: PrintJob = {
         id: `job_${Date.now()}`,
         barcodeData: {
@@ -607,30 +415,32 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
         labelTemplate: template,
         materialData: {
           ...materialData,
-          barcode: barcodeValue
+          barcode: barcodeValue,
+          // Usar costo_unitario si existe, sino precio
+          precio: materialData.costo_unitario || materialData.precio
         },
         copies: 1,
         status: 'pending',
         createdAt: new Date()
       }
 
-      // Send to main process for printing
-      const result = await window.electronAPI.barcode.print({
+      // Enviar a impresión
+      const printResult = await window.electronAPI.barcode.print({
         ...job,
-        imageData: Array.from(bytes) // Convert Uint8Array to regular array for IPC
+        imageData: Array.from(bytes) // Convertir a array para IPC
       })
 
-      if (result.success) {
+      if (printResult.success) {
         toast({
           title: "Impresión exitosa",
-          description: `La etiqueta ${labelSizeConfig.width}x${labelSizeConfig.height}mm se ha enviado a la impresora`,
+          description: `La etiqueta ${template.width}x${template.height}mm se ha enviado a la impresora`,
         })
 
         if (onPrint) {
           onPrint(job)
         }
       } else {
-        throw new Error(result.message)
+        throw new Error(printResult.message || 'Error en la impresión')
       }
     } catch (error) {
       console.error('❌ Error printing label:', error)
@@ -642,7 +452,7 @@ export const BarcodeGenerator: React.FC<BarcodeGeneratorProps> = ({
     } finally {
       setIsPrinting(false)
     }
-  }, [validation.valid, barcodeValue, format, selectedTemplate, selectedPrinter, materialData, onPrint, toast, labelSizeConfig])
+  }, [validation.valid, barcodeValue, format, selectedTemplate, selectedPrinter, materialData, onPrint, toast])
 
   // Efectos
   useEffect(() => {

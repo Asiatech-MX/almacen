@@ -317,112 +317,149 @@ export const getLabelSizeFromTemplate = (templateId: string): LabelSize => {
   }
 }
 
-// Plantillas de etiquetas predefinidas para Brother QL-810W
+// Plantillas de etiquetas predefinidas para Brother QL-810W - ACTUALIZADAS PARA LAYOUT HORIZONTAL
 export const BROTHER_QL810W_TEMPLATES: LabelTemplate[] = [
   {
     id: 'dk-11201',
-    name: 'DK-11201 (90x29mm)',
-    width: 90, // Correcto: 90mm de ancho
-    height: 29, // Correcto: 29mm de alto
+    name: 'DK-11201 (90x29mm) - Horizontal',
+    width: 90, // 90mm de ancho
+    height: 29, // 29mm de alto
     dpi: 300,
     default: true,
     layout: {
       barcode: {
-        x: 3,  // 3mm margen de seguridad
-        y: 5,
-        width: 84, // Área imprimible: 84mm
-        height: 10
+        // Columna derecha (40% del área imprimible)
+        x: 56, // 60% del ancho imprimible
+        y: 3,  // 3mm margen superior
+        width: 31, // 40% del área imprimible (90 - 6mm márgenes = 84mm imprimible)
+        height: 23 // 80% del alto (29 - 6mm márgenes = 23mm imprimible)
       },
       text: [
+        // Nombre del producto (línea 1) - columna izquierda
         {
-          x: 3,
-          y: 16,
-          width: 84,
-          height: 6,
-          fontSize: 8,
-          align: 'center'
+          x: 3, // 3mm margen izquierdo
+          y: 3, // 3mm margen superior
+          width: 50, // 60% del área imprimible menos gap
+          height: 8, // 25% del alto total
+          fontSize: 12, // ~4.2mm a 300 DPI
+          align: 'left'
         },
+        // SKU/Código (línea 2) - columna izquierda
         {
           x: 3,
-          y: 23,
-          width: 84,
-          height: 3,
-          fontSize: 6,
-          align: 'center'
+          y: 12, // Debajo del nombre
+          width: 50,
+          height: 6, // 20% del alto total
+          fontSize: 9, // ~3.2mm a 300 DPI
+          align: 'left'
+        },
+        // Precio/Stock (línea 3) - columna izquierda
+        {
+          x: 3,
+          y: 19, // Debajo del SKU
+          width: 50,
+          height: 7, // 25% del alto total
+          fontSize: 10, // ~3.5mm a 300 DPI
+          align: 'left'
         }
       ]
     }
   },
   {
     id: 'dk-11202',
-    name: 'DK-11202 (62x100mm)',
+    name: 'DK-11202 (62x100mm) - Horizontal',
     width: 62,
     height: 100,
     dpi: 300,
     layout: {
       barcode: {
-        x: 10,
-        y: 15,
-        width: 42,
-        height: 10
+        // Columna derecha (40% del área imprimible)
+        x: 37, // 60% del ancho imprimible (62 - 6 = 56mm imprimible)
+        y: 10, // 10mm margen superior para mejor centrado
+        width: 21, // 40% del área imprimible
+        height: 60 // 60% del altura imprimible para mejor escaneabilidad
       },
       text: [
+        // Nombre del producto (línea 1)
         {
-          x: 10,
-          y: 27,
-          width: 42,
+          x: 3,
+          y: 10,
+          width: 31,
+          height: 20,
+          fontSize: 16,
+          align: 'left'
+        },
+        // SKU/Código (línea 2)
+        {
+          x: 3,
+          y: 32,
+          width: 31,
+          height: 15,
+          fontSize: 12,
+          align: 'left'
+        },
+        // Descripción/Categoría (línea 3)
+        {
+          x: 3,
+          y: 49,
+          width: 31,
           height: 12,
           fontSize: 10,
-          align: 'center'
+          align: 'left'
         },
+        // Stock/Precio (línea 4)
         {
-          x: 10,
-          y: 42,
-          width: 42,
-          height: 8,
-          fontSize: 7,
-          align: 'center'
-        },
-        {
-          x: 10,
-          y: 52,
-          width: 42,
-          height: 6,
-          fontSize: 6,
-          align: 'center'
+          x: 3,
+          y: 63,
+          width: 31,
+          height: 12,
+          fontSize: 11,
+          align: 'left'
         }
       ]
     }
   },
   {
     id: 'continuous-62mm',
-    name: 'Continuous 62mm',
+    name: 'Continuous 62mm (40mm) - Horizontal',
     width: 62,
     height: 40,
     dpi: 300,
     layout: {
       barcode: {
-        x: 8,
-        y: 8,
-        width: 46,
-        height: 8
+        // Columna derecha (40% del área imprimible)
+        x: 37, // 60% del ancho imprimible (62 - 6 = 56mm imprimible)
+        y: 5,  // 5mm margen superior
+        width: 21, // 40% del área imprimible
+        height: 30 // 75% del altura imprimible (40 - 6 = 34mm imprimible)
       },
       text: [
+        // Nombre del producto (línea 1)
         {
-          x: 8,
-          y: 18,
-          width: 46,
+          x: 3,
+          y: 5,
+          width: 31,
+          height: 10,
+          fontSize: 10,
+          align: 'left'
+        },
+        // SKU/Código (línea 2)
+        {
+          x: 3,
+          y: 16,
+          width: 31,
+          height: 8,
+          fontSize: 8,
+          align: 'left'
+        },
+        // Precio/Stock (línea 3)
+        {
+          x: 3,
+          y: 25,
+          width: 31,
           height: 10,
           fontSize: 9,
-          align: 'center'
-        },
-        {
-          x: 8,
-          y: 29,
-          width: 46,
-          height: 6,
-          fontSize: 6,
-          align: 'center'
+          align: 'left'
         }
       ]
     }

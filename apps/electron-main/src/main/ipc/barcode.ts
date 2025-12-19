@@ -67,67 +67,75 @@ async function generateBarcodePNG(options: BarcodeOptions): Promise<string> {
 
     while (attempts < maxAttempts) {
       try {
-        // Crear canvas con dimensiones basadas en el tamaño de etiqueta DK-1201
-        // DK-1201: 90mm x 29mm a 300 DPI = 1063px x 342px
+        // Crear canvas con dimensiones basadas en el tamaño de etiqueta DK-11201
+        // DK-11201: 90mm x 29mm a 300 DPI = 1063px x 342px
         const dpi = 300
         const mmToPx = dpi / 25.4
-        const labelWidthMm = 90  // DK-1201 width
-        const labelHeightMm = 29 // DK-1201 height
+        const labelWidthMm = 90  // DK-11201 width
+        const labelHeightMm = 29 // DK-11201 height
 
-        // Calcular dimensiones del canvas
-        const canvasWidth = Math.round(labelWidthMm * mmToPx)
-        const canvasHeight = Math.round(labelHeightMm * mmToPx)
+        // Calcular dimensiones del canvas - SIN REDUCCIÓN
+        const canvasWidth = Math.round(labelWidthMm * mmToPx)  // 1063px
+        const canvasHeight = Math.round(labelHeightMm * mmToPx) // 342px
 
-        // Limitar a máximo 720px para node-brother-label-printer si es necesario
-        const finalWidth = Math.min(canvasWidth, 720)
-        const scaleRatio = finalWidth / canvasWidth
-        const finalHeight = Math.round(canvasHeight * scaleRatio)
-
-        const canvas = require('canvas').createCanvas(finalWidth, finalHeight)
+        const canvas = require('canvas').createCanvas(canvasWidth, canvasHeight)
         const ctx = canvas.getContext('2d')
 
         console.log(`✅ [Main] Canvas created successfully (attempt ${attempts + 1}), size:`, canvas.width, 'x', canvas.height)
 
         // Rellenar fondo blanco
         ctx.fillStyle = '#ffffff'
-        ctx.fillRect(0, 0, finalWidth, finalHeight)
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight)
 
         // Calcular márgenes de seguridad (3mm)
-        const marginPx = Math.round(3 * mmToPx * scaleRatio)
-        const printableWidth = finalWidth - (2 * marginPx)
-        const printableHeight = finalHeight - (2 * marginPx)
+        const marginPx = Math.round(3 * mmToPx) // 3mm = 35px a 300 DPI
+        const printableWidth = canvasWidth - (2 * marginPx)
+        const printableHeight = canvasHeight - (2 * marginPx)
 
-        // Ajustar el width del barcode para el área imprimible
-        const maxWidth = printableWidth
-        const barcodeWidth = Math.min(options.width || 2, 3) // Limitar width para no exceder
+        // Layout horizontal: 60% texto, 4mm gap, 40% barcode
+        const columnGapPx = Math.round(4 * mmToPx) // 4mm gap entre columnas
+        const textColumnWidth = Math.round((printableWidth - columnGapPx) * 0.6)
+        const barcodeColumnWidth = printableWidth - textColumnWidth - columnGapPx
 
-        // Calcular el width óptimo basado en la longitud del código
-        const codeLength = options.value.length
-        const optimalWidth = Math.max(1, Math.floor(maxWidth / (codeLength * 1.5)))
+        // Posiciones de las columnas
+        const textColumnX = marginPx
+        const barcodeColumnX = textColumnX + textColumnWidth + columnGapPx
 
-        // Generar código de barras centrado con JsBarcode
-        JsBarcode(canvas, options.value, {
+        // Generar código de barras SIN displayValue (lo manejamos manualmente)
+        const barcodeOptions = {
           format: options.format,
-          width: Math.min(optimalWidth, barcodeWidth),
-          height: Math.min(Math.round(options.height || 100), Math.round(printableHeight * 0.4)),
-          displayValue: options.displayValue !== false,
-          fontSize: Math.min(options.fontSize || 14, 14),
-          textMargin: options.textMargin || 2,
-          margin: 0, // Sin margen - controlamos posición manualmente
-          background: '#ffffff',
-          lineColor: options.lineColor || '#000000',
-          font: options.font || 'monospace',
-          fontOptions: options.fontOptions || '',
-          textAlign: options.textAlign || 'center',
-          textPosition: options.textPosition || 'bottom',
-          flat: options.flat || false,
-          lastChar: options.lastChar,
-          mod43: options.mod43,
-          ean128: options.ean128,
+          width: 2, // Ancho de barra fijo para mejor escaneabilidad
+          height: Math.round(printableHeight * 0.8), // 80% del alto disponible
+          displayValue: false, // Importante: no mostrar texto en el barcode
+          margin: 0,
+          background: 'transparent', // Transparente para controlar posición
+          lineColor: '#000000',
+          fontOptions: 'bold',
           valid: options.valid
-        })
+        }
 
-        console.log('✅ [Main] JsBarcode rendered successfully')
+        // Crear canvas temporal para el barcode
+        const barcodeCanvas = require('canvas').createCanvas(barcodeColumnWidth, Math.round(printableHeight * 0.8))
+
+        // Usar JsBarcode directamente en CommonJS
+        const JsBarcode = require('jsbarcode')
+        JsBarcode(barcodeCanvas, options.value, barcodeOptions)
+
+        // Centrar el barcode en su columna
+        const barcodeY = marginPx + Math.round((printableHeight - Math.round(printableHeight * 0.8)) / 2)
+        ctx.drawImage(barcodeCanvas, barcodeColumnX, barcodeY)
+
+        // Añadir texto debajo del barcode (si displayValue es true)
+        if (options.displayValue !== false) {
+          ctx.fillStyle = '#000000'
+          ctx.font = `${Math.max(10, Math.round(8 * mmToPx))}px monospace` // Mínimo 10px o 8mm a 300 DPI
+          ctx.textAlign = 'center'
+
+          const textY = barcodeY + Math.round(printableHeight * 0.8) + Math.round(4 * mmToPx)
+          ctx.fillText(options.value, barcodeColumnX + Math.round(barcodeColumnWidth / 2), textY)
+        }
+
+        console.log('✅ [Main] Barcode rendered successfully in horizontal layout')
 
         // Convertir a base64
         dataUrl = canvas.toDataURL('image/png')
@@ -140,30 +148,19 @@ async function generateBarcodePNG(options: BarcodeOptions): Promise<string> {
 
           // Validar PNG header
           if (isValidPNG(buffer)) {
-            // Validar dimensiones para node-brother-label-printer
+            // Validar dimensiones - NO REDIMENSIONAR ya que usamos las dimensiones correctas
             const sharp = require('sharp')
             try {
               const metadata = await sharp(buffer).metadata()
               console.log(`📏 [Main] Image dimensions: ${metadata.width}x${metadata.height}`)
 
-              // La imagen ya debería tener las dimensiones correctas gracias a nuestro cálculo
+              // NO redimensionar - las dimensiones ya son correctas para DK-11201
               if (metadata.width > 720) {
-                console.warn(`⚠️ [Main] Image too wide (${metadata.width}px), resizing to fit printer limits...`)
-                const resizedBuffer = await sharp(buffer)
-                  .resize(720, null, {
-                    withoutEnlargement: false,
-                    fit: 'inside',
-                    preserveAspectRatio: true
-                  })
-                  .png({ compressionLevel: 9, force: true })
-                  .toBuffer()
-
-                const resizedDataUrl = `data:image/png;base64,${resizedBuffer.toString('base64')}`
-                console.log('✅ [Main] Image resized successfully to 720px max width')
-                return resizedDataUrl
+                console.warn(`⚠️ [Main] WARNING: Image width ${metadata.width}px exceeds recommended 720px for Brother printer`)
+                // Pero igual lo devolvemos sin redimensionar para mantener calidad
               }
 
-              console.log('✅ [Main] PNG validation passed - dimensions correct for DK-1201 label')
+              console.log('✅ [Main] PNG validation passed - dimensions correct for DK-11201 label')
               return dataUrl
             } catch (sharpError) {
               console.warn('⚠️ [Main] Sharp not available for size validation, using original PNG')
@@ -571,6 +568,231 @@ async function discoverPrinters(): Promise<PrinterConfig[]> {
   return discoveredPrinters
 }
 
+// Función para validar que los datos del material no excedan los límites de la etiqueta
+function validateMaterialDataForLabel(materialData: any, templateId: string): { valid: boolean; error?: string } {
+  try {
+    // Longitudes máximas recomendadas para cada campo
+    const maxLengths = {
+      nombre: 30,        // Caracteres máximo para el nombre
+      codigo: 20,        // Caracteres máximo para el SKU
+      categoria: 20,     // Caracteres máximo para la categoría
+      presentacion: 15   // Caracteres máximo para la presentación
+    }
+
+    // Validar longitud del nombre
+    if (materialData.nombre && materialData.nombre.length > maxLengths.nombre) {
+      return {
+        valid: false,
+        error: `El nombre del material es demasiado largo (${materialData.nombre.length} caracteres). Máximo permitido: ${maxLengths.nombre} caracteres.`
+      }
+    }
+
+    // Validar longitud del código/SKU
+    const codigoValue = materialData.codigo || materialData.sku || ''
+    if (codigoValue.length > maxLengths.codigo) {
+      return {
+        valid: false,
+        error: `El código/SKU es demasiado largo (${codigoValue.length} caracteres). Máximo permitido: ${maxLengths.codigo} caracteres.`
+      }
+    }
+
+    // Validar longitud de la categoría
+    if (materialData.categoria && materialData.categoria.length > maxLengths.categoria) {
+      return {
+        valid: false,
+        error: `La categoría es demasiado larga (${materialData.categoria.length} caracteres). Máximo permitido: ${maxLengths.categoria} caracteres.`
+      }
+    }
+
+    // Validar longitud de la presentación
+    if (materialData.presentacion && materialData.presentacion.length > maxLengths.presentacion) {
+      return {
+        valid: false,
+        error: `La presentación es demasiado larga (${materialData.presentacion.length} caracteres). Máximo permitido: ${maxLengths.presentacion} caracteres.`
+      }
+    }
+
+    // Validar que no haya campos vacíos críticos
+    if (!materialData.nombre || !materialData.nombre.trim()) {
+      return {
+        valid: false,
+        error: 'El nombre del material es requerido y no puede estar vacío.'
+      }
+    }
+
+    if (!codigoValue || !codigoValue.trim()) {
+      return {
+        valid: false,
+        error: 'El código/SKU es requerido y no puede estar vacío.'
+      }
+    }
+
+    console.log('✅ [Main] Material data validation passed')
+    return { valid: true }
+  } catch (error) {
+    console.error('❌ [Main] Error validating material data:', error)
+    return {
+      valid: false,
+      error: `Error en validación: ${error.message}`
+    }
+  }
+}
+
+// Función para generar etiqueta completa con layout horizontal
+async function generateCompleteLabel(
+  materialData: any,
+  templateId: string,
+  barcodeOptions: BarcodeOptions
+): Promise<string> {
+  try {
+    console.log('🏷️ [Main] Generating complete label with material data:', materialData)
+
+    // Importar JsBarcode
+    const JsBarcode = require('jsbarcode')
+
+    // Obtener configuración de la plantilla
+    // Definimos las plantillas aquí para evitar problemas de importación en el main process
+    const TEMPLATES = [
+      {
+        id: 'dk-11201',
+        name: 'DK-11201 (90x29mm) - Horizontal',
+        width: 90,
+        height: 29,
+        dpi: 300
+      },
+      {
+        id: 'dk-11202',
+        name: 'DK-11202 (62x100mm) - Horizontal',
+        width: 62,
+        height: 100,
+        dpi: 300
+      },
+      {
+        id: 'continuous-62mm',
+        name: 'Continuous 62mm (40mm) - Horizontal',
+        width: 62,
+        height: 40,
+        dpi: 300
+      }
+    ]
+
+    const template = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[0]
+
+    // Calcular dimensiones en píxeles
+    const dpi = template.dpi || 300
+    const mmToPx = dpi / 25.4
+    const canvasWidth = Math.round(template.width * mmToPx)
+    const canvasHeight = Math.round(template.height * mmToPx)
+
+    // Crear canvas
+    const canvas = require('canvas').createCanvas(canvasWidth, canvasHeight)
+    const ctx = canvas.getContext('2d')
+
+    // Rellenar fondo blanco
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+
+    // Convertir posiciones de mm a píxeles
+    const mmToPxLocal = mmToPx
+
+    // Definir layout centrado - solo código de barras ocupando todo el ancho
+    const layout = {
+      // Sin texto en el lado izquierdo - redundante
+      text: [],
+      barcode: {
+        // Código de barras centrado ocupando casi todo el ancho
+        x: template.id === 'dk-11201' ? 5 : 5, // 5mm margen izquierdo
+        y: template.id === 'dk-11201' ? 3 : 10, // 3mm margen superior
+        width: template.id === 'dk-11201' ? 80 : 52, // Casi todo el ancho (90-10mm)
+        height: template.id === 'dk-11201' ? 18 : 70 // Altura para dejar espacio al número
+      },
+      // Texto del código debajo del barcode
+      codeText: {
+        x: template.id === 'dk-11201' ? 45 : 31, // Centro horizontal
+        y: template.id === 'dk-11201' ? 23 : 85, // Debajo del barcode
+        fontSize: template.id === 'dk-11201' ? 10 : 12,
+        width: template.id === 'dk-11201' ? 80 : 52
+      }
+    }
+
+    // No dibujar texto redundante - solo el código de barras y su valor numérico
+
+    // Generar y dibujar código de barras (columna derecha)
+    const barcode = layout.barcode
+    const barcodeX = Math.round(barcode.x * mmToPxLocal)
+    const barcodeY = Math.round(barcode.y * mmToPxLocal)
+    const barcodeWidth = Math.round(barcode.width * mmToPxLocal)
+    const barcodeHeight = Math.round(barcode.height * mmToPxLocal)
+
+    // Crear canvas temporal para el barcode
+    const barcodeCanvas = require('canvas').createCanvas(barcodeWidth, barcodeHeight)
+
+    // Calcular ancho de barras óptimo para escaneo (más grueso para mejor lectura)
+    const optimalBarWidth = Math.max(2, Math.round(barcodeWidth / 100)) // Mínimo 2px, relativo al ancho
+
+    // Generar código de barras usando JsBarcode con sintaxis correcta
+    try {
+      // Crear canvas temporal para el barcode
+      const barcodeCanvas = require('canvas').createCanvas(barcodeWidth, barcodeHeight)
+
+      // Generar el código de barras - usar require directamente con canvas nativo
+      const JsBarcode = require('jsbarcode')
+
+      // Agregar un pequeño timeout para asegurar que JsBarcode esté disponible
+      await new Promise(resolve => setTimeout(resolve, 10))
+
+      // Usar JsBarcode directamente (no necesita .default en CommonJS)
+      JsBarcode(barcodeCanvas, barcodeOptions.value || materialData.codigo || 'N/A', {
+        format: barcodeOptions.format || 'CODE128',
+        width: optimalBarWidth,
+        height: barcodeHeight,
+        displayValue: false, // No mostrar texto en el barcode
+        margin: 0,
+        background: 'transparent',
+        lineColor: '#000000'
+      })
+
+      // Dibujar el barcode en el canvas principal (usando coordenadas del layout)
+      ctx.drawImage(barcodeCanvas, barcodeX, barcodeY)
+
+      // Añadir texto del código debajo del barcode (centrado)
+    if (layout.codeText) {
+      ctx.font = `${Math.round(layout.codeText.fontSize * mmToPxLocal)}px monospace`
+      ctx.fillStyle = '#000000'
+      ctx.textAlign = 'center'
+
+      const barcodeText = barcodeOptions.value || materialData.codigo || 'N/A'
+      const textX = Math.round(layout.codeText.x * mmToPxLocal)
+      const textY = Math.round(layout.codeText.y * mmToPxLocal)
+
+      ctx.fillText(barcodeText, textX, textY)
+    }
+
+    console.log('✅ [Main] Complete label generated successfully')
+
+    // Convertir a base64
+    const dataUrl = canvas.toDataURL('image/png')
+
+    // Validar PNG
+    const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '')
+    const buffer = Buffer.from(base64Data, 'base64')
+
+    if (!isValidPNG(buffer)) {
+      throw new Error('Generated PNG is invalid')
+    }
+
+    return dataUrl
+
+    } catch (error) {
+      console.error('❌ [Main] Error generating complete label:', error)
+      throw new Error(`Error generando etiqueta completa: ${error.message}`)
+    }
+  } catch (error) {
+    console.error('❌ [Main] Error generating complete label:', error)
+    throw new Error(`Error generando etiqueta completa: ${error.message}`)
+  }
+}
+
 // Registro de handlers IPC
 export function registerBarcodeHandlers() {
   console.log('🔧 Registrando handlers de códigos de barras...')
@@ -591,6 +813,37 @@ export function registerBarcodeHandlers() {
       }
     } catch (error) {
       console.error('❌ [Main] IPC barcode generation failed:', error)
+      return { success: false, error: error.message }
+    }
+  })
+
+  // Generar etiqueta completa con layout horizontal
+  ipcMain.handle('barcode:generateLabel', async (_, data: {
+    materialData: any,
+    templateId: string,
+    barcodeOptions: BarcodeOptions
+  }) => {
+    console.log('📡 [Main] IPC barcode:generateLabel called')
+
+    try {
+      // Validar que los datos del material no excedan los límites
+      const validationResult = validateMaterialDataForLabel(data.materialData, data.templateId)
+      if (!validationResult.valid) {
+        console.error('❌ [Main] Material data validation failed:', validationResult.error)
+        return { success: false, error: validationResult.error }
+      }
+
+      const base64 = await generateCompleteLabel(data.materialData, data.templateId, data.barcodeOptions)
+
+      if (base64 && base64.startsWith('data:image/png;base64,')) {
+        console.log('✅ [Main] IPC label generation successful')
+        return { success: true, data: base64 }
+      } else {
+        console.error('❌ [Main] Invalid data URL returned from generateCompleteLabel')
+        return { success: false, error: 'Formato de imagen inválido' }
+      }
+    } catch (error) {
+      console.error('❌ [Main] IPC label generation failed:', error)
       return { success: false, error: error.message }
     }
   })

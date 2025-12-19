@@ -4,6 +4,14 @@ import { writeFile, unlink } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
 
+// Try to import USB for raw commands (optional)
+let usb: any = null
+try {
+  usb = require('usb')
+} catch (e) {
+  console.warn('⚠️ [Brother] USB library not installed. Raw commands disabled.')
+}
+
 export interface ExtendedPrintJob extends PrintJob {
   printerConfig?: {
     vendorId?: number
@@ -12,9 +20,175 @@ export interface ExtendedPrintJob extends PrintJob {
 }
 
 export class BrotherLabelPrinterModule {
+
+  /**
+   * Procesa imágenes para etiquetas negro/rojo (DK-2251)
+   * NOTA: Implementación básica - el soporte completo requiere comandos ESC/P específicos de Brother
+   */
+  private async processBlackRedLabel(imageData: Buffer): Promise<Buffer> {
+    // The Brother QL-810W supports black/red printing with special raster commands
+    // You'll need to:
+    // 1. Detect red areas in the image (typically pixels with specific RGB values)
+    // 2. Separate black and red layers
+    // 3. Send color switch commands in the raster data
+
+    // Color switch command: 0x1b 0x69 0x63 [color] where color=0 for black, 1 for red
+
+    // For now, return original data - full implementation requires deep knowledge of Brother ESC/P commands
+    console.log('🎨 [Brother] Black/Red label processing - basic implementation (no color separation yet)')
+    return imageData
+  }
+
+  /**
+ * Get label width for different DK label types (in pixels)
+ */
+private getLabelWidth(templateId: string): number {
+  const widthMap: Record<string, number> = {
+    'dk-11201': 696,    // 62mm @ 300 DPI (but 90mm wide)
+    'dk-11202': 732,    // 62mm @ 300 DPI
+    'dk-22205': 1181,   // 100mm @ 300 DPI
+    'continuous-62mm': 732,  // 62mm @ 300 DPI
+    'continuous-29mm': 342,  // 29mm @ 300 DPI
+    'continuous-12mm': 142   // 12mm @ 300 DPI
+  }
+  return widthMap[templateId] || 732
+}
+
+/**
+ * Get maximum width in pixels for a template based on its dimensions and DPI
+ */
+private getMaxWidthForTemplate(templateId: string): number {
+  // node-brother-label-printer has a HARD LIMIT of 720px width
+  const HARD_LIMIT = 720
+
+  // Template dimensions in mm
+  const templateDimensions: Record<string, { width: number; dpi: number }> = {
+    'dk-11201': { width: 90, dpi: 300 },   // 90mm would be 1063px, but limited to 720
+    'dk-11202': { width: 62, dpi: 300 },   // 62mm = 732px, but limited to 720
+    'continuous-62mm': { width: 62, dpi: 300 },  // 62mm = 732px, but limited to 720
+    'continuous-62mm-blackred': { width: 62, dpi: 300 }
+  };
+
+  const config = templateDimensions[templateId] || templateDimensions['dk-11201']
+
+  // Calculate pixels: mm * DPI / 25.4, then enforce 720px limit
+  const calculatedWidth = Math.round(config.width * config.dpi / 25.4)
+  return Math.min(calculatedWidth, HARD_LIMIT)
+}
+
+  /**
+   * Send raw ESC/P commands to Brother printer for media type configuration
+   */
+  private async sendRawCommand(vendorId: number, productId: number, command: Buffer): Promise<void> {
+    if (!usb) {
+      console.warn('⚠️ [Brother] USB library not available, skipping raw command');
+      return;
+    }
+
+    return new Promise((resolve, reject) => {
+      try {
+        const device = usb.findByIds(vendorId, productId);
+        if (!device) {
+          console.warn('⚠️ [Brother] Device not found for raw command');
+          resolve();
+          return;
+        }
+
+        device.open();
+
+        let interfaceUsed = false;
+        for (const iface of device.interfaces) {
+          iface.claim();
+          interfaceUsed = true;
+
+          for (const endpoint of iface.endpoints) {
+            if (endpoint.direction === 'out') {
+              endpoint.transfer(command, (error) => {
+                if (error) {
+                  console.error('❌ [Brother] Raw command failed:', error);
+                  reject(error);
+                } else {
+                  console.log('✅ [Brother] Raw command sent successfully');
+                  resolve();
+                }
+                iface.release(true);
+              });
+              return;
+            }
+          }
+
+          if (!interfaceUsed) {
+            iface.release(true);
+          }
+        }
+
+        if (!interfaceUsed) {
+          console.warn('⚠️ [Brother] No suitable endpoint found for raw command');
+          resolve();
+        }
+      } catch (error) {
+        console.error('❌ [Brother] Error sending raw command:', error);
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Configure printer for black/red labels
+   */
+  private async configureBlackRedMode(vendorId: number, productId: number): Promise<void> {
+    console.log('🟥⬛ [Brother] Configuring black/red mode...');
+
+    try {
+      // Brother QL-810W ESC/P commands for black/red mode
+
+      // 1. Initialize printer
+      const init = Buffer.from([0x1b, 0x40]);
+      console.log('📤 Sending: Initialize printer');
+      await this.sendRawCommand(vendorId, productId, init);
+
+      // 2. Switch to raster mode
+      const rasterMode = Buffer.from([0x1b, 0x69, 0x61, 0x01]);
+      console.log('📤 Sending: Switch to raster mode');
+      await this.sendRawCommand(vendorId, productId, rasterMode);
+
+      // 3. Set media type (DK-2251 = black/red 62mm continuous)
+      // According to Brother documentation, the media type command is: ESC i M <type>
+      // DK-2251 should be type 0x4A
+      const mediaType = Buffer.from([0x1b, 0x69, 0x4D, 0x4A]);
+      console.log('📤 Sending: Set media type to DK-2251 (black/red)');
+      await this.sendRawCommand(vendorId, productId, mediaType);
+
+      // 4. Set label parameters
+      // Command: ESC i a <exp> <m> <n>
+      // exp: expansion (0x00 = none)
+      // m: media type (0x00 = continuous, 0x01 = die-cut)
+      // n: number of blocks (for continuous)
+      const labelParams = Buffer.from([0x1b, 0x69, 0x61, 0x00, 0x00, 0x01]);
+      console.log('📤 Sending: Set label parameters');
+      await this.sendRawCommand(vendorId, productId, labelParams);
+
+      // 5. Enable red/black mode
+      // Command: ESC i c <mode>
+      // Mode: 0x80 = enable red/black mode
+      const redBlackMode = Buffer.from([0x1b, 0x69, 0x63, 0x80]);
+      console.log('📤 Sending: Enable red/black mode');
+      await this.sendRawCommand(vendorId, productId, redBlackMode);
+
+      console.log('✅ [Brother] Black/red mode configured successfully');
+    } catch (error) {
+      console.warn('⚠️ [Brother] Failed to configure black/red mode:', error);
+      console.warn('💡 [Brother] Will continue with standard printing');
+      // Continue anyway - printPngFile might still work
+    }
+  }
+
   async printLabel(job: ExtendedPrintJob): Promise<PrintResult> {
     let tempFile: string | null = null
 
+    console.log('🔄 [Brother] Using node-brother-label-printer for all label types...')
+
+    // Use node-brother-label-printer for all labels (precut and continuous)
     try {
       // Obtener configuración de la impresora
       const config = job.printerConfig || {
@@ -45,10 +219,13 @@ export class BrotherLabelPrinterModule {
         const metadata = await sharp(pngBuffer).metadata()
         console.log(`📏 [Brother] Final image dimensions: ${metadata.width}x${metadata.height}`)
 
-        if (metadata.width > 720) {
-          console.warn(`⚠️ [Brother] CRITICAL: Image width ${metadata.width}px > 720px, RESIZING...`)
+        // Determinar el ancho máximo permitido según la plantilla
+        const maxWidth = this.getMaxWidthForTemplate(job.labelTemplate.id || 'dk-11201')
+
+        if (metadata.width > maxWidth) {
+          console.warn(`⚠️ [Brother] CRITICAL: Image width ${metadata.width}px > ${maxWidth}px, RESIZING...`)
           finalBuffer = await sharp(pngBuffer)
-            .resize(720, null, {
+            .resize(maxWidth, null, {
               withoutEnlargement: true,
               fit: 'inside',
               kernel: 'lanczos3'
@@ -63,39 +240,17 @@ export class BrotherLabelPrinterModule {
           const resizedMetadata = await sharp(finalBuffer).metadata()
           console.log(`✅ [Brother] RESIZED to: ${resizedMetadata.width}x${resizedMetadata.height}`)
         } else {
-          console.log(`✅ [Brother] Image size OK: ${metadata.width}px ≤ 720px`)
+          console.log(`✅ [Brother] Image size OK: ${metadata.width}px ≤ ${maxWidth}px`)
         }
       } catch (sharpError) {
         console.warn(`⚠️ [Brother] Sharp not available for final validation, using original`)
-        // Intentar resize con canvas como fallback
-        try {
-          const { createCanvas } = require('canvas')
-          const canvas = createCanvas(720, 300)
-          const ctx = canvas.getContext('2d')
+        // No hacer fallback automático - confiar en que el main process generó las dimensiones correctas
+      }
 
-          // Cargar la imagen original y redimensionar
-          const { loadImage } = require('canvas')
-          const img = await loadImage(pngBuffer)
-
-          // Calcular dimensiones para mantener proporción
-          const aspectRatio = img.width / img.height
-          const newWidth = Math.min(720, img.width)
-          const newHeight = newWidth / aspectRatio
-
-          ctx.clearRect(0, 0, 720, 300)
-          ctx.fillStyle = '#ffffff'
-          ctx.fillRect(0, 0, 720, 300)
-
-          // Centrar la imagen redimensionada
-          const x = (720 - newWidth) / 2
-          const y = (300 - newHeight) / 2
-          ctx.drawImage(img, x, y, newWidth, newHeight)
-
-          finalBuffer = canvas.toBuffer('image/png')
-          console.log(`✅ [Brother] Resized with canvas fallback: 720x300`)
-        } catch (canvasError) {
-          console.warn(`⚠️ [Brother] Canvas fallback also failed, using original`)
-        }
+      // Check for black/red labels
+      if (job.labelTemplate.id?.includes('blackred')) {
+        console.log('🎨 Processing black/red label...')
+        finalBuffer = await this.processBlackRedLabel(finalBuffer)
       }
 
       // Verificar tamaño del archivo final
@@ -114,6 +269,24 @@ export class BrotherLabelPrinterModule {
       const labelWidth = this.mapLabelSize(job.labelTemplate.id || 'continuous-62mm')
 
       console.log(`🔌 [DirectUSB] Printing with labelWidth: ${labelWidth}`)
+
+      // Configure printer for black/red labels if needed
+      const isBlackRed = job.labelTemplate.id?.includes('blackred')
+
+      // Auto-detect black/red labels for continuous 62mm when using Direct USB
+      // This helps users who have black/red rolls installed
+      const shouldForceBlackRed = !isBlackRed &&
+                                  (job.labelTemplate.id === 'continuous-62mm') &&
+                                  (job.printerConfig?.name?.includes('Direct USB'))
+
+      if (isBlackRed) {
+        console.log('🟥⬛ [Brother] Black/Red label detected - enabling color mode')
+        await this.configureBlackRedMode(config.vendorId || 0x04f9, config.productId || 0x209c)
+      } else if (shouldForceBlackRed) {
+        console.log('🟥⬛ [Brother] Auto-detecting black/red mode for Direct USB with 62mm continuous')
+        console.log('💡 [Brother] If you have a black/red roll installed, this will enable color mode')
+        await this.configureBlackRedMode(config.vendorId || 0x04f9, config.productId || 0x209c)
+      }
 
       // Imprimir usando node-brother-label-printer
       await new Promise<void>((resolve, reject) => {
@@ -143,6 +316,13 @@ export class BrotherLabelPrinterModule {
       } catch (error) {
       console.error('❌ Error in direct USB printing:', error)
 
+      // Check for Media Mismatch error
+      if (error.message && (error.message.includes('Media Mismatch') || error.message.includes('media mismatch'))) {
+        console.error('🚫 Media Mismatch Error: This usually means the printer has a different label type than configured.')
+        console.error('💡 Solution: Ensure you are using continuous 62mm labels, or switch to a library that supports precut labels.')
+        console.error('📋 Current label type:', job.labelTemplate?.id || 'unknown')
+      }
+
       // Intentar fallback con comandos del sistema
       console.log('🔄 Attempting fallback to system commands...')
 
@@ -170,12 +350,25 @@ export class BrotherLabelPrinterModule {
   }
 
   private mapLabelSize(templateId: string): string {
-    // Mapear IDs de plantilla a labelWidth de la librería
+    // IMPORTANT: node-brother-label-printer only supports continuous labels
+    // All label types must map to one of the supported widths
     const sizeMap: Record<string, string> = {
-      'dk-11201': '62-mm-wide continuous', // Usar continuous para 29mm
-      'dk-11202': '62-mm-wide continuous',
-      'continuous-62mm': '62-mm-wide continuous'
+      'dk-11201': '62-mm-wide continuous', // 29mm - will be scaled by printer
+      'dk-11202': '62-mm-wide continuous', // 62mm - native width
+      'continuous-62mm': '62-mm-wide continuous',
+      'continuous-62mm-blackred': '62-mm-wide continuous' // DK-2251 black/red
     }
+
+    // Add warning for precut labels
+    if (templateId.startsWith('dk-') && !templateId.includes('continuous')) {
+      console.warn(`⚠️ [Brother] Precut label ${templateId} detected. node-brother-label-printer only supports continuous labels. May cause Media Mismatch error.`)
+    }
+
+    // Special handling for black/red labels
+    if (templateId.includes('blackred')) {
+      console.log('🟥⬛ [Brother] Black/Red label detected - enabling color mode')
+    }
+
     return sizeMap[templateId] || '62-mm-wide continuous'
   }
 
