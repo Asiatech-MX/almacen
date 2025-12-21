@@ -46,6 +46,7 @@ export interface BarcodeOptions {
   lastChar?: string
   mod43?: boolean // Para CODE39
   ean128?: boolean // Para CODE128
+  materialData?: MaterialLabelData // Datos del material para layout enriquecido
 }
 
 export interface LabelTemplate {

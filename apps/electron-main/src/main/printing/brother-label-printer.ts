@@ -228,13 +228,19 @@ private getMaxWidthForTemplate(templateId: string): number {
             .resize(maxWidth, null, {
               withoutEnlargement: true,
               fit: 'inside',
-              kernel: 'lanczos3'
+              kernel: 'nearest' // Changed from 'lanczos3' to preserve text
             })
             .png({
-              compressionLevel: 9,
+              compressionLevel: 3, // Reduced from 9 to preserve text
               force: true,
-              quality: 90
+              quality: 95
             })
+            .sharpen({ // Add sharpening to enhance text
+              sigma: 1,
+              flat: 1,
+              jagged: 2
+            })
+            .normalize() // Enhance contrast
             .toBuffer()
 
           const resizedMetadata = await sharp(finalBuffer).metadata()
@@ -423,7 +429,9 @@ private getMaxWidthForTemplate(templateId: string): number {
       try {
         const sharp = require('sharp')
         const fixedBuffer = await sharp(buffer)
-          .png({ compressionLevel: 9, force: true })
+          .png({ compressionLevel: 3, force: true })
+          .sharpen({ sigma: 1, flat: 1, jagged: 2 })
+          .normalize()
           .toBuffer()
 
         console.log('✅ PNG regenerated successfully with Sharp')

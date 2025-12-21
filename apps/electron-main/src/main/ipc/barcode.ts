@@ -67,16 +67,28 @@ async function generateBarcodePNG(options: BarcodeOptions): Promise<string> {
 
     while (attempts < maxAttempts) {
       try {
-        // Crear canvas con dimensiones basadas en el tamaño de etiqueta DK-11201
-        // DK-11201: 90mm x 29mm a 300 DPI = 1063px x 342px
+        // Crear canvas con dimensiones basadas en el tamaño de etiqueta correcto
         const dpi = 300
         const mmToPx = dpi / 25.4
-        const labelWidthMm = 90  // DK-11201 width
-        const labelHeightMm = 29 // DK-11201 height
 
-        // Calcular dimensiones del canvas - SIN REDUCCIÓN
-        const canvasWidth = Math.round(labelWidthMm * mmToPx)  // 1063px
-        const canvasHeight = Math.round(labelHeightMm * mmToPx) // 342px
+        // Determinar dimensiones según el tamaño de etiqueta (usando options.width/height)
+        let labelWidthMm: number, labelHeightMm: number
+
+        // Convertir píxeles a mm para determinar el tipo de etiqueta
+        const widthMm = Math.round(options.width / mmToPx)
+        const heightMm = Math.round(options.height / mmToPx)
+
+        if (heightMm <= 40) { // 62x40mm o similar
+          labelWidthMm = 62   // Ancho para etiquetas pequeñas
+          labelHeightMm = 40  // Alto para etiquetas pequeñas
+        } else {
+          labelWidthMm = 90   // DK-11201 width
+          labelHeightMm = 29  // DK-11201 height
+        }
+
+        // Calcular dimensiones del canvas
+        const canvasWidth = Math.round(labelWidthMm * mmToPx)
+        const canvasHeight = Math.round(labelHeightMm * mmToPx)
 
         const canvas = require('canvas').createCanvas(canvasWidth, canvasHeight)
         const ctx = canvas.getContext('2d')
@@ -92,14 +104,131 @@ async function generateBarcodePNG(options: BarcodeOptions): Promise<string> {
         const printableWidth = canvasWidth - (2 * marginPx)
         const printableHeight = canvasHeight - (2 * marginPx)
 
-        // Layout horizontal: 60% texto, 4mm gap, 40% barcode
+        // Layout horizontal mejorado: secciones estructuradas para texto
         const columnGapPx = Math.round(4 * mmToPx) // 4mm gap entre columnas
-        const textColumnWidth = Math.round((printableWidth - columnGapPx) * 0.6)
-        const barcodeColumnWidth = printableWidth - textColumnWidth - columnGapPx
 
-        // Posiciones de las columnas
-        const textColumnX = marginPx
-        const barcodeColumnX = textColumnX + textColumnWidth + columnGapPx
+        // Ajustar proporciones según el tamaño de etiqueta
+        const isSmallLabel = canvasHeight < 350 // 62x40mm tiene menos de 350px de alto
+
+        let textColumnWidth: number, barcodeColumnWidth: number, textColumnX: number, barcodeColumnX: number
+
+        if (isSmallLabel) {
+          // Para etiquetas pequeñas (62x40mm): 55% texto, 45% barcode (más espacio para texto)
+          textColumnWidth = Math.round((printableWidth - columnGapPx) * 0.55)
+          barcodeColumnWidth = printableWidth - textColumnWidth - columnGapPx
+          textColumnX = marginPx // Sin margen extra
+          barcodeColumnX = textColumnX + textColumnWidth + columnGapPx
+        } else {
+          // Para etiquetas grandes (90x29mm): 60% texto, 40% barcode
+          textColumnWidth = Math.round((printableWidth - columnGapPx) * 0.6)
+          barcodeColumnWidth = printableWidth - textColumnWidth - columnGapPx
+          textColumnX = marginPx
+          barcodeColumnX = textColumnX + textColumnWidth + columnGapPx
+        }
+
+        // Renderizar secciones de texto si hay materialData
+        if (options.materialData) {
+          // Usar la misma lógica de secciones que generateCompleteLabel
+          const sections = isSmallLabel ? {
+            header: { y: marginPx, fields: ['nombre'], fontSize: 11, fontWeight: 'bold', lineHeight: 8 },
+            primary: { y: marginPx + Math.round(7 * mmToPx), fields: ['codigo'], fontSize: 9, fontWeight: 'normal', lineHeight: 7 },
+            secondary: { y: marginPx + Math.round(16 * mmToPx), fields: ['precio'], fontSize: 7, fontWeight: 'normal', lineHeight: 6 }
+          } : {
+            header: { y: marginPx, fields: ['nombre'], fontSize: 16, fontWeight: 'bold', lineHeight: 5 },
+            primary: { y: marginPx + Math.round(5 * mmToPx), fields: ['codigo', 'categoria'], fontSize: 12, fontWeight: 'normal', lineHeight: 4 },
+            secondary: { y: marginPx + Math.round(9 * mmToPx), fields: ['ubicacion', 'stock'], fontSize: 10, fontWeight: 'normal', lineHeight: 3.5 }
+          }
+
+          // Funciones de ayuda (mismo código que generateCompleteLabel)
+          function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+            const words = text.split(' ')
+            const lines: string[] = []
+            let currentLine = ''
+
+            for (const word of words) {
+              const testLine = currentLine ? `${currentLine} ${word}` : word
+              const metrics = ctx.measureText(testLine)
+
+              if (metrics.width > maxWidth && currentLine) {
+                lines.push(currentLine)
+                currentLine = word
+              } else {
+                currentLine = testLine
+              }
+            }
+
+            if (currentLine) {
+              lines.push(currentLine)
+            }
+
+            return lines
+          }
+
+          function renderTextField(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, fontSize: number, fontWeight: string = 'normal'): void {
+            if (!text || !text.trim()) return
+
+            // Mejorar selección de fuente para diferentes tamaños
+            let fontFamily: string
+            if (fontSize <= 6) {
+              fontFamily = 'Courier New, monospace' // Ultra legible para tamaños muy pequeños
+            } else if (fontSize < 10) {
+              fontFamily = 'Verdana, Geneva, sans-serif' // Buena para tamaños pequeños
+            } else {
+              fontFamily = 'Arial, sans-serif' // Standard para tamaños normales
+            }
+
+            ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`
+            ctx.fillStyle = '#000000'
+            ctx.textBaseline = 'top'
+            ctx.textAlign = 'left'
+
+            // Optimizaciones de renderizado para mayor claridad
+            ctx.imageSmoothingEnabled = true
+            ctx.imageSmoothingQuality = 'high'
+
+            // Usar wrapText para manejar saltos de línea
+            const lines = wrapText(ctx, text, maxWidth)
+            lines.forEach((line, index) => {
+              ctx.fillText(line, x, y + (index * fontSize * 1.2)) // 1.2x spacing between lines
+            })
+          }
+
+          function formatFieldValue(field: string, value: any): string {
+
+            switch (field) {
+              case 'nombre': return value || 'Sin nombre'
+              case 'codigo': return '' // OMITIDO - ya se muestra abajo del código de barras
+              case 'categoria': return '' // Omitido para ahorrar espacio
+              case 'ubicacion': return value || ''
+              case 'stock': return typeof value === 'number' ? `${value}` : '' // Ultra compacto
+              case 'precio':
+              case 'costo_unitario':
+                // Manejar ambos campos por compatibilidad
+                const priceValue = value || options.materialData?.precio || options.materialData?.costo_unitario || 0
+                return typeof priceValue === 'number' ? `$${priceValue.toFixed(2)}` : `$0.00`
+              case 'costo':
+              case 'price':
+                // Campos alternativos para precio
+                const altPriceValue = value || options.materialData?.precio || options.materialData?.costo_unitario || 0
+                return typeof altPriceValue === 'number' ? `$${altPriceValue.toFixed(2)}` : `$0.00`
+              default: return String(value || '')
+            }
+          }
+
+          // Renderizar cada sección
+          Object.entries(sections).forEach(([sectionName, section]) => {
+            const sectionY = section.y
+            const sectionFontSize = Math.round(section.fontSize * 0.6) // Reducido más para evitar pixelación
+
+            section.fields.forEach((field, index) => {
+              const fieldValue = formatFieldValue(field, options.materialData[field])
+              if (fieldValue) {
+                const fieldY = sectionY + (index * Math.round(section.lineHeight * mmToPx))
+                renderTextField(ctx, fieldValue, textColumnX, fieldY, textColumnWidth, sectionFontSize, section.fontWeight)
+              }
+            })
+          })
+        }
 
         // Generar código de barras SIN displayValue (lo manejamos manualmente)
         const barcodeOptions = {
@@ -114,8 +243,12 @@ async function generateBarcodePNG(options: BarcodeOptions): Promise<string> {
           valid: options.valid
         }
 
-        // Crear canvas temporal para el barcode
-        const barcodeCanvas = require('canvas').createCanvas(barcodeColumnWidth, Math.round(printableHeight * 0.8))
+        // Crear canvas temporal para el barcode con altura proporcional
+        const barcodeHeight = isSmallLabel
+          ? Math.round(printableHeight * 0.7)  // 70% para etiquetas pequeñas
+          : Math.round(printableHeight * 0.8) // 80% para etiquetas grandes
+
+        const barcodeCanvas = require('canvas').createCanvas(barcodeColumnWidth, barcodeHeight)
 
         // Usar JsBarcode directamente en CommonJS
         const JsBarcode = require('jsbarcode')
@@ -125,14 +258,24 @@ async function generateBarcodePNG(options: BarcodeOptions): Promise<string> {
         const barcodeY = marginPx + Math.round((printableHeight - Math.round(printableHeight * 0.8)) / 2)
         ctx.drawImage(barcodeCanvas, barcodeColumnX, barcodeY)
 
-        // Añadir texto debajo del barcode (si displayValue es true)
+        // Enhanced text rendering with outline (si displayValue es true)
         if (options.displayValue !== false) {
-          ctx.fillStyle = '#000000'
-          ctx.font = `${Math.max(10, Math.round(8 * mmToPx))}px monospace` // Mínimo 10px o 8mm a 300 DPI
+          const fontSize = Math.max(14, Math.round(10 * mmToPx)) // Increased from 10px minimum
+          ctx.font = `bold ${fontSize}px monospace`
           ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
 
           const textY = barcodeY + Math.round(printableHeight * 0.8) + Math.round(4 * mmToPx)
-          ctx.fillText(options.value, barcodeColumnX + Math.round(barcodeColumnWidth / 2), textY)
+          const textX = barcodeColumnX + Math.round(barcodeColumnWidth / 2)
+
+          // White outline for contrast
+          ctx.strokeStyle = '#FFFFFF'
+          ctx.lineWidth = 2
+          ctx.strokeText(options.value, textX, textY)
+
+          // Black fill
+          ctx.fillStyle = '#000000'
+          ctx.fillText(options.value, textX, textY)
         }
 
         console.log('✅ [Main] Barcode rendered successfully in horizontal layout')
@@ -272,15 +415,15 @@ async function createLabelPDF(job: PrintJob & { imageData?: number[] }): Promise
 function getTextForPosition(textItem: any, data: any): string {
   switch (textItem.content) {
     case 'nombre':
-      return data.nombre || ''
+      return data.nombre || 'Sin nombre'
     case 'codigo':
-      return data.codigo || ''
+      return data.codigo ? `SKU: ${data.codigo}` : ''
     case 'stock':
-      return `Stock: ${data.stock || 0}`
+      return typeof data.stock === 'number' ? `Stock: ${data.stock}` : ''
     case 'ubicacion':
-      return `Ubicación: ${data.ubicacion || 'N/A'}`
+      return data.ubicacion ? `Ubicación: ${data.ubicacion}` : ''
     case 'categoria':
-      return data.categoria || ''
+      return data.categoria ? `Categoría: ${data.categoria}` : ''
     case 'presentacion':
       return data.presentacion || ''
     case 'barcode':
@@ -571,15 +714,17 @@ async function discoverPrinters(): Promise<PrinterConfig[]> {
 // Función para validar que los datos del material no excedan los límites de la etiqueta
 function validateMaterialDataForLabel(materialData: any, templateId: string): { valid: boolean; error?: string } {
   try {
-    // Longitudes máximas recomendadas para cada campo
+    // Longitudes máximas recomendadas para cada campo (actualizadas para nuevo layout)
     const maxLengths = {
-      nombre: 30,        // Caracteres máximo para el nombre
-      codigo: 20,        // Caracteres máximo para el SKU
-      categoria: 20,     // Caracteres máximo para la categoría
-      presentacion: 15   // Caracteres máximo para la presentación
+      nombre: 25,        // Reducido para cabecera más compacta
+      codigo: 15,        // Reducido para "SKU: " prefix
+      categoria: 18,     // Ligeramente reducido
+      ubicacion: 20,     // Nuevo campo para ubicación
+      presentacion: 15,  // Mantenido igual
+      stock: 8          // Nuevo campo para stock numérico
     }
 
-    // Validar longitud del nombre
+    // Validar longitud del nombre (más crítico en el nuevo layout)
     if (materialData.nombre && materialData.nombre.length > maxLengths.nombre) {
       return {
         valid: false,
@@ -604,11 +749,30 @@ function validateMaterialDataForLabel(materialData: any, templateId: string): { 
       }
     }
 
+    // Validar longitud de la ubicación (nuevo campo)
+    if (materialData.ubicacion && materialData.ubicacion.length > maxLengths.ubicacion) {
+      return {
+        valid: false,
+        error: `La ubicación es demasiado larga (${materialData.ubicacion.length} caracteres). Máximo permitido: ${maxLengths.ubicacion} caracteres.`
+      }
+    }
+
     // Validar longitud de la presentación
     if (materialData.presentacion && materialData.presentacion.length > maxLengths.presentacion) {
       return {
         valid: false,
         error: `La presentación es demasiado larga (${materialData.presentacion.length} caracteres). Máximo permitido: ${maxLengths.presentacion} caracteres.`
+      }
+    }
+
+    // Validar que stock sea un número válido si está presente
+    if (materialData.stock !== undefined && materialData.stock !== null) {
+      const stockStr = String(materialData.stock)
+      if (stockStr.length > maxLengths.stock) {
+        return {
+          valid: false,
+          error: `El valor de stock es demasiado largo. Máximo permitido: ${maxLengths.stock} dígitos.`
+        }
       }
     }
 
@@ -627,7 +791,7 @@ function validateMaterialDataForLabel(materialData: any, templateId: string): { 
       }
     }
 
-    console.log('✅ [Main] Material data validation passed')
+    console.log('✅ [Main] Enhanced material data validation passed')
     return { valid: true }
   } catch (error) {
     console.error('❌ [Main] Error validating material data:', error)
@@ -681,7 +845,8 @@ async function generateCompleteLabel(
     // Calcular dimensiones en píxeles
     const dpi = template.dpi || 300
     const mmToPx = dpi / 25.4
-    const canvasWidth = Math.round(template.width * mmToPx)
+    // Enforce 720px limit for 62mm templates to avoid automatic resizing that strips text
+    const canvasWidth = template.width === 62 ? 720 : Math.round(template.width * mmToPx)
     const canvasHeight = Math.round(template.height * mmToPx)
 
     // Crear canvas
@@ -695,27 +860,173 @@ async function generateCompleteLabel(
     // Convertir posiciones de mm a píxeles
     const mmToPxLocal = mmToPx
 
-    // Definir layout centrado - solo código de barras ocupando todo el ancho
+    // Layout horizontal mejorado con información estructurada
     const layout = {
-      // Sin texto en el lado izquierdo - redundante
-      text: [],
+      // Columna de texto con secciones estructuradas
+      text: {
+        x: 1.5, // 1.5mm margen izquierdo
+        width: template.id === 'dk-11201' ? 45 : 34, // Aumentado más para 62x40mm (55% del ancho)
+        sections: {
+          header: {
+            y: 1.5, // 1.5mm desde el margen superior
+            fields: ['nombre'],
+            fontSize: template.id === 'dk-11201' ? 16 : 7, // MÁS REDUCIDO para evitar truncamiento
+            fontWeight: 'bold',
+            lineHeight: template.id === 'dk-11201' ? 5 : 8
+          },
+          primary: {
+            y: template.id === 'dk-11201' ? 8 : 7, // 7mm para etiquetas pequeñas - más espacio vertical
+            fields: ['codigo'],
+            fontSize: template.id === 'dk-11201' ? 12 : 6, // MÁS REDUCIDO para evitar truncamiento
+            fontWeight: 'normal',
+            lineHeight: template.id === 'dk-11201' ? 4 : 7
+          },
+          secondary: {
+            y: template.id === 'dk-11201' ? 15 : 16, // 16mm para etiquetas pequeñas - más espaciado del nombre
+            fields: ['costo_unitario'],
+            fontSize: template.id === 'dk-11201' ? 10 : 5, // MÁS REDUCIDO para evitar truncamiento
+            fontWeight: 'normal',
+            lineHeight: template.id === 'dk-11201' ? 3.5 : 6
+          }
+          // Sin sección additional para etiquetas pequeñas (no hay espacio)
+        }
+      },
+      // Columna del código de barras
       barcode: {
-        // Código de barras centrado ocupando casi todo el ancho
-        x: template.id === 'dk-11201' ? 5 : 5, // 5mm margen izquierdo
-        y: template.id === 'dk-11201' ? 3 : 10, // 3mm margen superior
-        width: template.id === 'dk-11201' ? 80 : 52, // Casi todo el ancho (90-10mm)
-        height: template.id === 'dk-11201' ? 18 : 70 // Altura para dejar espacio al número
+        x: template.id === 'dk-11201' ? 50 : 38, // Más a la derecha para dar más espacio al texto (55% para texto)
+        y: template.id === 'dk-11201' ? 3 : 2, // 2mm margen superior para etiquetas pequeñas
+        width: template.id === 'dk-11201' ? 37 : 21, // Reducido para 62x40mm (35% del espacio)
+        height: template.id === 'dk-11201' ? 15 : 28 // Altura ajustada para 62x40mm
       },
       // Texto del código debajo del barcode
       codeText: {
-        x: template.id === 'dk-11201' ? 45 : 31, // Centro horizontal
-        y: template.id === 'dk-11201' ? 23 : 85, // Debajo del barcode
-        fontSize: template.id === 'dk-11201' ? 10 : 12,
-        width: template.id === 'dk-11201' ? 80 : 52
+        x: template.id === 'dk-11201' ? 68.5 : 41, // Centro del barcode ajustado
+        y: template.id === 'dk-11201' ? 20 : 33, // Debajo del barcode ajustado
+        fontSize: template.id === 'dk-11201' ? 11 : 6, // Drásticamente más pequeño para 62x40mm
+        width: template.id === 'dk-11201' ? 37 : 32
       }
     }
 
-    // No dibujar texto redundante - solo el código de barras y su valor numérico
+    // Funciones auxiliares para renderizado mejorado de texto
+    function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+      const words = text.split(' ')
+      const lines: string[] = []
+      let currentLine = ''
+
+      for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word
+        const metrics = ctx.measureText(testLine)
+
+        if (metrics.width > maxWidth && currentLine) {
+          lines.push(currentLine)
+          currentLine = word
+        } else {
+          currentLine = testLine
+        }
+      }
+
+      if (currentLine) {
+        lines.push(currentLine)
+      }
+
+      return lines
+    }
+
+    function renderTextField(
+      ctx: CanvasRenderingContext2D,
+      text: string,
+      x: number,
+      y: number,
+      maxWidth: number,
+      fontSize: number,
+      fontWeight: string = 'normal'
+    ): void {
+      if (!text || !text.trim()) return
+
+      // Mejorar selección de fuente para diferentes tamaños
+      let fontFamily: string
+      if (fontSize <= 6) {
+        fontFamily = 'Courier New, monospace' // Ultra legible para tamaños muy pequeños
+      } else if (fontSize < 10) {
+        fontFamily = 'Verdana, Geneva, sans-serif' // Buena para tamaños pequeños
+      } else {
+        fontFamily = 'Arial, sans-serif' // Standard para tamaños normales
+      }
+
+      ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`
+      ctx.fillStyle = '#000000'
+      ctx.textBaseline = 'top'
+      ctx.textAlign = 'left'
+
+      // Optimizaciones de renderizado para mayor claridad
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
+
+      // Usar wrapText para manejar saltos de línea
+      const lines = wrapText(ctx, text, maxWidth)
+      lines.forEach((line, index) => {
+        ctx.fillText(line, x, y + (index * fontSize * 1.2)) // 1.2x spacing between lines
+      })
+    }
+
+    function formatFieldValue(field: string, value: any): string {
+      switch (field) {
+        case 'nombre':
+          return value || 'Sin nombre'
+        case 'codigo':
+          // OMITIDO - ya se muestra abajo del código de barras
+          return ''
+        case 'categoria':
+          // Omitido en etiquetas pequeñas para ahorrar espacio
+          return ''
+        case 'ubicacion':
+          return value || ''
+        case 'stock':
+          // Formato ultra compacto
+          return typeof value === 'number' ? `${value}` : ''
+        case 'costo_unitario':
+        case 'precio':
+          // Manejar ambos campos por compatibilidad
+          const priceValue = value || materialData?.precio || materialData?.costo_unitario || 0
+          return typeof priceValue === 'number' ? `$${priceValue.toFixed(2)}` : '$0.00' // Formato precio con $
+        case 'presentacion':
+          return value || ''
+        default:
+          return String(value || '')
+      }
+    }
+
+    // Renderizar sección de texto estructurado
+    const textLayout = layout.text
+    const textX = Math.round(textLayout.x * mmToPxLocal)
+    const textWidth = Math.round(textLayout.width * mmToPxLocal)
+
+    // Renderizar cada sección del texto
+    Object.entries(textLayout.sections).forEach(([sectionName, section]) => {
+      const sectionY = Math.round(section.y * mmToPxLocal)
+      const sectionFontSize = Math.round(section.fontSize * mmToPxLocal * 0.9) // Factor de escala reducido para mejor calidad
+
+      // Solo renderizar si hay espacio suficiente en la etiqueta
+      if (sectionY < canvasHeight - 30) { // Dejar espacio para el barcode
+
+        // Renderizar campos de esta sección
+        section.fields.forEach((field, index) => {
+          const fieldValue = formatFieldValue(field, materialData[field])
+          if (fieldValue) {
+            const fieldY = sectionY + (index * Math.round(section.lineHeight * mmToPxLocal))
+            renderTextField(
+              ctx,
+              fieldValue,
+              textX,
+              fieldY,
+              textWidth,
+              sectionFontSize,
+              section.fontWeight
+            )
+          }
+        })
+      }
+    })
 
     // Generar y dibujar código de barras (columna derecha)
     const barcode = layout.barcode
@@ -755,16 +1066,23 @@ async function generateCompleteLabel(
       // Dibujar el barcode en el canvas principal (usando coordenadas del layout)
       ctx.drawImage(barcodeCanvas, barcodeX, barcodeY)
 
-      // Añadir texto del código debajo del barcode (centrado)
+      // Enhanced text rendering with outline for visibility
     if (layout.codeText) {
-      ctx.font = `${Math.round(layout.codeText.fontSize * mmToPxLocal)}px monospace`
-      ctx.fillStyle = '#000000'
+      const fontSize = Math.round(layout.codeText.fontSize * mmToPxLocal * 0.8) // Reducido para mejor legibilidad
+      ctx.font = `bold ${fontSize}px monospace`
       ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
 
       const barcodeText = barcodeOptions.value || materialData.codigo || 'N/A'
       const textX = Math.round(layout.codeText.x * mmToPxLocal)
       const textY = Math.round(layout.codeText.y * mmToPxLocal)
 
+      // Multi-layer rendering for visibility (reducido para etiquetas pequeñas)
+      ctx.strokeStyle = '#FFFFFF'
+      ctx.lineWidth = Math.max(1, fontSize * 0.05) // Más delgado
+      ctx.strokeText(barcodeText, textX, textY)
+
+      ctx.fillStyle = '#000000'
       ctx.fillText(barcodeText, textX, textY)
     }
 

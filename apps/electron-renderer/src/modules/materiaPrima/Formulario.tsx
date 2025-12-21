@@ -726,7 +726,8 @@ export const MateriaPrimaFormulario: React.FC<FormularioMateriaPrimaProps> = ({
                                           : form.getValues('categoria') || '',
                                         presentacion: form.getValues('presentacion_id')
                                           ? presentaciones.find(p => p.id === form.getValues('presentacion_id'))?.nombre || ''
-                                          : form.getValues('presentacion') || ''
+                                          : form.getValues('presentacion') || '',
+                                        costo_unitario: form.getValues('costo_unitario')
                                       }}
                                       initialBarcode={form.getValues('codigo_barras') || ''}
                                       initialFormat={form.getValues('codigo_barras_formato') as any || 'CODE128'}
